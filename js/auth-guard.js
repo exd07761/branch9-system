@@ -40,7 +40,7 @@ export function requireAuth({ loginPage = "login.html" } = {}) {
  * so a returning, still-logged-in Clerk skips the login form entirely.
  * Resolves with the Firebase user object (or null if not signed in).
  */
-export function redirectIfAuthenticated({ homePage = "dashboard.html" } = {}) {
+export function redirectIfAuthenticated({ homePage = "home.html" } = {}) {
   return new Promise((resolve) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       unsubscribe();
