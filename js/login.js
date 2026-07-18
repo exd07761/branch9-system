@@ -21,7 +21,7 @@ const errorEl = document.getElementById("loginError");
 const submitBtn = document.getElementById("submitBtn");
 
 // If the Clerk is already signed in (e.g. reopened the tab), skip straight
-// to the home instead of showing the login form.
+// to the home page instead of showing the login form.
 redirectIfAuthenticated({ homePage: "home.html" });
 
 function friendlyError(code) {
@@ -51,6 +51,17 @@ function setLoading(isLoading) {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   errorEl.textContent = "";
+
+  // Belt-and-suspenders: the form's required attributes (native browser
+  // validation, now that novalidate has been removed) already stop this
+  // handler from running with empty fields in normal use. This check
+  // guarantees no Firebase call is ever made with blank credentials even
+  // if the submit event fires some other way.
+  if (!emailInput.value.trim() || !passwordInput.value) {
+    errorEl.textContent = "Please enter both your email and password.";
+    return;
+  }
+
   setLoading(true);
 
   try {
