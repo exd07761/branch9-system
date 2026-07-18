@@ -3,51 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Docket Management System — Setup Check</title>
+<title>Docket Management System</title>
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-  <main class="wrap">
-    <header class="header">
-      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Milestone 1 &mdash; Project Setup</h1>
-      <p class="sub">This page verifies that Firebase and Firestore are wired up correctly before any real features are built.</p>
-    </header>
-
-    <section class="card">
-      <h2>System Status</h2>
-      <ul class="status-list" id="statusList">
-        <li class="status-item" id="status-config">
-          <span class="dot pending"></span>
-          <span class="label">Firebase config loaded</span>
-          <span class="detail" id="detail-config">Checking&hellip;</span>
-        </li>
-        <li class="status-item" id="status-app">
-          <span class="dot pending"></span>
-          <span class="label">Firebase app initialized</span>
-          <span class="detail" id="detail-app">Checking&hellip;</span>
-        </li>
-        <li class="status-item" id="status-firestore">
-          <span class="dot pending"></span>
-          <span class="label">Firestore connection test (read-only)</span>
-          <span class="detail" id="detail-firestore">Checking&hellip;</span>
-        </li>
-      </ul>
-
-      <div class="overall" id="overall">Running checks&hellip;</div>
-    </section>
-
-    <p class="footnote">This page will be replaced by the login screen in Milestone 2. It exists only to confirm the project foundation works before any features are built on top of it.</p>
+  <main class="wrap wrap-narrow">
+    <p class="footnote" id="entryMessage">Loading&hellip;</p>
   </main>
 
-  <!--
-    Firebase v9+ modular SDK is imported directly inside js/firebase-init.js
-    and js/app.js via ES module `import` statements (no separate SDK script
-    tags needed). type="module" is required for `import`/`export` to work
-    in the browser without a bundler.
-  -->
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/index.js"></script>
 
 </body>
 </html>

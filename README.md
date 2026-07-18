@@ -59,10 +59,14 @@ This project uses the Firebase v9+ **modular SDK** via ES module imports
 (`import { ... } from ".../firebase-app.js"`) rather than the older compat
 scripts. This means:
 
-- `index.html` loads `js/app.js` with `type="module"`, and the imports
-  cascade from there (`app.js` → `firebase-init.js` → `firebase-config.js`).
+- `diagnostics.html` loads `js/diagnostics.js` with `type="module"`, and
+  the imports cascade from there (`diagnostics.js` → `firebase-init.js` →
+  `firebase-config.js`). As of v0.4.1, `index.html` is the real
+  application entry point (it redirects to `login.html`/`home.html`) — the
+  developer connection-check page described in this section now lives at
+  `diagnostics.html` instead.
 - Browsers block ES module imports over the `file://` protocol, so opening
-  `index.html` by double-clicking it will show a blank page with console
+  any page here by double-clicking it will show a blank page with console
   errors. To test locally before pushing to GitHub, serve the folder over
   HTTP — e.g. `npx serve .` or `python3 -m http.server` from inside the
   project folder, then open `http://localhost:<port>`.
@@ -82,7 +86,9 @@ scripts. This means:
 
 ## 6. Testing Checklist
 
-Open the deployed URL and confirm:
+Open `diagnostics.html` at your deployed URL (e.g.
+`https://<your-username>.github.io/docket-management-system/diagnostics.html`)
+and confirm:
 
 - [ ] Page loads with no visible errors (open browser DevTools → Console
       to check for red errors too)
@@ -92,7 +98,7 @@ Open the deployed URL and confirm:
       response time (e.g. "Responded in 120ms (0 docs found, no data
       written)")
 - [ ] The banner at the bottom reads: *"All checks passed. Firebase and
-      Firestore are ready for Milestone 2."*
+      Firestore are working correctly."*
 - [ ] In the Firebase Console, go to **Firestore Database → Data** and
       confirm the database is still empty — no `systemStatus` collection
       or any other document should have been created by this check.
@@ -103,12 +109,14 @@ most commonly it's either a placeholder value left in
 
 ## 7. Expected Results After Deployment
 
-A live, public GitHub Pages URL showing a simple status page with three
-green checkmarks — and a Firestore database that remains completely empty,
+`diagnostics.html` shows a simple status page with three green
+checkmarks — and a Firestore database that remains completely empty,
 since this check only reads and never writes. This confirms the full chain
 (GitHub Pages → your browser → Firebase Authentication config → Firestore)
 is wired correctly before any real docket data or features are built on
-top of it.
+top of it. As of v0.4.1, `diagnostics.html` is a standalone developer tool
+— it is not part of the Clerk-facing flow, and nothing links to it from
+`index.html`, `login.html`, or `home.html`.
 
 ---
 
@@ -121,7 +129,9 @@ Firestore rules above to require a logged-in user.
 # Milestone 2: Authentication
 
 Adds `login.html` and `home.html`, both wired to Firebase Authentication
-(v9+ modular SDK). `index.html` (the Milestone 1 status page) is untouched.
+(v9+ modular SDK). `index.html` (the Milestone 1 status page) is untouched
+at this point in the project's history — see the v0.4.1 entry in
+`CHANGELOG.md` for where that changed later.
 
 `home.html` is deliberately minimal — system title, the signed-in user's
 email, a welcome message, and a logout button. It exists only to prove the
@@ -361,3 +371,78 @@ page; Calendar is purely a way to find and open the right one.
 **Next milestone:** paused, per your request — this system should be
 deployed and used with real or test data for a while before any further
 feature milestones begin.
+
+---
+
+# v0.4.1: Production Readiness Fixes
+
+Three fixes from a production-readiness review, applied after Milestone 4.
+No new features, no changes to the authentication architecture.
+
+## 1. What changed
+
+- **`index.html` is now the real entry point.** It immediately redirects:
+  signed-in users → `home.html`, signed-out users → `login.html`. It
+  contains no visible content of its own beyond a brief loading message.
+- **The old Milestone 1 diagnostics screen moved to `diagnostics.html`**
+  (script renamed to `js/diagnostics.js`). Its functionality is completely
+  unchanged — same three checks, same read-only Firestore probe — it's
+  simply no longer at the site's root, and nothing in the Clerk-facing app
+  links to it.
+- **`login.html` no longer has `novalidate` on its form.** Required-field
+  validation works again: submitting with an empty email or password now
+  shows the browser's native validation instead of silently sending a
+  request to Firebase. `js/login.js` also has a small additional check so
+  this holds even if the submit event is triggered some other way.
+- **Every page that depends on Firebase now handles initialization
+  failure gracefully.** If Firebase can't initialize (bad config, blocked
+  network), `index.html`, `login.html`, `home.html`, `hearings.html`, and
+  `calendar.html` all show a clear "Unable to connect" message instead of
+  a blank page. This lives in one place — `js/auth-guard.js` — so it
+  didn't require touching each page individually, and it doesn't change
+  the two functions (`requireAuth`, `redirectIfAuthenticated`) any page
+  already calls.
+
+## 2. Firestore Rules
+
+No changes. None of these fixes touch what's read or written.
+
+## 3. Deploy to GitHub Pages
+
+Same process as before. Note that `js/app.js` no longer exists (renamed to
+`js/diagnostics.js`) and there's a new `diagnostics.html` — make sure your
+push includes both the new files and the removal of the old ones.
+
+## 4. Testing Checklist
+
+- [ ] Visiting your site's root URL while logged out lands on `login.html`
+      (not a diagnostics/status page)
+- [ ] Visiting the root URL while logged in lands on `home.html`
+- [ ] `diagnostics.html` still works exactly as before (three checks, all
+      passing against a correctly configured Firebase project)
+- [ ] Nothing on `index.html`, `login.html`, `home.html`, `hearings.html`,
+      or `calendar.html` links to `diagnostics.html`
+- [ ] On `login.html`, clicking "Log in" with both fields empty shows the
+      browser's native "please fill in this field" validation — no
+      network request is made (check the Network tab in DevTools)
+- [ ] Logging in with a wrong password still shows **"Incorrect email or
+      password"** exactly as before
+- [ ] Logging in with correct credentials still works and still lands on
+      `home.html`
+- [ ] To test the fatal-error path: temporarily set `apiKey` in
+      `js/firebase-config.js` to an obviously invalid value, reload
+      `login.html` (or any page), and confirm you see a clear "Unable to
+      connect" card instead of a blank page or console-only error. Revert
+      the config value afterward.
+- [ ] After reverting the config, confirm every page still works normally
+
+## 5. Expected Behavior After Deployment
+
+Visiting the site behaves like a real application from the first click —
+the root URL takes you straight to login or home depending on whether
+you're signed in, with no detour through a developer diagnostics screen.
+The diagnostics page still exists for troubleshooting a Firebase
+connection issue, just at its own URL. Login correctly refuses to submit
+with missing fields. And if Firebase itself is ever unreachable, the
+Clerk sees an explanation instead of a page that appears to simply do
+nothing.

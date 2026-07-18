@@ -4,6 +4,43 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.4.1] — Production readiness fixes
+
+Fixes three issues found during a production-readiness review of v0.4.0.
+No new features; no changes to the authentication architecture.
+
+**Fixed**
+- **Real entry point restored.** `index.html` (the site's root page) no
+  longer shows the Milestone 1 developer diagnostics screen. It now
+  immediately redirects: signed-in users → `home.html`, signed-out users →
+  `login.html`. The diagnostics screen still exists — moved to
+  `diagnostics.html` (script renamed to `js/diagnostics.js`) — but is no
+  longer linked from anywhere in the Clerk-facing app. `js/index.js` reuses
+  the existing `requireAuth()` from `auth-guard.js` rather than adding any
+  new auth logic.
+- **Login form validation restored.** Removed the `novalidate` attribute
+  from `login.html`, which had been silently disabling the browser's
+  native required-field checks despite both inputs being marked
+  `required`. Also added a small defensive check in `js/login.js` so an
+  empty email or password can never reach Firebase even if the submit
+  event fires some other way. Friendly error messages for actual bad
+  credentials are unchanged.
+- **Graceful Firebase initialization failure handling.** `js/auth-guard.js`
+  now checks for `firebaseInitError` (from `firebase-init.js`) before
+  calling `onAuthStateChanged`. If Firebase failed to initialize, every
+  page that depends on it — `index.html`, `login.html`, `home.html`,
+  `hearings.html`, `calendar.html` — now shows a clear, user-facing
+  "Unable to connect" overlay instead of a blank page or an uncaught
+  exception. `diagnostics.html` already had its own equivalent handling
+  from Milestone 1 and needed no change. This is the same two guard
+  functions as before (`requireAuth`, `redirectIfAuthenticated`) with a
+  guarded early return — no new authentication flow was introduced.
+
+**Not changed:** everything else found in the production review (Firestore
+query patterns, duplicated helper functions, stale comments, session
+re-validation mid-session, etc.) — those were reported but explicitly not
+authorized for this fix batch.
+
 ## [0.4.0] — Milestone 4: Calendar Views
 
 **Added**
