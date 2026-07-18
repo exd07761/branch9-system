@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hearings — Docket Management System</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <main class="wrap wrap-wide">
+    <header class="header">
+      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
+      <h1>Hearings</h1>
+      <p class="sub"><a href="home.html">&larr; Back to Home</a></p>
+    </header>
+
+    <div class="toolbar">
+      <button type="button" class="btn-primary btn-inline" id="addHearingBtn">+ Add Hearing</button>
+    </div>
+
+    <div id="formPanel"></div>
+
+    <section class="card" id="listCard">
+      <table class="data-table" id="hearingsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Section</th>
+            <th>Status</th>
+            <th># Cases</th>
+            <th>Case No(s).</th>
+            <th>Accused</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="hearingsTableBody">
+          <tr><td colspan="8" class="empty-row">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script type="module" src="js/hearings.js"></script>
+
+</body>
+</html>
