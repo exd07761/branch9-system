@@ -21,8 +21,8 @@ const errorEl = document.getElementById("loginError");
 const submitBtn = document.getElementById("submitBtn");
 
 // If the Clerk is already signed in (e.g. reopened the tab), skip straight
-// to the dashboard instead of showing the login form.
-redirectIfAuthenticated({ homePage: "dashboard.html" });
+// to the home instead of showing the login form.
+redirectIfAuthenticated({ homePage: "home.html" });
 
 function friendlyError(code) {
   switch (code) {
@@ -58,7 +58,7 @@ form.addEventListener("submit", async (event) => {
     // behavior is documented in code rather than assumed.
     await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
-    window.location.replace("dashboard.html");
+    window.location.replace("home.html");
   } catch (err) {
     errorEl.textContent = friendlyError(err.code);
     setLoading(false);
