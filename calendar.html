@@ -4,15 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Calendar — Docket Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+
+  <nav class="app-nav">
+    <span class="app-nav-brand">
+      <i data-lucide="scale" aria-hidden="true"></i>
+      Docket Management System
+    </span>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
+      <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
+      <a class="app-nav-link active" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
+    </div>
+  </nav>
 
   <main class="wrap wrap-wide">
     <header class="header">
       <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
       <h1>Calendar</h1>
-      <p class="sub"><a href="home.html">&larr; Back to Home</a></p>
+      <p class="sub">Browse scheduled hearings by month, week, or day.</p>
     </header>
 
     <div class="cal-toolbar">
@@ -22,9 +37,15 @@
         <button type="button" class="cal-view-btn" data-view="day">Day</button>
       </div>
       <div class="cal-nav">
-        <button type="button" class="btn-small" id="prevBtn">&larr; Prev</button>
+        <button type="button" class="btn-small" id="prevBtn">
+          <i data-lucide="chevron-left" aria-hidden="true"></i>
+          <span>Prev</span>
+        </button>
         <button type="button" class="btn-small" id="todayBtn">Today</button>
-        <button type="button" class="btn-small" id="nextBtn">Next &rarr;</button>
+        <button type="button" class="btn-small" id="nextBtn">
+          <span>Next</span>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+        </button>
       </div>
       <div class="cal-label" id="rangeLabel"></div>
     </div>
@@ -37,6 +58,8 @@
   </main>
 
   <script type="module" src="js/calendar.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>lucide.createIcons();</script>
 
 </body>
 </html>

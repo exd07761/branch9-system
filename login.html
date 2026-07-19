@@ -4,36 +4,41 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Log In — Docket Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-  <main class="wrap wrap-narrow">
-    <header class="header">
-      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Branch Clerk Log In</h1>
-      <p class="sub">Sign in with your court-issued account to access the docket.</p>
-    </header>
+  <div class="login-shell">
+    <main class="wrap wrap-narrow" style="padding-top: 0; padding-bottom: 0;">
+      <header class="header">
+        <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
+        <h1>Branch Clerk Log In</h1>
+        <p class="sub">Sign in with your court-issued account to access the docket.</p>
+      </header>
 
-    <section class="card">
-      <form id="loginForm">
-        <div class="field">
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" autocomplete="username" required>
-        </div>
-        <div class="field">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password" autocomplete="current-password" required>
-        </div>
+      <section class="card">
+        <form id="loginForm">
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="username" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+          </div>
 
-        <p class="form-error" id="loginError" role="alert"></p>
+          <p class="form-error" id="loginError" role="alert"></p>
 
-        <button type="submit" class="btn-primary" id="submitBtn">Log in</button>
-      </form>
-    </section>
+          <button type="submit" class="btn-primary" id="submitBtn">Log in</button>
+        </form>
+      </section>
 
-    <p class="footnote">This is an internal system. Access is limited to authorized court personnel.</p>
-  </main>
+      <p class="footnote">This is an internal system. Access is limited to authorized court personnel.</p>
+    </main>
+  </div>
 
   <script type="module" src="js/login.js"></script>
 

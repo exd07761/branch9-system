@@ -4,6 +4,55 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.5.0] — UI Foundation Redesign
+
+HTML/CSS only. No JavaScript file was modified — verified by checksum
+before and after. No backend logic, Firestore schema, CRUD behavior,
+security rules, or authentication flow changed.
+
+**Added — Design system (`css/styles.css`, full rewrite)**
+- Color tokens (navy ink, brass/gold primary action color, sparing maroon
+  accent, warm paper background), a two-role type scale (Source Serif 4
+  for headings, Inter for everything else), consistent spacing/radius/
+  shadow scales
+- Persistent top navigation bar (new, on `home.html`/`hearings.html`/
+  `calendar.html`) with active-page highlighting and a signature
+  navy-to-brass-to-maroon hairline beneath it
+- Redesigned buttons, form inputs, cards, and the Firebase fatal-error
+  overlay, all using the new tokens
+- Tables optimized for daily use: sticky header (stays visible while
+  scrolling a long hearings list), zebra striping, row hover, tabular
+  figures for aligned dates/case numbers, comfortable padding
+- Lightweight icons via Lucide (CDN): real `<i data-lucide>` icons on
+  static nav/toolbar elements (rendered once via `lucide.createIcons()`
+  on page load); CSS-only mask-image icons (in Lucide's visual style) on
+  every dynamically-rendered element from `hearings.js`/`calendar.js`/
+  `diagnostics.js` — since `createIcons()` only runs once at load and
+  never against content those scripts generate afterward, embedding a
+  real `<i>` tag there would silently never become an icon
+
+**Fixed one self-inflicted risk before it shipped:** the login submit
+button's icon was initially added as a real child element, then corrected
+to a CSS `::before` pseudo-element instead, because `login.js` sets that
+button's `.textContent` directly during sign-in — a real child element
+would have been wiped out by that on first use. Pseudo-elements aren't
+part of the DOM `.textContent` touches, so this survives untouched, with
+zero changes to `login.js`.
+
+**Known, deliberate limitation:** only `home.js` wires up `logoutBtn`'s
+click handler and populates `userEmail` — `hearings.js` and `calendar.js`
+do neither. Adding those same elements to the Hearings/Calendar nav bars
+would have created a non-functional button. Their nav bars therefore
+include Home/Hearings/Calendar links only; logging out requires returning
+to Home first.
+
+**Files touched:** `css/styles.css`, `index.html`, `login.html`,
+`home.html`, `hearings.html`, `calendar.html`. `diagnostics.html` needed
+no changes — it already used classes the new stylesheet restyles
+automatically. **No `.js` file was touched** (verified by checksum).
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.4.1] — Production readiness fixes
 
 Fixes three issues found during a production-readiness review of v0.4.0.
