@@ -403,6 +403,11 @@ async function handleExportWord() {
   exportBtn.disabled = true;
   exportBtn.textContent = "Exporting\u2026";
 
+  // --- TEMPORARY DEBUG LOGGING (per request) ---
+  console.log("Hearing:", hearing);
+  console.log("Cases:", hearingCasesList);
+  // --- END TEMPORARY DEBUG LOGGING ---
+
   try {
     await exportHearingOrderToWord(hearing, hearingCasesList);
   } catch (err) {

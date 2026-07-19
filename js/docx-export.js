@@ -109,18 +109,18 @@ function buildCourtPersonnel() {
   });
 }
 
-function tableHeaderCell(text, widthPercent) {
+function tableHeaderCell(text, widthDxa) {
   return new docx.TableCell({
-    width: { size: widthPercent, type: docx.WidthType.PERCENTAGE },
+    width: { size: widthDxa, type: docx.WidthType.DXA },
     shading: { fill: "D9D9D9" },
     margins: { top: 120, bottom: 120, left: 120, right: 120 },
     children: [new docx.Paragraph({ children: [run(text, { bold: true, size: 20 })] })],
   });
 }
 
-function tableBodyCell(paragraphs, widthPercent) {
+function tableBodyCell(paragraphs, widthDxa) {
   return new docx.TableCell({
-    width: { size: widthPercent, type: docx.WidthType.PERCENTAGE },
+    width: { size: widthDxa, type: docx.WidthType.DXA },
     margins: { top: 120, bottom: 120, left: 120, right: 120 },
     verticalAlign: docx.VerticalAlign.TOP,
     children: paragraphs,
@@ -137,12 +137,12 @@ function buildHearingTable(hearing, cases) {
   const headerRow = new docx.TableRow({
     tableHeader: true,
     children: [
-      tableHeaderCell("#", 5),
-      tableHeaderCell("CASE NO(S). / DETAILS", 24),
-      tableHeaderCell("TITLE / VICTIM(S)", 20),
-      tableHeaderCell("FOR / CHARGE", 16),
-      tableHeaderCell("COUNSEL", 15),
-      tableHeaderCell("STATUS / HEARING", 20),
+      tableHeaderCell("#", 504),
+      tableHeaderCell("CASE NO(S). / DETAILS", 2419),
+      tableHeaderCell("TITLE / VICTIM(S)", 2016),
+      tableHeaderCell("FOR / CHARGE", 1613),
+      tableHeaderCell("COUNSEL", 1512),
+      tableHeaderCell("STATUS / HEARING", 2016),
     ],
   });
 
@@ -210,17 +210,21 @@ function buildHearingTable(hearing, cases) {
 
   const dataRow = new docx.TableRow({
     children: [
-      tableBodyCell([new docx.Paragraph({ children: [run("1", { size: 20 })] })], 5),
-      tableBodyCell(detailsParas, 24),
-      tableBodyCell(titleParas, 20),
-      tableBodyCell(chargeParas, 16),
-      tableBodyCell(counselParas, 15),
-      tableBodyCell(statusParas, 20),
+      tableBodyCell([new docx.Paragraph({ children: [run("1", { size: 20 })] })], 504),
+      tableBodyCell(detailsParas, 2419),
+      tableBodyCell(titleParas, 2016),
+      tableBodyCell(chargeParas, 1613),
+      tableBodyCell(counselParas, 1512),
+      tableBodyCell(statusParas, 2016),
     ],
   });
 
+  // --- TEMPORARY DEBUG LOGGING (per request) ---
+  console.log("docx-export: table row count:", 2, "cases in row:", (cases || []).length, cases);
+  // --- END TEMPORARY DEBUG LOGGING ---
+
   return new docx.Table({
-    width: { size: 100, type: docx.WidthType.PERCENTAGE },
+    width: { size: 10080, type: docx.WidthType.DXA },
     borders: {
       top: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
       bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
@@ -301,6 +305,12 @@ function exportHearingOrderToWord(hearing, cases) {
   ];
 
   const doc = buildDocumentShell(children);
+
+  // --- TEMPORARY DEBUG LOGGING (per request) ---
+  console.log("docx-export: total top-level children:", children.length, children);
+  console.log("docx-export: constructed Document object:", doc);
+  console.log("docx-export: Document sections:", doc.Document ? doc.Document.body : doc);
+  // --- END TEMPORARY DEBUG LOGGING ---
 
   const firstCaseNo = cases && cases.length ? cases[0].caseNo : "";
   const filename = `Hearing_Order_${safeFilenamePart(hearing.hearingDate) || "undated"}${firstCaseNo ? "_" + safeFilenamePart(firstCaseNo) : ""}.docx`;
