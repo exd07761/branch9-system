@@ -4,6 +4,58 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.5.1] — Logout everywhere, Lucide hardening, automatic dark mode
+
+**Added**
+- `js/nav-auth.js` — new shared helper, `wireNavAuth(user)`. Does not
+  duplicate authentication logic: `auth-guard.js`'s `requireAuth()` remains
+  the only function that calls `onAuthStateChanged`, unchanged. This
+  helper only wires the nav bar's email display and Logout button once a
+  page already has the user object `requireAuth()` resolved — in one
+  place instead of copy-pasted into every page.
+- Automatic Dark Mode via `prefers-color-scheme: dark` — follows OS
+  preference only, no manual toggle. All theme differences live entirely
+  inside the single existing `@media (prefers-color-scheme: dark)` token
+  block; no component rule was duplicated.
+
+**Changed**
+- `js/home.js` — refactored to call `wireNavAuth(user)` instead of its own
+  inline email/logout wiring (same behavior, now shared).
+- `js/hearings.js`, `js/calendar.js` — one import + one function call each
+  (`wireNavAuth(user)`), added right after `requireAuth()` resolves.
+- `hearings.html`, `calendar.html` — nav bar now includes the signed-in
+  email and a working Logout button, matching `home.html`.
+- Lucide init calls on `home.html`/`hearings.html`/`calendar.html` now
+  guard against the CDN failing to load (`if (window.lucide) { ... }`),
+  so a blocked network fails silently instead of throwing to the console.
+  Verified every `data-lucide` element on every page appears before its
+  page's Lucide script tag in document order, so `createIcons()` always
+  finds them.
+- **Fixed three dark-mode bugs found during implementation**, all in
+  `css/styles.css`:
+  - `.app-nav` and the nav's signature gradient hairline used `var(--ink)`
+    for their background — since `--ink` flips to a *light* color in dark
+    mode, this would have made the nav bar background light while its
+    text stayed hardcoded white, i.e. invisible. Introduced `--nav-bg`
+    (intentionally constant across both themes) and pointed the nav and
+    `.cal-view-btn-active` (same bug) at it instead.
+  - Table zebra-striping and row-hover tints were hardcoded dark-navy-
+    and-brass rgba() values — invisible when layered on an
+    already-dark card in dark mode. Replaced with `--zebra-tint`/
+    `--row-hover-tint` tokens, each with a dark-mode override.
+  - Status colors (`--green`/`--amber`/`--red`/`--blue`) and
+    `--brass-dark` (used for links and hover text) are now brightened in
+    dark mode for stronger contrast against the much darker backgrounds —
+    override lives in the existing dark-mode token block only.
+
+**Not changed:** Firestore schema, security rules, CRUD behavior, or the
+authentication flow. Confirmed by checksum: `hearings-data.js`,
+`calendar-data.js`, `firebase-init.js`, `firebase-config.js`,
+`auth-guard.js`, `diagnostics.js`, `login.js`, and `index.js` are all
+byte-identical to before this release.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.5.0] — UI Foundation Redesign
 
 HTML/CSS only. No JavaScript file was modified — verified by checksum
