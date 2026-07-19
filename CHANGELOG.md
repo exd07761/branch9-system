@@ -4,6 +4,49 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.6.1] — Mobile Header & Branding (No Feature Changes)
+
+UI-only polish. No `.js` file was modified — verified by checksum before
+and after. No backend logic, Firestore schema, CRUD behavior, security
+rules, Calendar logic, or Word export/formatting changed.
+
+**Fixed**
+- Nav bar is now fully responsive below ~768px, CSS-only (`css/styles.css`
+  only — no HTML changed for this part, and no ID/class was renamed):
+  - Below 768px, the nav wraps onto two rows: brand + email + Logout on
+    row one, nav links on their own full-width row below (wrapping
+    internally too, if ever needed).
+  - The brand name uses `flex: 1 1 auto` + `min-width: 0` + ellipsis, so
+    it shrinks and truncates to fit whatever space remains — deliberately
+    avoiding fixed-width/viewport-unit math that would need retuning for
+    every screen size.
+  - The signed-in email gets a `max-width` + ellipsis, so it truncates
+    rather than overflowing or pushing Logout off-screen.
+  - The Logout button reserves its own space (`flex-shrink: 0`) and
+    always stays fully visible and tappable.
+  - The Hearings table's sticky header (tuned for the desktop nav's fixed
+    height) switches to normal, non-sticky positioning below 768px, since
+    the mobile nav's height is no longer fixed — this avoids the table
+    header sticking at the wrong offset or overlapping the wrapped nav.
+  - Desktop layout (>768px) is completely unaffected — every change lives
+    inside a single `@media (max-width: 768px)` block.
+
+**Added**
+- "Created by Jordan Panganiban" — a small, muted footer line at the
+  bottom of the main content on Home, Hearings, and Calendar. Uses
+  existing color/spacing tokens (`--ink-3`, `--text-xs`, `--space-8`).
+  New `.app-footer` class only; sits outside every dynamically-rendered
+  container (`#calendarContent`, `#hearingsTableBody`, `#formPanel`), so
+  it's never touched or overwritten by any existing re-render logic.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar logic, Word export, or export formatting.
+All 11 `.js` files confirmed byte-identical to before this release by
+checksum. Only `css/styles.css`, `home.html`, `hearings.html`, and
+`calendar.html` were touched.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.6.0] — Hearing Order (.docx) Export
 
 **Added**
