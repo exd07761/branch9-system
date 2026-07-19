@@ -60,6 +60,12 @@
   --shadow-lg: 0 20px 60px rgba(22, 35, 58, 0.30);
 
   --nav-height: 60px;
+  --nav-bg: #16233A;         /* nav/structural chrome — intentionally constant across themes, see below */
+
+  /* Row tint overlays — theme-aware because a hardcoded dark tint would
+     become invisible layered on an already-dark card in dark mode. */
+  --zebra-tint: rgba(22, 35, 58, 0.02);
+  --row-hover-tint: rgba(169, 128, 46, 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -72,6 +78,15 @@
     --line: #2A2F3A;
     --line-strong: #38404E;
     --green-bg:#173224; --amber-bg:#3A2E12; --red-bg:#3A1E1A; --blue-bg:#182A3E; --gray-bg:#242832;
+
+    /* Brightened so text/links/badges/icons keep strong contrast against
+       the much darker backgrounds above. --nav-bg intentionally NOT
+       overridden — the nav bar stays the same navy in both themes. */
+    --brass-dark: #D9A94A;
+    --green: #5FCB9B; --amber: #E4AC49; --red: #E27A6C; --blue: #7BAAE0;
+
+    --zebra-tint: rgba(255, 255, 255, 0.035);
+    --row-hover-tint: rgba(217, 169, 74, 0.14);
   }
 }
 
@@ -150,7 +165,7 @@ button, input, select, textarea { font-family: inherit; }
   top: 0;
   z-index: 40;
   height: var(--nav-height);
-  background: var(--ink);
+  background: var(--nav-bg);
   display: flex;
   align-items: center;
   padding: 0 var(--space-6);
@@ -163,7 +178,7 @@ button, input, select, textarea { font-family: inherit; }
   position: absolute;
   left: 0; right: 0; bottom: -3px;
   height: 3px;
-  background: linear-gradient(90deg, var(--ink) 0%, var(--brass) 55%, var(--maroon) 100%);
+  background: linear-gradient(90deg, var(--nav-bg) 0%, var(--brass) 55%, var(--maroon) 100%);
 }
 
 .app-nav-brand {
@@ -423,8 +438,8 @@ button, input, select, textarea { font-family: inherit; }
   vertical-align: top;
 }
 
-.data-table tbody tr:nth-child(even) { background: rgba(22, 35, 58, 0.02); }
-.data-table tbody tr:hover { background: rgba(169, 128, 46, 0.06); }
+.data-table tbody tr:nth-child(even) { background: var(--zebra-tint); }
+.data-table tbody tr:hover { background: var(--row-hover-tint); }
 .data-table tr:last-child td { border-bottom: none; }
 
 /* Round the table's own corners (rather than clipping the card with
@@ -554,7 +569,7 @@ button, input, select, textarea { font-family: inherit; }
   border-right: 1px solid var(--line-strong);
 }
 .cal-view-btn:last-child { border-right: none; }
-.cal-view-btn-active { background: var(--ink); color: #fff; }    /* JS-DEPENDENT — applied via classList.toggle */
+.cal-view-btn-active { background: var(--nav-bg); color: #fff; }    /* JS-DEPENDENT — applied via classList.toggle */
 
 .cal-nav { display: flex; gap: var(--space-2); }                 /* JS-DEPENDENT */
 .cal-label { font-size: var(--text-base); font-weight: 600; margin-left: auto; font-family: var(--font-display); } /* JS-DEPENDENT */
