@@ -18,6 +18,7 @@
 // ---------------------------------------------------------------------------
 
 import { requireAuth } from "./auth-guard.js";
+import { wireNavAuth } from "./nav-auth.js";
 import { subscribeToHearingsInRange, fetchCasesForHearing } from "./calendar-data.js";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -399,6 +400,7 @@ async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return;
 
+  wireNavAuth(user);
   wireToolbar();
   refresh();
 }

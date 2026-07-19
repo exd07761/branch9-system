@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import { requireAuth } from "./auth-guard.js";
+import { wireNavAuth } from "./nav-auth.js";
 import {
   subscribeToHearings,
   subscribeToCases,
@@ -420,6 +421,8 @@ function maybeAutoOpenFromUrl() {
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return;
+
+  wireNavAuth(user);
 
   document.getElementById("addHearingBtn").addEventListener("click", openAddForm);
 
