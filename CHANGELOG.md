@@ -4,6 +4,59 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.6.0] — Hearing Order (.docx) Export
+
+**Added**
+- One "Export to Word" button, shown only when editing an existing
+  hearing on `hearings.html`. Generates a real, Word-editable `.docx` file
+  for that single hearing and downloads it immediately.
+- `js/docx-export.js` — new, fully isolated document-generation module.
+  No Firestore or auth imports; its only inputs are the hearing object
+  and case list already loaded in `hearings.js`'s own state (via the
+  existing `casesForHearing()` helper) — no new Firestore query is made
+  to produce an export.
+- Uses the `docx` library (docx.js.org) loaded via CDN in `hearings.html`,
+  pinned to v5.0.2 specifically — later major versions restructured
+  their package around ES module exports and no longer reliably expose a
+  plain `window.docx` global from a single `<script>` tag with no
+  bundler, which this project requires.
+
+**Replicates the Branch's real Hearing Order/Calendar document format**
+(source: the uploaded reference file), not a generic report:
+- Full letterhead — court name, branch, address, presiding judge, and the
+  court personnel list, all hardcoded (this data has no home in Firestore;
+  it's static institutional information, not per-hearing data)
+- The same shaded, bordered 6-column table layout (`#`, `CASE NO(S). /
+  DETAILS`, `TITLE / VICTIM(S)`, `FOR / CHARGE`, `COUNSEL`, `STATUS /
+  HEARING`), populated with one row for the single exported hearing
+  instead of a full multi-hearing calendar
+
+**Two deliberate deviations from the original v0.6.0 brief**, both
+because "replicate this document exactly" (given after the brief) is the
+more specific, later instruction:
+- Font is **Century Schoolbook** (the real document's font), not Times
+  New Roman as originally specified.
+- Page size is **Legal (8.5in × 14in)** with 1in/0.75in/1in/0.75in
+  margins (top/right/bottom/left), matching the real document, rather
+  than a generic "standard" Letter-size margin.
+
+**Known gap:** the reference document includes per-case notification/
+private-complainant status lines (e.g. "PCAAA C/O ..."). That data
+(`pcInfo` / `accusedNotifiedStatus`) was a deliberate simplification
+dropped from this system's schema back in Milestone 3 and doesn't exist
+here — those lines are simply omitted from the export rather than
+fabricated.
+
+**Not changed:** Firestore schema, security rules, CRUD behavior,
+authentication flow, Calendar, or any other UI. Confirmed by checksum:
+`hearings-data.js`, `calendar-data.js`, `calendar.js`, `home.js`,
+`nav-auth.js`, `firebase-init.js`, `firebase-config.js`, `auth-guard.js`,
+`diagnostics.js`, `login.js`, and `index.js` are all byte-identical to
+before this release. Only `hearings.html` and `js/hearings.js` were
+modified, plus the new `js/docx-export.js`.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.5.1] — Logout everywhere, Lucide hardening, automatic dark mode
 
 **Added**
