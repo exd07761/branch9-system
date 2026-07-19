@@ -10,6 +10,7 @@
 
 import { requireAuth } from "./auth-guard.js";
 import { wireNavAuth } from "./nav-auth.js";
+import { exportHearingOrderToWord } from "./docx-export.js";
 import {
   subscribeToHearings,
   subscribeToCases,
@@ -266,6 +267,7 @@ function renderForm() {
       <p class="form-error" id="formMessage" role="alert"></p>
 
       <div class="form-actions">
+        ${editingHearingId ? `<button type="button" class="btn-secondary" id="exportWordBtn"><i data-lucide="file-down" aria-hidden="true"></i><span>Export to Word</span></button>` : ""}
         <button type="button" class="btn-secondary" id="cancelFormBtn">Cancel</button>
         <button type="button" class="btn-primary" id="saveFormBtn">Save Hearing</button>
       </div>
@@ -273,6 +275,12 @@ function renderForm() {
   `;
 
   renderCaseRows();
+
+  if (window.lucide) lucide.createIcons();
+
+  if (editingHearingId) {
+    document.getElementById("exportWordBtn").addEventListener("click", handleExportWord);
+  }
 
   document.getElementById("addCaseRowBtn").addEventListener("click", () => {
     syncCaseRowsFromDom();
@@ -374,6 +382,35 @@ async function handleSave() {
     showFormMessage(`Could not save: ${err.message}`);
     saveBtn.disabled = false;
     saveBtn.textContent = "Save Hearing";
+  }
+}
+
+async function handleExportWord() {
+  if (!window.docx) {
+    showFormMessage("Could not export: the Word export library failed to load. Check your internet connection and try again.");
+    return;
+  }
+
+  // Reuses data already loaded in this page's own state (hearings/cases,
+  // populated by the existing subscribeToHearings/subscribeToCases
+  // listeners) — no new Firestore read happens for this export.
+  const hearing = hearings.find((h) => h.id === editingHearingId);
+  if (!hearing) return;
+  const hearingCasesList = casesForHearing(editingHearingId);
+
+  const exportBtn = document.getElementById("exportWordBtn");
+  const originalLabel = exportBtn.innerHTML;
+  exportBtn.disabled = true;
+  exportBtn.textContent = "Exporting\u2026";
+
+  try {
+    await exportHearingOrderToWord(hearing, hearingCasesList);
+  } catch (err) {
+    showFormMessage(`Could not export: ${err.message}`);
+  } finally {
+    exportBtn.disabled = false;
+    exportBtn.innerHTML = originalLabel;
+    if (window.lucide) lucide.createIcons();
   }
 }
 
