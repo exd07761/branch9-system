@@ -679,3 +679,99 @@ button, input, select, textarea { font-family: inherit; }
   -webkit-mask: var(--icon-lock) center / contain no-repeat;
   mask: var(--icon-lock) center / contain no-repeat;
 }
+
+/* ---------------------------------------------------------------------- */
+/* v0.6.1 — Footer / creator credit                                        */
+/* New, additive class only — doesn't touch anything JS depends on.        */
+/* ---------------------------------------------------------------------- */
+
+.app-footer {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+/* ---------------------------------------------------------------------- */
+/* v0.6.1 — Mobile nav responsiveness (≤768px)                             */
+/*                                                                          */
+/* CSS-only. No IDs/classes were renamed and no JS was touched — every     */
+/* selector below targets classes that already existed. The approach is   */
+/* flexbox shrink-and-truncate rather than fixed widths, so it holds up   */
+/* across 320/375/414/768px without fragile magic numbers:                 */
+/*   - .app-nav wraps onto two rows: (brand + user block) on row one,      */
+/*     nav links pushed to their own full-width row below                  */
+/*   - .app-nav-brand takes "whatever space is left" and truncates with    */
+/*     an ellipsis rather than overflowing                                 */
+/*   - .app-nav-user (email + logout) never shrinks — it reserves its own  */
+/*     space first, and the email inside it truncates on its own if needed */
+/* ---------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .app-nav {
+    height: auto;
+    min-height: var(--nav-height);
+    flex-wrap: wrap;
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .app-nav-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--text-sm);
+  }
+
+  .app-nav-user {
+    flex-shrink: 0;
+    gap: var(--space-2);
+  }
+
+  .app-nav-email {
+    max-width: 34vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-nav-logout {
+    flex-shrink: 0;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  /* Links move to their own full-width row below brand/user, and wrap
+     internally too if ever needed (e.g. a much longer future label). */
+  .app-nav-links {
+    order: 3;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-1);
+  }
+
+  .app-nav-link {
+    height: 32px;
+    padding: 0 var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  /* Give the sticky nav's signature hairline room to sit below the now
+     taller (wrapped) header instead of overlapping page content. */
+  .app-nav::after {
+    bottom: -3px;
+  }
+
+  /* The sticky table header offset is tuned for the desktop nav's fixed
+     height; on mobile the nav is taller (two rows), so this is no longer
+     a reliable anchor — switch off sticky behavior below 768px rather
+     than have it stick at the wrong offset or overlap wrapped nav rows. */
+  .data-table th {
+    position: static;
+  }
+}
