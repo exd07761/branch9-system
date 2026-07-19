@@ -1,120 +1,666 @@
+/* =========================================================================
+   Docket Management System — Design System (v0.5.0)
+   ==========================================================================
+   UI-only redesign. Every class name below that is referenced by JavaScript
+   is preserved exactly (see the "JS-DEPENDENT" markers throughout) — only
+   visual values changed. New class names introduced here are additive and
+   touch no .js file.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   1. Design tokens
+   ------------------------------------------------------------------------- */
 :root {
-  --navy: #1E2A3A;
-  --paper: #F7F7F5;
-  --card: #FFFFFF;
-  --ink: #1E2A3A;
-  --ink-2: #5B6472;
-  --line: #E2E2DC;
-  --green: #2F6B4F;
-  --green-bg: #E1EFE6;
-  --red: #9C3B2E;
-  --red-bg: #F7E3DF;
-  --gray-bg: #EEEDE7;
+  /* Color */
+  --ink:        #16233A;   /* primary text, nav bar, structural chrome */
+  --ink-2:      #5B6472;   /* secondary text, labels */
+  --ink-3:      #8B92A0;   /* tertiary text, placeholders, muted */
+  --brass:      #A9802E;   /* primary actions — reserved for official-record actions */
+  --brass-dark: #8C6A24;
+  --maroon:     #7A2E2E;   /* sparing signature accent only */
+  --paper:      #F6F5F1;   /* page background */
+  --card:       #FFFFFF;
+  --line:       #E3E1DA;
+  --line-strong:#D3D0C6;
+
+  --green:    #2F6B4F; --green-bg: #E1EFE6;
+  --amber:    #8A5A00; --amber-bg: #FBEBCF;
+  --red:      #9C3B2E; --red-bg:   #F7E3DF;
+  --blue:     #2C5282; --blue-bg:  #E3ECF7;
+  --gray-bg:  #EEEDE7;
+
+  /* Type scale */
+  --text-xs:   11px;
+  --text-sm:   12.5px;
+  --text-base: 14px;
+  --text-md:   16px;
+  --text-lg:   19px;
+  --text-xl:   24px;
+  --text-display: 30px;
+
+  --font-display: 'Source Serif 4', Georgia, serif;
+  --font-body: 'Inter', -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* Spacing (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Radius / shadow */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(22, 35, 58, 0.06);
+  --shadow-md: 0 8px 24px rgba(22, 35, 58, 0.10);
+  --shadow-lg: 0 20px 60px rgba(22, 35, 58, 0.30);
+
+  --nav-height: 60px;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #12161D;
+    --card: #1B212B;
+    --ink: #EDEBE4;
+    --ink-2: #B7BAC2;
+    --ink-3: #7C818C;
+    --line: #2A2F3A;
+    --line-strong: #38404E;
+    --green-bg:#173224; --amber-bg:#3A2E12; --red-bg:#3A1E1A; --blue-bg:#182A3E; --gray-bg:#242832;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   2. Reset / base
+   ------------------------------------------------------------------------- */
 * { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; margin: 0; color: var(--ink); }
+a { color: var(--brass-dark); }
+
+button, input, select, textarea { font-family: inherit; }
+
+/* -------------------------------------------------------------------------
+   3. Layout shells
+   ------------------------------------------------------------------------- */
 .wrap {
-  max-width: 640px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 48px 20px 60px;
+  padding: var(--space-8) var(--space-5) 60px;
 }
+
+.wrap-narrow { max-width: 440px; }
+.wrap-wide { max-width: 1080px; }
+
+.header { margin-bottom: var(--space-6); }
 
 .header .eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.08em;
+  font-size: var(--text-xs);
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--ink-2);
-  margin: 0 0 8px;
+  color: var(--ink-3);
+  margin: 0 0 var(--space-2);
+  font-weight: 600;
 }
 
 .header h1 {
-  font-size: 24px;
-  margin: 0 0 8px;
+  font-size: var(--text-display);
+  margin: 0 0 var(--space-2);
 }
 
 .header .sub {
-  font-size: 14px;
+  font-size: var(--text-base);
   color: var(--ink-2);
-  margin: 0 0 28px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.header .sub a { color: var(--brass-dark); font-weight: 500; text-decoration: none; }
+.header .sub a:hover { text-decoration: underline; }
+
+.footnote {
+  margin-top: var(--space-5);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
   line-height: 1.5;
 }
 
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 24px;
-}
-
-.card h2 {
-  font-size: 15px;
-  margin: 0 0 16px;
-}
-
-.status-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.status-item {
+/* -------------------------------------------------------------------------
+   4. Top navigation
+   ------------------------------------------------------------------------- */
+.app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--nav-height);
+  background: var(--ink);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  padding: 0 var(--space-6);
+  gap: var(--space-8);
 }
 
-.status-item:last-child {
-  border-bottom: none;
+/* Signature detail: a slender navy-to-brass hairline under the nav bar */
+.app-nav::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -3px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ink) 0%, var(--brass) 55%, var(--maroon) 100%);
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.app-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
+  white-space: nowrap;
+  text-decoration: none;
 }
 
-.dot.pending { background: var(--gray-bg); border: 2px solid var(--ink-2); }
-.dot.pass { background: var(--green); }
-.dot.fail { background: var(--red); }
+.app-nav-brand svg { width: 18px; height: 18px; color: var(--brass); flex-shrink: 0; }
 
-.label {
+.app-nav-links {
+  display: flex;
+  gap: var(--space-2);
   flex: 1;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  color: #C4CAD6;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-nav-link svg { width: 15px; height: 15px; }
+
+.app-nav-link:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+
+.app-nav-link.active {
+  background: rgba(169, 128, 46, 0.18);
+  color: #fff;
+}
+
+.app-nav-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  white-space: nowrap;
+}
+
+.app-nav-email {
+  font-size: var(--text-xs);
+  color: #B9C2CF;
+}
+
+.app-nav-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: var(--text-xs);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.app-nav-logout svg { width: 14px; height: 14px; }
+.app-nav-logout:hover { background: rgba(255, 255, 255, 0.14); }
+
+/* -------------------------------------------------------------------------
+   5. Cards
+   ------------------------------------------------------------------------- */
+.card {                                                        /* JS-DEPENDENT: class name emitted by hearings.js/calendar.js templates */
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-card { margin-bottom: var(--space-6); }                  /* JS-DEPENDENT */
+.form-card h2 { font-size: var(--text-lg); margin: 0 0 var(--space-4); }
+
+.cal-content-card { padding: var(--space-4); overflow-x: auto; } /* JS-DEPENDENT */
+
+.card-flush { padding: 0; }
+
+/* -------------------------------------------------------------------------
+   6. Buttons
+   ------------------------------------------------------------------------- */
+.btn-primary, .btn-secondary, .btn-small {                      /* JS-DEPENDENT class names */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+
+.btn-primary svg, .btn-secondary svg, .btn-small svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+.btn-primary {                                                  /* JS-DEPENDENT */
+  width: 100%;
+  height: 42px;
+  border: none;
+  background: var(--brass);
+  color: #1A1508;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--brass-dark); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-inline { width: auto; padding: 0 var(--space-5); }         /* JS-DEPENDENT */
+
+.btn-secondary {                                                /* JS-DEPENDENT */
+  height: 38px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--text-base);
   font-weight: 500;
 }
+.btn-secondary:hover { border-color: var(--ink-3); background: var(--paper); }
 
-.detail {
-  font-size: 12px;
-  color: var(--ink-2);
+.btn-small {                                                    /* JS-DEPENDENT */
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  color: var(--ink);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+.btn-small:hover { border-color: var(--ink-3); background: var(--paper); }
+.btn-small.btn-danger { color: var(--red); border-color: #E7C9C2; } /* JS-DEPENDENT */
+.btn-small.btn-danger:hover { background: var(--red-bg); }
+
+.auth-btn {
+  height: 32px; padding: 0 12px; border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.08);
+  color: #fff; font-size: var(--text-xs); font-family: inherit; cursor: pointer;
 }
 
-.overall {
-  margin-top: 20px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 13px;
+/* -------------------------------------------------------------------------
+   7. Forms / inputs
+   ------------------------------------------------------------------------- */
+.field { margin-bottom: var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); } /* JS-DEPENDENT */
+.field-full { grid-column: 1 / -1; }                            /* JS-DEPENDENT */
+
+.field label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.field input, .field select, .field textarea {                  /* JS-DEPENDENT selectors */
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  width: 100%;
+}
+
+.field textarea { height: auto; min-height: 64px; padding: var(--space-2) var(--space-3); resize: vertical; }
+
+.field input:focus, .field select:focus, .field textarea:focus {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
+}
+
+.field .hint { font-size: var(--text-xs); color: var(--ink-3); }
+.required { color: var(--maroon); }                              /* JS-DEPENDENT */
+
+.form-grid { display: grid; gap: var(--space-3) var(--space-5); margin-bottom: var(--space-2); } /* JS-DEPENDENT */
+.form-grid-2 { grid-template-columns: 1fr 1fr; }                /* JS-DEPENDENT */
+.form-grid-3 { grid-template-columns: 1.2fr 1fr 1fr; }          /* JS-DEPENDENT */
+
+.form-error {                                                    /* JS-DEPENDENT */
+  min-height: 18px;
+  font-size: var(--text-sm);
+  color: var(--red);
+  margin: 0 0 var(--space-3);
+}
+
+.form-actions {                                                  /* JS-DEPENDENT */
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.case-rows-section { border-top: 1px solid var(--line); margin-top: var(--space-4); padding-top: var(--space-4); } /* JS-DEPENDENT */
+.case-rows-section h3 { font-size: var(--text-base); margin: 0 0 var(--space-3); font-family: var(--font-body); font-weight: 600; }
+
+.case-row {                                                      /* JS-DEPENDENT — read by hearings.js querySelectorAll */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--paper);
+}
+
+.case-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2); } /* JS-DEPENDENT */
+.case-row-label { font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .03em; } /* JS-DEPENDENT */
+
+/* CSS-only "remove" icon on dynamically-rendered case-row remove buttons */
+[data-remove-case]::before { content: ""; display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px;
+  background-color: var(--red); -webkit-mask: var(--icon-x) center / contain no-repeat; mask: var(--icon-x) center / contain no-repeat; }
+
+/* -------------------------------------------------------------------------
+   8. Tables (productivity: sticky header, zebra, hover, tabular figures)
+   ------------------------------------------------------------------------- */
+.data-table {                                                    /* JS-DEPENDENT */
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table th {
+  position: sticky;
+  top: var(--nav-height);
+  z-index: 5;
+  text-align: left;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+  font-weight: 600;
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper);
+  border-bottom: 2px solid var(--line-strong);
+}
+
+.data-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.data-table tbody tr:nth-child(even) { background: rgba(22, 35, 58, 0.02); }
+.data-table tbody tr:hover { background: rgba(169, 128, 46, 0.06); }
+.data-table tr:last-child td { border-bottom: none; }
+
+/* Round the table's own corners (rather than clipping the card with
+   overflow:hidden, which would break the sticky <thead> above by
+   confining its sticky positioning to the card instead of the viewport). */
+.data-table thead th:first-child { border-top-left-radius: var(--radius-lg); }
+.data-table thead th:last-child { border-top-right-radius: var(--radius-lg); }
+.data-table tbody tr:last-child td:first-child { border-bottom-left-radius: var(--radius-lg); }
+.data-table tbody tr:last-child td:last-child { border-bottom-right-radius: var(--radius-lg); }
+
+/* Status column badge-ify. Coupled to column order in hearings.html's
+   <thead> (Date, Time, Section, Status, ...) since hearings.js emits plain
+   <td> text with no dedicated class — a deliberate CSS-only trade-off so
+   no .js file needs editing. If the column order ever changes, update the
+   nth-child index below. */
+.data-table tbody td:nth-child(4) {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--blue);
+}
+.data-table tbody td:nth-child(4)::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+  margin-right: 6px;
+}
+
+.empty-row {                                                     /* JS-DEPENDENT */
+  text-align: center;
+  color: var(--ink-3);
+  padding: var(--space-8) var(--space-4) !important;
+}
+
+.muted { color: var(--ink-3); font-style: italic; }              /* JS-DEPENDENT */
+
+.row-actions { display: flex; gap: var(--space-2); white-space: nowrap; } /* JS-DEPENDENT */
+
+[data-action="edit"]::before { content: ""; display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px;
+  background-color: var(--ink-2); -webkit-mask: var(--icon-pencil) center / contain no-repeat; mask: var(--icon-pencil) center / contain no-repeat; }
+[data-action="delete"]::before { content: ""; display: inline-block; width: 13px; height: 13px; margin-right: 4px; vertical-align: -2px;
+  background-color: var(--red); -webkit-mask: var(--icon-trash) center / contain no-repeat; mask: var(--icon-trash) center / contain no-repeat; }
+
+/* -------------------------------------------------------------------------
+   9. Toolbar (Hearings / Calendar)
+   ------------------------------------------------------------------------- */
+.toolbar { display: flex; justify-content: flex-end; margin-bottom: var(--space-4); } /* JS-DEPENDENT */
+
+/* -------------------------------------------------------------------------
+   10. Status dots (diagnostics.html) — pure CSS, keyed to classes already
+       toggled by the existing, untouched diagnostics.js
+   ------------------------------------------------------------------------- */
+.status-list { list-style: none; margin: 0; padding: 0; }        /* JS-DEPENDENT */
+
+.status-item {                                                   /* JS-DEPENDENT */
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-base);
+}
+.status-item:last-child { border-bottom: none; }
+
+.dot {                                                            /* JS-DEPENDENT — classes toggled by diagnostics.js */
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  background: var(--gray-bg);
+  border: 2px solid var(--ink-3);
+}
+.dot.pending { background: var(--gray-bg); border-color: var(--ink-3); }
+.dot.pass { background: var(--green); border-color: var(--green); }
+.dot.fail { background: var(--red); border-color: var(--red); }
+
+.dot.pass::after, .dot.fail::after {
+  content: "";
+  position: absolute; inset: 4px;
+  background-color: #fff;
+}
+.dot.pass::after { -webkit-mask: var(--icon-check) center / contain no-repeat; mask: var(--icon-check) center / contain no-repeat; }
+.dot.fail::after { -webkit-mask: var(--icon-x) center / contain no-repeat; mask: var(--icon-x) center / contain no-repeat; }
+
+.label { flex: 1; font-weight: 500; }
+.detail { font-size: var(--text-xs); color: var(--ink-2); }
+
+.overall {                                                        /* JS-DEPENDENT */
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
   font-weight: 500;
   background: var(--gray-bg);
   color: var(--ink-2);
 }
-
 .overall.pass { background: var(--green-bg); color: var(--green); }
 .overall.fail { background: var(--red-bg); color: var(--red); }
 
-.footnote {
-  margin-top: 20px;
-  font-size: 12px;
-  color: var(--ink-2);
-  line-height: 1.5;
+/* -------------------------------------------------------------------------
+   11. Login-specific
+   ------------------------------------------------------------------------- */
+.login-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+/* -------------------------------------------------------------------------
+   12. Home nav links (legacy simple-link fallback, kept for markup that
+       still uses it — superseded visually by .app-nav, styled defensively)
+   ------------------------------------------------------------------------- */
+.home-nav { font-size: var(--text-base); margin: 0 0 var(--space-3); }  /* JS-DEPENDENT-adjacent: kept in case markup still present */
+.home-nav a { color: var(--brass-dark); font-weight: 500; text-decoration: none; }
+.home-nav a:hover { text-decoration: underline; }
+.dashboard-welcome { font-size: var(--text-base); margin: 0 0 var(--space-4); }
+
+/* -------------------------------------------------------------------------
+   13. Calendar
+   ------------------------------------------------------------------------- */
+.cal-toolbar { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); } /* JS-DEPENDENT */
+
+.cal-view-toggle { display: flex; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; } /* JS-DEPENDENT */
+
+.cal-view-btn {                                                   /* JS-DEPENDENT */
+  height: 36px; padding: 0 var(--space-4); border: none; background: var(--card);
+  color: var(--ink); font-size: var(--text-sm); font-family: inherit; cursor: pointer;
+  border-right: 1px solid var(--line-strong);
+}
+.cal-view-btn:last-child { border-right: none; }
+.cal-view-btn-active { background: var(--ink); color: #fff; }    /* JS-DEPENDENT — applied via classList.toggle */
+
+.cal-nav { display: flex; gap: var(--space-2); }                 /* JS-DEPENDENT */
+.cal-label { font-size: var(--text-base); font-weight: 600; margin-left: auto; font-family: var(--font-display); } /* JS-DEPENDENT */
+
+/* Month view */
+.cal-month-grid {                                                 /* JS-DEPENDENT */
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
+  background: var(--line); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden;
+}
+.cal-month-headcell { background: var(--paper); padding: var(--space-2); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); text-align: center; font-weight: 600; } /* JS-DEPENDENT */
+.cal-month-cell { background: var(--card); min-height: 108px; padding: var(--space-2); cursor: pointer; } /* JS-DEPENDENT */
+.cal-month-cell:hover { background: var(--paper); }
+.cal-month-cell-muted { opacity: 0.4; }                           /* JS-DEPENDENT */
+.cal-month-cell-today .cal-month-daynum { background: var(--brass); color: #1A1508; border-radius: 50%; } /* JS-DEPENDENT */
+.cal-month-daynum { font-size: var(--text-sm); font-weight: 600; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-1); } /* JS-DEPENDENT */
+.cal-month-entries { display: flex; flex-direction: column; gap: 3px; }  /* JS-DEPENDENT */
+.cal-month-entry { font-size: var(--text-xs); background: var(--blue-bg); color: var(--blue); padding: 2px 6px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; } /* JS-DEPENDENT */
+.cal-month-entry:hover { opacity: 0.85; }
+.cal-month-more { font-size: var(--text-xs); color: var(--ink-3); }  /* JS-DEPENDENT */
+
+/* Week view */
+.cal-week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--space-2); } /* JS-DEPENDENT */
+.cal-week-col { border: 1px solid var(--line); border-radius: var(--radius-md); min-height: 210px; } /* JS-DEPENDENT */
+.cal-week-colhead { text-align: center; font-size: var(--text-sm); font-weight: 600; padding: var(--space-2); border-bottom: 1px solid var(--line); background: var(--paper); border-radius: var(--radius-md) var(--radius-md) 0 0; } /* JS-DEPENDENT */
+.cal-week-colhead-today { color: var(--brass-dark); }             /* JS-DEPENDENT */
+.cal-week-entries { padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); } /* JS-DEPENDENT */
+.cal-week-entry { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); font-size: var(--text-xs); cursor: pointer; } /* JS-DEPENDENT */
+.cal-week-entry:hover { border-color: var(--ink-3); background: var(--paper); }
+.cal-week-entry-time { font-weight: 600; }                        /* JS-DEPENDENT */
+.cal-week-entry-section { color: var(--ink-2); }                  /* JS-DEPENDENT */
+.cal-week-entry-count { color: var(--ink-3); margin-top: 2px; display: inline-block; } /* JS-DEPENDENT */
+.cal-week-empty { font-size: var(--text-xs); color: var(--ink-3); text-align: center; padding: var(--space-3) var(--space-1); } /* JS-DEPENDENT */
+
+/* Day view */
+.cal-day-list { display: flex; flex-direction: column; gap: var(--space-3); }  /* JS-DEPENDENT */
+.cal-day-card { border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-4); background: var(--card); } /* JS-DEPENDENT */
+.cal-day-card-main { display: flex; align-items: flex-start; gap: var(--space-4); }  /* JS-DEPENDENT */
+.cal-day-card-time { width: 130px; flex-shrink: 0; font-weight: 600; font-size: var(--text-base); } /* JS-DEPENDENT */
+.cal-day-card-body { flex: 1; min-width: 0; }                     /* JS-DEPENDENT */
+.cal-day-card-title { margin: 0; font-size: var(--text-base); font-weight: 500; }  /* JS-DEPENDENT */
+.cal-day-card-meta { margin: 3px 0 0; font-size: var(--text-sm); color: var(--ink-2); }  /* JS-DEPENDENT */
+.cal-day-card-actions { display: flex; flex-direction: column; gap: var(--space-2); flex-shrink: 0; } /* JS-DEPENDENT */
+.cal-details-link { text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px; } /* JS-DEPENDENT */
+.cal-details-link::after { content: ""; width: 12px; height: 12px; background-color: currentColor; -webkit-mask: var(--icon-arrow-right) center / contain no-repeat; mask: var(--icon-arrow-right) center / contain no-repeat; }
+
+[data-toggle-expand]::before { content: ""; display: inline-block; width: 13px; height: 13px; margin-right: 2px; vertical-align: -2px;
+  background-color: var(--ink); -webkit-mask: var(--icon-chevron-down) center / contain no-repeat; mask: var(--icon-chevron-down) center / contain no-repeat; }
+
+.cal-day-card-cases { border-top: 1px solid var(--line); margin-top: var(--space-3); padding-top: var(--space-3); } /* JS-DEPENDENT */
+.cal-case-list { margin: 0; padding-left: 18px; font-size: var(--text-sm); }  /* JS-DEPENDENT */
+.cal-case-list li { margin-bottom: var(--space-1); }
+.cal-case-empty, .cal-case-loading { font-size: var(--text-sm); color: var(--ink-3); margin: 0; } /* JS-DEPENDENT */
+
+/* -------------------------------------------------------------------------
+   14. Firebase fatal-error overlay — class/id names are hardcoded inside
+       auth-guard.js's JS (element.className / innerHTML strings), so they
+       are preserved exactly here.
+   ------------------------------------------------------------------------- */
+.fatal-overlay {                                                  /* JS-DEPENDENT — set via el.className in auth-guard.js */
+  position: fixed; inset: 0; background: rgba(22, 35, 58, 0.92);
+  z-index: 1000; display: flex; align-items: center; justify-content: center; padding: var(--space-5);
+}
+.fatal-card {                                                     /* JS-DEPENDENT */
+  background: var(--card); border-radius: var(--radius-lg); max-width: 440px; width: 100%;
+  padding: var(--space-8) var(--space-6); box-shadow: var(--shadow-lg);
+}
+.fatal-card h2 { margin: 0 0 var(--space-3); font-size: var(--text-lg); color: var(--red); }
+.fatal-card p { font-size: var(--text-base); color: var(--ink-2); margin: 0 0 var(--space-3); line-height: 1.55; }
+.fatal-card p:last-child { margin-bottom: 0; }
+.fatal-detail {                                                   /* JS-DEPENDENT */
+  font-size: var(--text-xs); font-family: monospace; background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3);
+  color: var(--ink-3); word-break: break-word;
+}
+
+/* -------------------------------------------------------------------------
+   15. CSS-only icon shapes (mask-image data URIs), used on elements whose
+       markup is generated by hearings.js/calendar.js/diagnostics.js —
+       lucide.createIcons() never runs against that dynamic content, so
+       these icons are rendered purely in CSS instead, in Lucide's visual
+       style (24x24, 2px stroke, rounded caps).
+   ------------------------------------------------------------------------- */
+:root {
+  --icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");
+  --icon-x: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E");
+  --icon-pencil: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z'/%3E%3C/svg%3E");
+  --icon-trash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18'/%3E%3Cpath d='M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/%3E%3Cpath d='M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6'/%3E%3C/svg%3E");
+  --icon-chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  --icon-arrow-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='5' y1='12' x2='19' y2='12'/%3E%3Cpolyline points='12 5 19 12 12 19'/%3E%3C/svg%3E");
+  --icon-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='11' width='18' height='11' rx='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+}
+
+/* Login submit button icon. Kept as a ::before pseudo-element (not a real
+   child element) specifically because login.js sets this button's
+   .textContent directly during sign-in ("Signing in…" / "Log in") — a
+   real child <i> element would be destroyed by that. Pseudo-elements are
+   not part of the DOM .textContent touches, so this survives every state
+   change untouched, with zero changes to login.js. */
+#submitBtn::before {
+  content: "";
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  margin-right: var(--space-2);
+  vertical-align: -2px;
+  background-color: #1A1508;
+  -webkit-mask: var(--icon-lock) center / contain no-repeat;
+  mask: var(--icon-lock) center / contain no-repeat;
 }
