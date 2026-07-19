@@ -48,6 +48,27 @@
 const FONT = "Century Schoolbook";
 const BLACK = "000000";
 
+// --- TEMPORARY DIAGNOSTICS (module load time) -----------------------------
+// Confirms exactly what the CDN actually delivered, before any of our own
+// code runs. Logged once, as soon as this module is evaluated (hearings.js
+// imports it at page load, so this fires immediately, before any click).
+(function logLoadedDocxLibrary() {
+  console.log("[docx-diagnostic] typeof window.docx:", typeof window.docx);
+  if (typeof window.docx === "undefined") {
+    console.error("[docx-diagnostic] window.docx is undefined — the CDN script did not load or did not expose a global. Check the Network tab for the docx@5.0.2 request.");
+    return;
+  }
+  // docx's namespace object doesn't reliably expose a version string across
+  // all builds, so try a few known/likely locations defensively rather than
+  // assuming one — none of these throw if the path doesn't exist.
+  console.log("[docx-diagnostic] docx.version:", docx.version);
+  console.log("[docx-diagnostic] docx.default?.version:", docx.default && docx.default.version);
+  console.log("[docx-diagnostic] Object.keys(docx) sample:", Object.keys(docx).slice(0, 30));
+  console.log("[docx-diagnostic] typeof docx.Document / Paragraph / TextRun / Table / Packer:",
+    typeof docx.Document, typeof docx.Paragraph, typeof docx.TextRun, typeof docx.Table, typeof docx.Packer);
+})();
+// --- END TEMPORARY DIAGNOSTICS ---------------------------------------------
+
 // Institutional details, hardcoded from the real reference document —
 // this system's Firestore schema has no field for any of it.
 const COURT_PERSONNEL = [
@@ -219,19 +240,29 @@ function buildHearingTable(hearing, cases) {
     ],
   });
 
-  // --- TEMPORARY DEBUG LOGGING (per request) ---
-  console.log("docx-export: table row count:", 2, "cases in row:", (cases || []).length, cases);
-  // --- END TEMPORARY DEBUG LOGGING ---
+  const dataRowCellParaCounts = {
+    details: detailsParas.length,
+    title: titleParas.length,
+    charge: chargeParas.length,
+    counsel: counselParas.length,
+    status: statusParas.length,
+  };
+
+  // --- TEMPORARY DIAGNOSTICS ---
+  console.log("[docx-diagnostic] buildHearingTable: rows =", 2, "(1 header + 1 data)");
+  console.log("[docx-diagnostic] buildHearingTable: cases passed in =", (cases || []).length, cases);
+  console.log("[docx-diagnostic] buildHearingTable: paragraph count per data-row cell =", dataRowCellParaCounts);
+  // --- END TEMPORARY DIAGNOSTICS ---
 
   return new docx.Table({
     width: { size: 10080, type: docx.WidthType.DXA },
     borders: {
-      top: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
-      bottom: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
-      left: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
-      right: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
-      insideHorizontal: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
-      insideVertical: { style: docx.BorderStyle.SINGLE, size: 2, color: BLACK },
+      top: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
+      bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
+      left: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
+      right: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
+      insideHorizontal: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
+      insideVertical: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
     },
     rows: [headerRow, dataRow],
   });
@@ -298,26 +329,103 @@ function exportHearingOrderToWord(hearing, cases) {
     centeredPara([run(generatedLine, { size: 20 })], { spacing: { after: 200 } }),
 
     new docx.Paragraph({
-      spacing: { before: 200, after: 0 },
+      spacing: { before: 360, after: 0 },
       children: [run(`${(hearing.section || "").toUpperCase()}:`, { bold: true, italics: true, size: 22 })],
     }),
     buildHearingTable(hearing, cases),
   ];
 
+  // --- TEMPORARY DIAGNOSTICS ---
+  const paragraphCount = children.filter((c) => c instanceof docx.Paragraph).length;
+  const tableCount = children.filter((c) => c instanceof docx.Table).length;
+  console.log("[docx-diagnostic] exportHearingOrderToWord: total top-level children =", children.length);
+  console.log("[docx-diagnostic] exportHearingOrderToWord: of which Paragraphs =", paragraphCount, ", Tables =", tableCount);
+  console.log("[docx-diagnostic] exportHearingOrderToWord: hearing input =", hearing);
+  console.log("[docx-diagnostic] exportHearingOrderToWord: cases input =", cases);
+  // --- END TEMPORARY DIAGNOSTICS ---
+
   const doc = buildDocumentShell(children);
 
-  // --- TEMPORARY DEBUG LOGGING (per request) ---
-  console.log("docx-export: total top-level children:", children.length, children);
-  console.log("docx-export: constructed Document object:", doc);
-  console.log("docx-export: Document sections:", doc.Document ? doc.Document.body : doc);
-  // --- END TEMPORARY DEBUG LOGGING ---
+  // --- TEMPORARY DIAGNOSTICS ---
+  console.log("[docx-diagnostic] Constructed Document instance:", doc);
+  console.log("[docx-diagnostic] Document instanceof docx.Document:", doc instanceof docx.Document);
+  // Best-effort introspection of docx's internal tree — property names are
+  // not part of docx's public API and may not exist on every version, so
+  // every access below is optional-chained and never assumed to be correct.
+  console.log("[docx-diagnostic] doc.Document (internal, if present):", doc && doc.Document);
+  console.log("[docx-diagnostic] doc.sections (internal, if present):", doc && doc.sections);
+  console.log("[docx-diagnostic] Own enumerable keys on doc instance:", Object.keys(doc));
+  // --- END TEMPORARY DIAGNOSTICS ---
 
   const firstCaseNo = cases && cases.length ? cases[0].caseNo : "";
   const filename = `Hearing_Order_${safeFilenamePart(hearing.hearingDate) || "undated"}${firstCaseNo ? "_" + safeFilenamePart(firstCaseNo) : ""}.docx`;
 
-  return docx.Packer.toBlob(doc).then((blob) => {
-    downloadBlob(blob, filename);
+  // --- TEMPORARY DIAGNOSTICS ---
+  // Packer.toBlob wrapped in its own try/catch so a rejection/exception is
+  // guaranteed to be logged here in full (message + stack), rather than
+  // only surfacing as hearings.js's generic "Could not export: <message>"
+  // banner, which would hide the actual cause.
+  return docx.Packer.toBlob(doc)
+    .then((blob) => {
+      console.log("[docx-diagnostic] Packer.toBlob resolved. Blob size (bytes):", blob.size, "type:", blob.type);
+      if (blob.size < 2000) {
+        console.warn("[docx-diagnostic] Blob is suspiciously small for a document with a full letterhead + table — likely evidence the document body did not actually get packed.");
+      }
+      downloadBlob(blob, filename);
+    })
+    .catch((err) => {
+      console.error("[docx-diagnostic] Packer.toBlob threw/rejected:", err);
+      console.error("[docx-diagnostic] Error message:", err && err.message);
+      console.error("[docx-diagnostic] Error stack:", err && err.stack);
+      throw err; // re-throw so hearings.js's existing catch still shows a message to the Clerk
+    });
+  // --- END TEMPORARY DIAGNOSTICS ---
+}
+
+/**
+ * TEMPORARY DIAGNOSTIC ONLY — not part of the Hearing Order feature.
+ *
+ * Builds and downloads the smallest possible .docx (one paragraph, no
+ * letterhead, no table) to isolate whether the docx library / Packer
+ * itself works at all in this environment, independent of our template.
+ *
+ * Not wired into any button or hearings.js — trigger it manually from the
+ * browser DevTools console on hearings.html:
+ *   window.__docxDiagnosticTest()
+ *
+ * If this produces a working, non-blank .docx: the library and packer are
+ * fine, and the bug is inside our template-building code above.
+ * If this ALSO comes out blank: the problem is the library version or
+ * Packer usage itself, not our layout — stop looking at buildHearingTable/
+ * buildLetterhead and focus on the docx CDN version or Packer call.
+ */
+function exportMinimalTestDocx() {
+  const doc = new docx.Document({
+    sections: [
+      {
+        children: [
+          new docx.Paragraph({
+            children: [new docx.TextRun({ text: "DOCX TEST", font: FONT, size: 24 })],
+          }),
+        ],
+      },
+    ],
   });
+
+  console.log("[docx-diagnostic:minimal] Constructed minimal Document:", doc);
+
+  return docx.Packer.toBlob(doc)
+    .then((blob) => {
+      console.log("[docx-diagnostic:minimal] Packer.toBlob resolved. Blob size (bytes):", blob.size);
+      downloadBlob(blob, "docx_minimal_test.docx");
+    })
+    .catch((err) => {
+      console.error("[docx-diagnostic:minimal] Packer.toBlob threw/rejected:", err);
+      throw err;
+    });
+}
+if (typeof window !== "undefined") {
+  window.__docxDiagnosticTest = exportMinimalTestDocx;
 }
 
 export { exportHearingOrderToWord };
