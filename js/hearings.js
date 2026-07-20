@@ -10,7 +10,7 @@
 
 import { requireAuth } from "./auth-guard.js";
 import { wireNavAuth } from "./nav-auth.js";
-import { exportHearingOrderToWord } from "./docx-export.js";
+import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js";
 import {
   subscribeToHearings,
   subscribeToCases,
@@ -22,7 +22,7 @@ import {
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
 // collection, since these lists are stable and small.
-const SECTIONS = [
+export const SECTIONS = [
   "PROMULGATION",
   "MOTIONS",
   "ARRAIGNMENT AND PRE-TRIAL CONFERENCE",
@@ -403,11 +403,6 @@ async function handleExportWord() {
   exportBtn.disabled = true;
   exportBtn.textContent = "Exporting\u2026";
 
-  // --- TEMPORARY DEBUG LOGGING (per request) ---
-  console.log("Hearing:", hearing);
-  console.log("Cases:", hearingCasesList);
-  // --- END TEMPORARY DEBUG LOGGING ---
-
   try {
     await exportHearingOrderToWord(hearing, hearingCasesList);
   } catch (err) {
@@ -417,6 +412,58 @@ async function handleExportWord() {
     exportBtn.innerHTML = originalLabel;
     if (window.lucide) lucide.createIcons();
   }
+}
+
+// --- Page-level Court Calendar export modes ---------------------------
+// All three reuse the same already-loaded `hearings`/`cases` state as
+// handleExportWord above — no new Firestore reads for any of them — and
+// all three call into the exact same shared document builder in
+// docx-export.js that handleExportWord uses.
+
+function setToolbarExportStatus(text) {
+  const el = document.getElementById("toolbarExportStatus");
+  if (el) el.textContent = text || "";
+}
+
+async function withExportButton(buttonId, task) {
+  if (!window.docx) {
+    setToolbarExportStatus("Could not export: the Word export library failed to load. Check your internet connection and try again.");
+    return;
+  }
+  const btn = document.getElementById(buttonId);
+  // Captured/restored via innerHTML, not textContent — this button has an
+  // icon child element, and textContent would silently strip it on the
+  // first click (textContent only sees text nodes, not the <i> element).
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = "Exporting\u2026";
+  setToolbarExportStatus("");
+  try {
+    await task();
+  } catch (err) {
+    setToolbarExportStatus(`Could not export: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+async function handleExportSelectedDate() {
+  const dateStr = document.getElementById("exportDateInput").value;
+  if (!dateStr) {
+    setToolbarExportStatus("Pick a date first.");
+    return;
+  }
+  await withExportButton("exportDateBtn", () => exportCourtCalendarForDate(hearings, cases, dateStr));
+}
+
+async function handleExportCurrentWeek() {
+  await withExportButton("exportWeekBtn", () => exportCourtCalendarForWeek(hearings, cases, new Date()));
+}
+
+async function handleExportCurrentMonth() {
+  await withExportButton("exportMonthBtn", () => exportCourtCalendarForMonth(hearings, cases, new Date()));
 }
 
 async function handleDelete(hearingId) {
@@ -467,6 +514,9 @@ async function init() {
   wireNavAuth(user);
 
   document.getElementById("addHearingBtn").addEventListener("click", openAddForm);
+  document.getElementById("exportDateBtn").addEventListener("click", handleExportSelectedDate);
+  document.getElementById("exportWeekBtn").addEventListener("click", handleExportCurrentWeek);
+  document.getElementById("exportMonthBtn").addEventListener("click", handleExportCurrentMonth);
 
   subscribeToHearings((data) => {
     hearings = data;
