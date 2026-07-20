@@ -30,12 +30,31 @@
     </div>
   </nav>
 
-  <main class="wrap wrap-narrow">
+  <main class="wrap wrap-wide">
     <header class="header">
       <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
       <h1>Welcome</h1>
       <p class="sub">Use the navigation above to schedule hearings or view the calendar.</p>
     </header>
+
+    <section class="dashboard-stats-grid" aria-label="Docket summary">
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statActiveCases">&hellip;</p>
+        <p class="dashboard-stat-label">Active Cases</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statHearingsToday">&hellip;</p>
+        <p class="dashboard-stat-label">Hearings Today</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statHearingsNext7">&hellip;</p>
+        <p class="dashboard-stat-label">Hearings in Next 7 Days</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statHearingsNext30">&hellip;</p>
+        <p class="dashboard-stat-label">Hearings in Next 30 Days</p>
+      </div>
+    </section>
 
     <section class="card">
       <p class="dashboard-welcome">

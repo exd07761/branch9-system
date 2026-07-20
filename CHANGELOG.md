@@ -4,6 +4,44 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.7.0] — Dashboard and Global Search
+
+**Added — Dashboard (`home.html`)**
+- Four read-only summary cards: Active Cases, Hearings Today, Hearings in
+  Next 7 Days, Hearings in Next 30 Days.
+- `js/dashboard-stats.js` (new) — pure computation only, no Firestore or
+  DOM. Takes an already-loaded hearings array and returns the four
+  numbers. "Active Cases" sums each hearing's existing `caseCount` field
+  (added in Milestone 3 for exactly this purpose) — no new read of the
+  `hearingCases` collection is needed for any of the four stats.
+- `js/home.js` now calls `subscribeToHearings()` — the same function
+  `hearings.js` already uses from `hearings-data.js` — rather than
+  writing a second, duplicate Firestore query. Updates live whenever
+  Firestore changes, same as every other consumer of that function.
+- `home.html` widened from `wrap-narrow` to the existing `wrap-wide`
+  container (already used on Hearings/Calendar) to fit the new grid; no
+  new colors, fonts, or component styles were introduced.
+
+**Added — Global Search (`hearings.html`)**
+- A search bar filtering the Hearings table live as you type, across
+  case number, plaintiff, accused, charge, hearing date, and status.
+- Case-insensitive substring match against the already-loaded `hearings`/
+  `cases` arrays in memory — filters client-side on every keystroke, with
+  zero new Firestore queries. Reuses the existing `casesForHearing()`
+  helper rather than duplicating any case-lookup logic.
+- Search state is independent of Calendar and Export — neither was
+  touched, and both continue reading the same underlying data untouched.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar, or Export. Confirmed by checksum:
+`hearings-data.js`, `calendar-data.js`, `calendar.js`, `nav-auth.js`,
+`firebase-init.js`, `firebase-config.js`, `auth-guard.js`,
+`diagnostics.js`, `login.js`, `index.js`, `docx-export.js`,
+`export-data.js`, and `constants.js` are all byte-identical to before
+this release.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.6.3] — Export Dropdown + Circular Import Fix
 
 **Fixed**
