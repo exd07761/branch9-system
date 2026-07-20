@@ -72,17 +72,47 @@ function caseSummary(hearingId) {
   return list.map((c) => `${c.caseType || ""}. ${c.caseNo || ""}`).join("; ");
 }
 
+// --- Global search -------------------------------------------------------
+// Filters the already-loaded `hearings` array in memory — no new
+// Firestore query runs per keystroke. Reuses casesForHearing() (already
+// defined above) rather than duplicating any case-lookup logic.
+
+let searchQuery = "";
+
+function hearingMatchesSearch(hearing, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const hearingCases = casesForHearing(hearing.id);
+
+  const haystack = [
+    hearingCases.map((c) => c.caseNo).join(" "),
+    hearingCases.map((c) => c.charge).join(" "),
+    hearing.plaintiff,
+    (hearing.accused || []).join(" "),
+    hearing.hearingDate,
+    fmtDate(hearing.hearingDate),
+    hearing.status,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(q);
+}
+
 // --- List rendering ---------------------------------------------------
 
 function renderList() {
   const tbody = document.getElementById("hearingsTableBody");
+  const visibleHearings = hearings.filter((h) => hearingMatchesSearch(h, searchQuery));
 
-  if (!hearings.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-row">No hearings yet. Click "+ Add Hearing" to create one.</td></tr>`;
+  if (!visibleHearings.length) {
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-row">${
+      hearings.length ? "No hearings match your search." : 'No hearings yet. Click "+ Add Hearing" to create one.'
+    }</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = hearings
+  tbody.innerHTML = visibleHearings
     .map((h) => {
       const accusedLine = (h.accused || []).join(", ");
       // caseCount is written on every save; fall back to counting live
@@ -540,6 +570,10 @@ async function init() {
   wireNavAuth(user);
 
   document.getElementById("addHearingBtn").addEventListener("click", openAddForm);
+  document.getElementById("hearingsSearchInput").addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
+    renderList();
+  });
   document.getElementById("exportDateBtn").addEventListener("click", handleExportSelectedDate);
   document.getElementById("exportWeekBtn").addEventListener("click", handleExportCurrentWeek);
   document.getElementById("exportMonthBtn").addEventListener("click", handleExportCurrentMonth);
