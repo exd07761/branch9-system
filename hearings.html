@@ -43,20 +43,27 @@
         <span>Add Hearing</span>
       </button>
 
-      <div class="toolbar-export-group">
-        <input type="date" id="exportDateInput" aria-label="Date to export">
-        <button type="button" class="btn-small" id="exportDateBtn">
+      <div class="export-dropdown" id="exportDropdown">
+        <button type="button" class="btn-small" id="exportDropdownToggle" aria-haspopup="true" aria-expanded="false">
           <i data-lucide="file-down" aria-hidden="true"></i>
-          <span>Export Date</span>
+          <span>Export Calendar</span>
+          <i data-lucide="chevron-down" aria-hidden="true"></i>
         </button>
-        <button type="button" class="btn-small" id="exportWeekBtn">
-          <i data-lucide="file-down" aria-hidden="true"></i>
-          <span>Export Week</span>
-        </button>
-        <button type="button" class="btn-small" id="exportMonthBtn">
-          <i data-lucide="file-down" aria-hidden="true"></i>
-          <span>Export Month</span>
-        </button>
+        <div class="export-dropdown-menu" id="exportDropdownMenu" hidden>
+          <div class="export-dropdown-date-row">
+            <input type="date" id="exportDateInput" aria-label="Date to export">
+            <button type="button" class="btn-small" id="exportDateBtn">Export</button>
+          </div>
+          <div class="export-dropdown-divider"></div>
+          <button type="button" class="export-dropdown-item" id="exportWeekBtn">
+            <i data-lucide="file-down" aria-hidden="true"></i>
+            <span>Export Current Week</span>
+          </button>
+          <button type="button" class="export-dropdown-item" id="exportMonthBtn">
+            <i data-lucide="file-down" aria-hidden="true"></i>
+            <span>Export Current Month</span>
+          </button>
+        </div>
       </div>
     </div>
     <p class="form-error" id="toolbarExportStatus" role="alert"></p>

@@ -4,6 +4,36 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.6.3] — Export Dropdown + Circular Import Fix
+
+**Fixed**
+- **Circular import**, likely the actual cause of the export buttons not
+  working: `hearings.js` imports `docx-export.js`, which imports
+  `export-data.js`, which imported `SECTIONS` back from `hearings.js` —
+  a cycle. New `js/constants.js` (no dependencies of its own) now holds
+  `SECTIONS`; both `hearings.js` and `export-data.js` import it from
+  there instead, so the graph is a clean, one-directional chain with no
+  cycle.
+
+**Changed**
+- The three toolbar export controls (Export Date / Week / Month) are now
+  a single "Export Calendar" dropdown button instead of three separate
+  buttons + a bare date input, for a cleaner toolbar. All underlying IDs
+  (`exportDateInput`, `exportDateBtn`, `exportWeekBtn`, `exportMonthBtn`)
+  and their click handlers are unchanged — only the surrounding markup
+  and a new open/close toggle were added. The menu closes automatically
+  on a successful export, on Escape, or on an outside click.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar, or the document-generation logic itself
+(same shared builder from v0.6.2). Confirmed by checksum:
+`hearings-data.js`, `calendar-data.js`, `calendar.js`, `home.js`,
+`nav-auth.js`, `firebase-init.js`, `firebase-config.js`, `auth-guard.js`,
+`diagnostics.js`, `login.js`, and `index.js` are all byte-identical to
+before this release.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.6.2] — Court Calendar Export System
 
 Generalizes Word export from a single-hearing-only feature into a proper
