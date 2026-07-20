@@ -4,6 +4,58 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.6.2] — Court Calendar Export System
+
+Generalizes Word export from a single-hearing-only feature into a proper
+multi-mode export service, matching the previous Branch system's actual
+Court Calendar export behavior.
+
+**Added**
+- `js/export-data.js` (new) — pure data-preparation layer. No Firestore,
+  no docx, no DOM. Filters the already-loaded `hearings`/`cases` arrays by
+  date/week/month, attaches each hearing's own cases, and groups the
+  result by section (canonical order, from `hearings.js`'s now-exported
+  `SECTIONS` constant) — the exact renderer-agnostic shape a future PDF
+  exporter could also consume.
+- Three new export modes in the Hearings toolbar: **Export Date** (date
+  picker + button), **Export Week**, **Export Month** — all reuse the
+  page's already-loaded `hearings`/`cases` state; none trigger a new
+  Firestore read.
+- `js/docx-export.js` — reorganized around **one shared builder**
+  (`buildCourtCalendarChildren`) that every export mode calls, differing
+  only in which hearings are in the dataset. "Export This Hearing" is now
+  a thin wrapper that prepares a one-item dataset and calls the same
+  builder as the other three modes — no document-generation logic is
+  duplicated between modes.
+- Document title is now "COURT CALENDAR" for every mode (matching the
+  real reference document exactly), with a mode-specific subtitle
+  ("Hearing on...", "For...", "Week of...", "Month of...").
+
+**Changed**
+- `hearings.js` now exports `SECTIONS` (was a local `const`) so
+  `export-data.js` can reuse the canonical section order instead of
+  duplicating it.
+- Removed all temporary `[docx-diagnostic]` console logging and the
+  `window.__docxDiagnosticTest()` helper added during the earlier blank-
+  export investigation — that issue is resolved (see the `docx@8.0.4` +
+  `defer` fixes below), so this cleanup keeps the file focused on the new
+  feature rather than leftover debugging scaffolding.
+- **Fixed a real bug caught before shipping:** the new toolbar export
+  buttons have icon children, and the button-state helper was initially
+  written using `textContent` to save/restore their label during
+  "Exporting…" — which would have silently deleted the icon after the
+  first click (`textContent` only sees text nodes, not the `<i>` icon
+  element). Corrected to use `innerHTML`, the same safe pattern already
+  used elsewhere in this codebase for icon-bearing buttons.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, or Calendar. Confirmed by checksum: `hearings-data.js`,
+`calendar-data.js`, `calendar.js`, `home.js`, `nav-auth.js`,
+`firebase-init.js`, `firebase-config.js`, `auth-guard.js`, `diagnostics.js`,
+`login.js`, and `index.js` are all byte-identical to before this release.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.6.1] — Mobile Header & Branding (No Feature Changes)
 
 UI-only polish. No `.js` file was modified — verified by checksum before

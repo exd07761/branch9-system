@@ -42,7 +42,24 @@
         <i data-lucide="plus" aria-hidden="true"></i>
         <span>Add Hearing</span>
       </button>
+
+      <div class="toolbar-export-group">
+        <input type="date" id="exportDateInput" aria-label="Date to export">
+        <button type="button" class="btn-small" id="exportDateBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export Date</span>
+        </button>
+        <button type="button" class="btn-small" id="exportWeekBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export Week</span>
+        </button>
+        <button type="button" class="btn-small" id="exportMonthBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export Month</span>
+        </button>
+      </div>
     </div>
+    <p class="form-error" id="toolbarExportStatus" role="alert"></p>
 
     <div id="formPanel"></div>
 
