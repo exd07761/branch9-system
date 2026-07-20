@@ -18,7 +18,7 @@
 // hearing included, hearings within a section sorted chronologically.
 // ---------------------------------------------------------------------------
 
-import { SECTIONS } from "./hearings.js";
+import { SECTIONS } from "./constants.js";
 
 function atMidnight(date) {
   const d = new Date(date);

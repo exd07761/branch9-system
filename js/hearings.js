@@ -10,6 +10,7 @@
 
 import { requireAuth } from "./auth-guard.js";
 import { wireNavAuth } from "./nav-auth.js";
+import { SECTIONS } from "./constants.js";
 import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js";
 import {
   subscribeToHearings,
@@ -22,16 +23,6 @@ import {
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
 // collection, since these lists are stable and small.
-export const SECTIONS = [
-  "PROMULGATION",
-  "MOTIONS",
-  "ARRAIGNMENT AND PRE-TRIAL CONFERENCE",
-  "TRIAL",
-  "DEFENSE EVIDENCE",
-  "PROSECUTIONS EVIDENCE",
-  "HEARING ON THE DISPOSITION PROGRAM OF THE CICL",
-  "HEARING ON THE AFTERCARE SERVICES OF THE CICL",
-];
 
 const STATUSES = [
   "Arraignment and Pre-Trial Conference",
@@ -420,6 +411,40 @@ async function handleExportWord() {
 // all three call into the exact same shared document builder in
 // docx-export.js that handleExportWord uses.
 
+function closeExportDropdown() {
+  const menu = document.getElementById("exportDropdownMenu");
+  const toggle = document.getElementById("exportDropdownToggle");
+  menu.hidden = true;
+  toggle.setAttribute("aria-expanded", "false");
+}
+
+function wireExportDropdown() {
+  const toggle = document.getElementById("exportDropdownToggle");
+  const menu = document.getElementById("exportDropdownMenu");
+  const dropdown = document.getElementById("exportDropdown");
+
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = !menu.hidden;
+    menu.hidden = isOpen;
+    toggle.setAttribute("aria-expanded", String(!isOpen));
+  });
+
+  // Close when clicking anywhere outside the dropdown.
+  document.addEventListener("click", (e) => {
+    if (!menu.hidden && !dropdown.contains(e.target)) closeExportDropdown();
+  });
+
+  // Close on Escape.
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !menu.hidden) closeExportDropdown();
+  });
+
+  // Clicking inside the menu (date row aside) shouldn't bubble to the
+  // document listener and immediately close the menu on the same click.
+  menu.addEventListener("click", (e) => e.stopPropagation());
+}
+
 function setToolbarExportStatus(text) {
   const el = document.getElementById("toolbarExportStatus");
   if (el) el.textContent = text || "";
@@ -440,6 +465,7 @@ async function withExportButton(buttonId, task) {
   setToolbarExportStatus("");
   try {
     await task();
+    closeExportDropdown();
   } catch (err) {
     setToolbarExportStatus(`Could not export: ${err.message}`);
   } finally {
@@ -517,6 +543,7 @@ async function init() {
   document.getElementById("exportDateBtn").addEventListener("click", handleExportSelectedDate);
   document.getElementById("exportWeekBtn").addEventListener("click", handleExportCurrentWeek);
   document.getElementById("exportMonthBtn").addEventListener("click", handleExportCurrentMonth);
+  wireExportDropdown();
 
   subscribeToHearings((data) => {
     hearings = data;
