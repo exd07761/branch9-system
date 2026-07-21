@@ -119,7 +119,7 @@ function renderList() {
       // case docs only for older records saved before this field existed.
       const count = typeof h.caseCount === "number" ? h.caseCount : casesForHearing(h.id).length;
       return `
-        <tr>
+        <tr data-hearing-row="${h.id}">
           <td>${h.hearingDate ? esc(fmtDate(h.hearingDate)) : "<span class=\"muted\">Not set</span>"}</td>
           <td>${esc(h.hearingTime) || '<span class="muted">&mdash;</span>'}</td>
           <td>${esc(h.section)}</td>
@@ -142,7 +142,123 @@ function renderList() {
   tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
     btn.addEventListener("click", () => handleDelete(btn.dataset.id));
   });
+
+  // Row click opens the read-only quick-view modal — but not when the
+  // click originated from the Edit/Delete buttons above, which must keep
+  // working exactly as they already do.
+  tbody.querySelectorAll("[data-hearing-row]").forEach((tr) => {
+    tr.addEventListener("click", (e) => {
+      if (e.target.closest("[data-action]")) return;
+      openPreview(tr.dataset.hearingRow);
+    });
+  });
 }
+
+// --- Hearing Quick View (read-only modal) --------------------------------
+// Opens on a row click, shows the same already-loaded hearing + case data
+// the table/edit form already have in memory — no new Firestore read.
+// The only actions inside it are Close and a convenience "Edit" shortcut
+// that calls the existing openEditForm() unchanged; nothing here
+// duplicates save/delete/validation logic.
+
+let previewHearingId = null;
+
+function previewField(label, value) {
+  const v = (value || "").toString().trim();
+  return `<div class="preview-field"><span class="preview-field-label">${esc(label)}</span><span class="preview-field-value${v ? "" : " muted"}">${v ? esc(v) : "Not set"}</span></div>`;
+}
+
+function openPreview(hearingId) {
+  previewHearingId = hearingId;
+  renderPreview();
+}
+
+function closePreview() {
+  previewHearingId = null;
+  renderPreview();
+}
+
+function renderPreview() {
+  const root = document.getElementById("hearingPreviewRoot");
+  if (!previewHearingId) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const h = hearings.find((x) => x.id === previewHearingId);
+  if (!h) {
+    // Hearing disappeared from the loaded list (e.g. deleted in another
+    // tab) while the preview was open — just close it rather than show
+    // stale/empty data.
+    previewHearingId = null;
+    root.innerHTML = "";
+    return;
+  }
+
+  const hearingCasesList = casesForHearing(previewHearingId);
+
+  root.innerHTML = `
+    <div class="preview-overlay" id="previewOverlay">
+      <div class="preview-card">
+        <button type="button" class="preview-close" id="previewCloseBtn" aria-label="Close">&times;</button>
+        <p class="eyebrow">${esc(h.section)}</p>
+        <h2 class="preview-title">${esc(h.hearingType) || "Hearing"}</h2>
+
+        <div class="preview-grid">
+          ${previewField("Status", h.status)}
+          ${previewField("Hearing Date", h.hearingDate ? fmtDate(h.hearingDate) : "")}
+          ${previewField("Hearing Time", h.hearingTime)}
+          ${previewField("Plaintiff", h.plaintiff)}
+          ${previewField("Accused", (h.accused || []).join(", "))}
+          ${previewField("Victim(s)", (h.victims || []).join(", "))}
+          ${previewField("Detention / Bond Status", h.detentionStatus)}
+          ${previewField("Counsel for the People", h.counselForPeople)}
+          ${previewField("Counsel for the Accused", h.counselForAccused)}
+        </div>
+        <div class="preview-notes">${previewField("Notes", h.notes)}</div>
+
+        <div class="preview-cases">
+          <h3>Cases (${hearingCasesList.length})</h3>
+          ${
+            hearingCasesList.length
+              ? hearingCasesList
+                  .map(
+                    (c) => `
+                <div class="preview-case-item">
+                  <p class="preview-case-no">${esc(c.caseType)}. ${esc(c.caseNo)}</p>
+                  <p class="preview-case-charge">${esc(c.charge) || "No charge on file"}</p>
+                  ${c.dateFiled ? `<p class="preview-case-filed">Filed: ${esc(fmtDate(c.dateFiled))}</p>` : ""}
+                </div>
+              `
+                  )
+                  .join("")
+              : `<p class="muted">No case numbers attached.</p>`
+          }
+        </div>
+
+        <div class="preview-actions">
+          <button type="button" class="btn-secondary" id="previewCloseBtn2">Close</button>
+          <button type="button" class="btn-primary btn-inline" id="previewEditBtn">Edit This Hearing</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const overlay = document.getElementById("previewOverlay");
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closePreview();
+  });
+  document.getElementById("previewCloseBtn").addEventListener("click", closePreview);
+  document.getElementById("previewCloseBtn2").addEventListener("click", closePreview);
+  document.getElementById("previewEditBtn").addEventListener("click", () => {
+    closePreview();
+    openEditForm(previewHearingId || h.id);
+  });
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && previewHearingId) closePreview();
+});
 
 // --- Form rendering -----------------------------------------------------
 
