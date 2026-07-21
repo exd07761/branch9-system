@@ -933,53 +933,239 @@ button, input, select, textarea { font-family: inherit; }
   margin: 0 0 var(--space-4);
 }
 
-.today-hearing-list {
+/* ---------------------------------------------------------------------- */
+/* v0.8.0 — Branch Clerk Productivity Dashboard (home.html)                */
+/* Reuses existing tokens/typography/status colors only — no new colors,  */
+/* fonts, or theme changes. Supersedes v0.7.2's simple today-hearing-*     */
+/* list, which this timeline replaces.                                    */
+/* ---------------------------------------------------------------------- */
+
+.dashboard-live-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.session-card,
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-label,
+.summary-title {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 600;
+  margin: 0 0 var(--space-2);
+}
+
+.session-title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--ink);
+  margin: 0;
+}
+
+.session-case {
+  font-size: var(--text-base);
+  color: var(--ink);
+  margin: 0;
+}
+
+.session-stage {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  margin: var(--space-1) 0 0;
+}
+
+.session-time {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--brass-dark);
+  margin: var(--space-2) 0 0;
+}
+
+.session-countdown {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--blue);
+  margin: var(--space-2) 0 0;
+}
+
+.session-empty {
+  font-size: var(--text-base);
+  color: var(--ink-3);
+  font-style: italic;
+  margin: 0;
+}
+
+.summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.summary-row:last-child {
+  border-bottom: none;
+}
+
+.summary-value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.summary-label {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quick-actions-card { margin-bottom: var(--space-6); }
+
+.quick-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.quick-actions-row .btn-secondary { width: auto; }
+
+.timeline-header {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 600;
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.timeline-list {
+  position: relative;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.today-hearing-item {
+.timeline-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--line);
   cursor: pointer;
+  border-radius: var(--radius-sm);
 }
 
-.today-hearing-item:last-child {
-  border-bottom: none;
-}
-
-.today-hearing-item:hover {
+.timeline-item:hover {
   background: var(--row-hover-tint);
 }
 
-.today-hearing-time {
-  width: 90px;
+.timeline-item--now {
+  background: var(--green-bg);
+}
+
+.timeline-item--now:hover {
+  background: var(--green-bg);
+}
+
+.timeline-item--next {
+  background: var(--blue-bg);
+}
+
+.timeline-item--next:hover {
+  background: var(--blue-bg);
+}
+
+.timeline-rail {
+  position: relative;
+  width: 14px;
   flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Connector line, drawn through every dot except before the first and
+   after the last item in the list. */
+.timeline-rail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 100%;
+  background: var(--line);
+  transform: translateX(-50%);
+}
+
+.timeline-item:first-child .timeline-rail::before { top: 8px; }
+.timeline-item:last-child .timeline-rail::before { height: 8px; }
+
+.timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--card);
+  border: 2px solid var(--line-strong);
+}
+
+.timeline-item--now .timeline-dot { border-color: var(--green); }
+.timeline-item--next .timeline-dot { border-color: var(--blue); }
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.timeline-time {
   font-weight: 600;
   font-size: var(--text-sm);
   color: var(--ink);
 }
 
-.today-hearing-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.today-hearing-title {
+.timeline-case {
   font-size: var(--text-base);
   color: var(--ink);
 }
 
-.today-hearing-stage {
+.timeline-stage {
   font-size: var(--text-xs);
   color: var(--ink-2);
 }
+
+.timeline-badge {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.timeline-badge--now { background: var(--green-bg); color: var(--green); }
+.timeline-badge--next { background: var(--blue-bg); color: var(--blue); }
+.timeline-badge--completed { background: var(--gray-bg); color: var(--ink-3); }
+.timeline-badge--upcoming { background: var(--amber-bg); color: var(--amber); }
 
 /* ---------------------------------------------------------------------- */
 /* v0.7.0 — Hearings global search (hearings.html)                         */
@@ -1107,5 +1293,18 @@ button, input, select, textarea { font-family: inherit; }
   /* Hearing Quick View: single column on narrow screens. */
   .preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* v0.8.0: Session/Summary cards and Quick Actions stack on a phone. */
+  .dashboard-live-row {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions-row {
+    flex-direction: column;
+  }
+
+  .quick-actions-row .btn-secondary {
+    width: 100%;
   }
 }
