@@ -4,6 +4,39 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.7.1] — Hearing Quick View
+
+**Added**
+- Clicking anywhere on a hearing's row (outside its Edit/Delete buttons)
+  opens a read-only quick-view modal showing every hearing field and its
+  linked cases — reusing the already-loaded `hearings`/`cases` state via
+  the existing `casesForHearing()` helper. No new Firestore read happens
+  to open it.
+- Closes via the X button, an outside click on the backdrop, or Escape.
+- A convenience "Edit This Hearing" button in the modal closes the
+  preview and calls the existing `openEditForm()` unchanged — no
+  save/validation/delete logic is duplicated.
+- Visually matches the existing design system (same tokens as the
+  Firebase fatal-error overlay's card/overlay pattern) and adapts
+  automatically to dark mode, since no new colors were introduced —
+  every rule uses existing CSS custom properties.
+
+**How it avoids double-triggering with existing row actions:** the row's
+click handler checks `e.target.closest('[data-action]')` and bails out
+before opening the preview, so the Edit and Delete buttons — unchanged —
+keep working exactly as before.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar, Export, Dashboard, or Search. Confirmed by
+checksum: `hearings-data.js`, `calendar-data.js`, `calendar.js`,
+`home.js`, `nav-auth.js`, `firebase-init.js`, `firebase-config.js`,
+`auth-guard.js`, `diagnostics.js`, `login.js`, `index.js`,
+`docx-export.js`, `export-data.js`, `constants.js`, and
+`dashboard-stats.js` are all byte-identical to before this release —
+only `hearings.js`, `hearings.html`, and `css/styles.css` were touched.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.7.0] — Dashboard and Global Search
 
 **Added — Dashboard (`home.html`)**
