@@ -57,3 +57,30 @@ export function computeDashboardStats(hearings, referenceDate = new Date()) {
 
   return { activeCases, hearingsToday, hearingsNext7, hearingsNext30 };
 }
+
+/**
+ * Today's hearings, sorted chronologically. Sorts by the existing
+ * hearingDateTime field (the derived Timestamp added in Milestone 3
+ * specifically for sorting) rather than parsing the hearingTime label
+ * string — falls back to keeping original order for the rare document
+ * that predates that field.
+ *
+ * @param {Array} hearings - already-loaded, already non-deleted-filtered
+ *   hearing documents (exactly what subscribeToHearings() provides)
+ * @param {Date} [referenceDate] - defaults to now; parameterized so this
+ *   stays testable without mocking the system clock
+ */
+export function getTodaysHearingsSorted(hearings, referenceDate = new Date()) {
+  const today = atMidnight(referenceDate);
+
+  return (hearings || [])
+    .filter((h) => {
+      const d = toDateOnly(h.hearingDate);
+      return d && d.getTime() === today.getTime();
+    })
+    .sort((a, b) => {
+      const aTime = a.hearingDateTime && typeof a.hearingDateTime.toDate === "function" ? a.hearingDateTime.toDate().getTime() : 0;
+      const bTime = b.hearingDateTime && typeof b.hearingDateTime.toDate === "function" ? b.hearingDateTime.toDate().getTime() : 0;
+      return aTime - bTime;
+    });
+}
