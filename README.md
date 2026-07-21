@@ -446,3 +446,74 @@ connection issue, just at its own URL. Login correctly refuses to submit
 with missing fields. And if Firebase itself is ever unreachable, the
 Clerk sees an explanation instead of a page that appears to simply do
 nothing.
+
+# v0.8.0: Branch Clerk Productivity Dashboard
+
+Turns `home.html` into an operational dashboard the Clerk can actually
+work from at the start of the day, instead of just a landing page.
+
+## 1. What's new
+
+- **Today's Hearings Timeline** — every hearing scheduled today, in
+  order, with a status badge (Now / Next / Completed / Upcoming) and a
+  highlighted background for the current and next hearing. Click any
+  hearing to open the same read-only Quick View modal already used on
+  the Hearings page.
+- **Current Session / Next Hearing card** — shows what's happening right
+  now, or a live "Starts in N minutes" countdown to the next one if
+  nothing's active. Updates automatically every 30 seconds.
+- **Today's Summary** — Scheduled / Completed / Remaining counts for
+  today.
+- **Quick Actions** — Add Hearing, Open Calendar, and Export Today's
+  Calendar, right from Home.
+
+Nothing here changes the Firestore schema, security rules, login flow,
+Calendar, or either Word export mode — see `CHANGELOG.md` for the full
+technical breakdown of what was reused vs. added.
+
+## 2. A note on "Now" / "Completed"
+
+The hearings schema doesn't record how long a hearing lasts or whether
+it's finished — a hearing's `status` field is its stage (e.g. "Pre-Trial
+Conference"), not a scheduling state. So "current" and "completed" are
+computed client-side, assuming each hearing runs for 30 minutes from its
+scheduled start. That assumption lives in one place
+(`DEFAULT_HEARING_DURATION_MINUTES` in `js/dashboard-live.js`) if it
+ever needs adjusting for how this branch actually runs its calendar.
+
+## 3. Deploy to GitHub Pages
+
+Same process as before — push the updated files. No new Firebase
+configuration, security rules, or indexes are needed for this release.
+
+## 4. Testing Checklist
+
+- [ ] Home shows a "Now Hearing" card during a hearing's scheduled
+      30-minute window, and "No active hearing." otherwise
+- [ ] When there's no active hearing, a "Next Hearing" card appears with
+      a "Starts in N minutes" countdown that counts down as time passes
+      (no page refresh needed)
+- [ ] Today's Summary shows correct Scheduled / Completed / Remaining
+      counts for today's hearings
+- [ ] The Today's Hearings timeline lists today's hearings in
+      chronological order, each with a status badge, and highlights the
+      current/next hearing
+- [ ] Clicking a hearing on the timeline opens the same Quick View modal
+      used on the Hearings page (not the edit form)
+- [ ] "Add Hearing" quick action opens the Hearings page with the Add
+      form already open
+- [ ] "Open Calendar" quick action goes to `calendar.html`, unchanged
+- [ ] "Export Today's Calendar" downloads a `.docx` matching today's
+      hearings
+- [ ] Calendar's existing links to `hearings.html?openHearing=<id>` still
+      open the edit form exactly as before (unaffected by the new
+      `?previewHearing`/`?action=add` params)
+- [ ] Global search on the Hearings page, both Word export modes, and the
+      4 original dashboard stat cards all still work exactly as before
+
+## 5. Expected Behavior After Deployment
+
+Opening Home at the start of the day tells the Clerk, at a glance, what's
+happening now, what's next, how the day is progressing, and gives one-
+click access to the day's most common actions — without needing to open
+Hearings or Calendar first.

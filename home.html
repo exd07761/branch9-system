@@ -56,6 +56,34 @@
       </div>
     </section>
 
+    <section class="dashboard-live-row">
+      <div class="card session-card" id="dashboardSessionCard">
+        <p class="muted">Loading&hellip;</p>
+      </div>
+      <div class="card summary-card" id="dashboardSummaryCard">
+        <p class="muted">Loading&hellip;</p>
+      </div>
+    </section>
+
+    <section class="card quick-actions-card">
+      <h2 class="today-panel-title">Quick Actions</h2>
+      <div class="quick-actions-row">
+        <button type="button" class="btn-secondary" id="qaAddHearingBtn">
+          <i data-lucide="plus" aria-hidden="true"></i>
+          <span>Add Hearing</span>
+        </button>
+        <button type="button" class="btn-secondary" id="qaOpenCalendarBtn">
+          <i data-lucide="calendar-days" aria-hidden="true"></i>
+          <span>Open Calendar</span>
+        </button>
+        <button type="button" class="btn-secondary" id="qaExportTodayBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export Today's Calendar</span>
+        </button>
+      </div>
+      <p class="form-error" id="quickActionsStatus" role="alert"></p>
+    </section>
+
     <section class="card">
       <h2 class="today-panel-title">Today's Hearings</h2>
       <div id="todaysHearingsList">
@@ -73,6 +101,7 @@
   </main>
 
   <script type="module" src="js/home.js"></script>
+  <script src="https://unpkg.com/docx@8.0.4/build/index.js" defer></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 

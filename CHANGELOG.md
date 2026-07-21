@@ -4,6 +4,73 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.8.0] — Branch Clerk Productivity Dashboard
+
+**Added**
+- **Today's Hearings Timeline** (replaces v0.7.2's simple list): a vertical
+  timeline on `home.html` with a connecting rail/dot per hearing, a status
+  badge (Now / Next / Completed / Upcoming), and a highlighted background
+  for the current and next hearings. Still sorted chronologically, still
+  today's hearings only, still built entirely from the same already-loaded
+  `hearings` array via the existing `getTodaysHearingsSorted()` — zero new
+  Firestore reads. Shows "No hearings scheduled today. Enjoy the quiet
+  day." when empty.
+- **Current Session card**: shows the hearing considered "in progress"
+  right now, or "No active hearing." if none is. **Next Hearing card**:
+  shown instead whenever there's no active hearing, with a live "Starts in
+  N minutes" countdown. Both are pure client-side computation, re-rendered
+  on a 30-second timer so they stay accurate as time passes with no new
+  Firestore activity.
+- **Today's Summary card**: Scheduled / Completed / Remaining counts for
+  today, computed the same way.
+- **Quick Actions**: Add Hearing, Open Calendar, and Export Today's
+  Calendar buttons. Add Hearing and Export Today's Calendar reuse existing
+  logic unchanged (see below); Open Calendar is a plain link — Calendar
+  itself is completely untouched.
+- New `js/dashboard-live.js` — pure computation only (no Firestore/DOM),
+  alongside `dashboard-stats.js` rather than inside it: `getCurrentHearing`,
+  `getNextUpcomingHearing`, `getTodaysSummary`, `minutesUntil`, and
+  `annotateTimelineStatuses`. Since the hearings schema has no duration or
+  completion field ("status" is actually the hearing's stage, e.g.
+  "Pre-Trial Conference," not a workflow state), "current"/"completed" are
+  derived from the existing `hearingDateTime` field plus an assumed
+  30-minute hearing length (`DEFAULT_HEARING_DURATION_MINUTES`) — a
+  documented client-side approximation, not a new schema field.
+
+**Changed (minimal, additive, reuses existing functions)**
+- `hearings.js` now recognizes two more URL entry points alongside the
+  existing, unchanged `?openHearing=<id>` (which Calendar still uses
+  as-is): `?previewHearing=<id>` calls the existing `openPreview()`
+  (the Quick View / "Lightbox" modal from v0.7.1) instead of the edit
+  form — this is what the new Timeline and Session cards link to, so
+  clicking a hearing on Home opens the same Lightbox rather than
+  navigating to the edit form. `?action=add` calls the existing
+  `openAddForm()` — this is what the new "Add Hearing" quick action uses.
+  No form, validation, save, delete, or preview logic was duplicated;
+  both are thin new checks in the existing `maybeAutoOpenFromUrl()`/`init()`
+  functions.
+- `home.js` now also calls `subscribeToCases()` from `hearings-data.js` —
+  the exact same function `hearings.js` already uses — solely so "Export
+  Today's Calendar" has case data to include. No new Firestore access code
+  was written; this is the same reusable subscription helper called a
+  second time, the same pattern already used for `subscribeToHearings()`
+  across Home/Hearings/Calendar. "Export Today's Calendar" itself calls
+  the existing `exportCourtCalendarForDate()` from `docx-export.js` (the
+  same function the Hearings page's date-export already uses) with
+  today's date — no export logic duplicated. `docx@8.0.4` script tag
+  added to `home.html` (same version already used on `hearings.html`).
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar (page, `calendar.js`, or `calendar-data.js`),
+Word Export document builder, Court Calendar Export logic, or Search.
+Calendar's own `?openHearing=<id>` linking behavior is untouched.
+Confirmed by checksum: `hearings-data.js`, `calendar-data.js`, `calendar.js`,
+`nav-auth.js`, `firebase-init.js`, `firebase-config.js`, `auth-guard.js`,
+`diagnostics.js`, `login.js`, `index.js`, `docx-export.js`,
+`export-data.js`, `constants.js`, and `dashboard-stats.js` are all
+byte-identical to v0.7.2 — only `home.html`, `js/home.js`, `js/hearings.js`,
+and `css/styles.css` were modified, plus the new `js/dashboard-live.js`.
+
 ## [0.7.2] — Today's Hearings Panel
 
 **Added**
