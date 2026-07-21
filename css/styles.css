@@ -928,6 +928,59 @@ button, input, select, textarea { font-family: inherit; }
   margin: 0;
 }
 
+.today-panel-title {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-4);
+}
+
+.today-hearing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.today-hearing-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.today-hearing-item:last-child {
+  border-bottom: none;
+}
+
+.today-hearing-item:hover {
+  background: var(--row-hover-tint);
+}
+
+.today-hearing-time {
+  width: 90px;
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.today-hearing-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.today-hearing-title {
+  font-size: var(--text-base);
+  color: var(--ink);
+}
+
+.today-hearing-stage {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
 /* ---------------------------------------------------------------------- */
 /* v0.7.0 — Hearings global search (hearings.html)                         */
 /* ---------------------------------------------------------------------- */
