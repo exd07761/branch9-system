@@ -660,22 +660,41 @@ async function handleDelete(hearingId) {
 // openEditForm() the "Edit" button already uses, once both live
 // collections have loaded at least once so the form has real data to
 // show. Calendar itself never touches Firestore writes at all.
-let autoOpenId = new URLSearchParams(window.location.search).get("openHearing");
+//
+// v0.8.0 adds two siblings, both reusing existing functions unchanged:
+//   ?previewHearing=<id> — opens the existing Quick View/Lightbox modal
+//     (openPreview(), from v0.7.1) instead of the edit form. Used by the
+//     new Home dashboard's Timeline and Current/Next Session cards.
+//     Deliberately a separate param from ?openHearing so Calendar's own
+//     linking behavior is untouched.
+//   ?action=add — opens the existing Add form (openAddForm()). Used by
+//     Home's new "Add Hearing" quick action.
+const urlParams = new URLSearchParams(window.location.search);
+let autoOpenId = urlParams.get("openHearing");
+let autoPreviewId = urlParams.get("previewHearing");
+let autoAddAction = urlParams.get("action") === "add";
 let hearingsLoaded = false;
 let casesLoaded = false;
 
 function maybeAutoOpenFromUrl() {
-  if (!autoOpenId || !hearingsLoaded || !casesLoaded) return;
-  const targetId = autoOpenId;
-  autoOpenId = null; // only ever attempt this once per page load
+  if (!hearingsLoaded || !casesLoaded) return;
 
-  if (hearings.find((h) => h.id === targetId)) {
-    openEditForm(targetId);
+  if (autoOpenId) {
+    const targetId = autoOpenId;
+    autoOpenId = null; // only ever attempt this once per page load
+    if (hearings.find((h) => h.id === targetId)) openEditForm(targetId);
+  }
+
+  if (autoPreviewId) {
+    const targetId = autoPreviewId;
+    autoPreviewId = null; // only ever attempt this once per page load
+    if (hearings.find((h) => h.id === targetId)) openPreview(targetId);
   }
 
   // Tidy the URL so refreshing the page doesn't re-trigger the auto-open.
   const url = new URL(window.location.href);
   url.searchParams.delete("openHearing");
+  url.searchParams.delete("previewHearing");
   window.history.replaceState({}, "", url);
 }
 
@@ -686,6 +705,15 @@ async function init() {
   wireNavAuth(user);
 
   document.getElementById("addHearingBtn").addEventListener("click", openAddForm);
+
+  if (autoAddAction) {
+    autoAddAction = false;
+    openAddForm();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("action");
+    window.history.replaceState({}, "", url);
+  }
+
   document.getElementById("hearingsSearchInput").addEventListener("input", (e) => {
     searchQuery = e.target.value.trim();
     renderList();
