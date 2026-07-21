@@ -4,6 +4,45 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.7.2] — Today's Hearings Panel
+
+**Added**
+- A read-only "Today's Hearings" card on `home.html`, below the dashboard
+  summary cards. Lists every hearing scheduled for today, sorted
+  chronologically, each showing time, "Plaintiff vs. Accused", and the
+  hearing's stage/status.
+- `getTodaysHearingsSorted()` (new, in `dashboard-stats.js`) — pure
+  function, no Firestore/DOM. Filters to today's date and sorts by the
+  existing `hearingDateTime` field (the derived Timestamp added in
+  Milestone 3 specifically for sorting), rather than parsing the
+  `hearingTime` label string.
+- Reuses the **same** `subscribeToHearings()` call already added for the
+  dashboard in v0.7.0 — one listener now drives both the stat cards and
+  this new panel, not two.
+- Displayed time is formatted from `hearingDateTime` (e.g. "8:30 AM")
+  rather than the stored descriptive label ("8:30 in the Morning"), to
+  match the requested display format — still derived entirely from
+  existing data, no schema change.
+- Clicking a hearing navigates to `hearings.html?openHearing=<id>` — the
+  exact same mechanism Calendar already uses. Deliberately **not**
+  changed to open the newer Quick View modal (from v0.7.1) instead: that
+  URL parameter is shared with Calendar, and changing what it does would
+  be a behavior change to Calendar, which this milestone requires to stay
+  unchanged. Documented here in case a lightbox-on-click behavior is
+  wanted later via a separate mechanism.
+- Shows "No hearings scheduled today." when empty.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar, Export, Search, or the Hearing Quick View.
+Confirmed by checksum: `hearings-data.js`, `calendar-data.js`,
+`calendar.js`, `hearings.js`, `nav-auth.js`, `firebase-init.js`,
+`firebase-config.js`, `auth-guard.js`, `diagnostics.js`, `login.js`,
+`index.js`, `docx-export.js`, `export-data.js`, and `constants.js` are
+all byte-identical to before this release — only `home.html`, `js/home.js`,
+`js/dashboard-stats.js`, and `css/styles.css` were touched.
+
+**Frozen:** No further changes without a discovered bug.
+
 ## [0.7.1] — Hearing Quick View
 
 **Added**
