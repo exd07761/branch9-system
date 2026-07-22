@@ -1618,3 +1618,28 @@ button, input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr;
   }
 }
+
+/* -------------------------------------------------------------------------
+   15. Role-Based Access Control / Users (v0.9.2)
+   ------------------------------------------------------------------------- */
+.role-select {
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--card);
+}
+
+.role-select:focus {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
+}
+
+.role-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
