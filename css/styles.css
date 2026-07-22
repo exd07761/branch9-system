@@ -929,22 +929,50 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .today-panel-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--text-lg);
   margin: 0 0 var(--space-4);
 }
 
+.today-panel-title svg {
+  width: 18px;
+  height: 18px;
+  color: var(--brass-dark);
+  flex-shrink: 0;
+}
+
 /* ---------------------------------------------------------------------- */
-/* v0.8.0 — Branch Clerk Productivity Dashboard (home.html)                */
-/* Reuses existing tokens/typography/status colors only — no new colors,  */
-/* fonts, or theme changes. Supersedes v0.7.2's simple today-hearing-*     */
-/* list, which this timeline replaces.                                    */
+/* v0.8.1 — Dashboard UX Polish (home.html)                                */
+/* Today's Hearings becomes the visual centerpiece: a wide main column     */
+/* paired with a narrower sidebar (Now/Next/Summary/Quick Actions), each   */
+/* card sized to its own content instead of stretching to match a         */
+/* neighbor. Supersedes v0.8.0's .dashboard-live-row (equal-width side-by- */
+/* side Session+Summary cards). Reuses existing tokens/status colors      */
+/* only — no new colors introduced.                                       */
 /* ---------------------------------------------------------------------- */
 
-.dashboard-live-row {
+.dashboard-main-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: var(--space-4);
   margin-bottom: var(--space-6);
+  align-items: start;
+}
+
+.dashboard-main-col {
+  min-width: 0;
+}
+
+.dashboard-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dashboard-timeline-card .today-panel-title {
+  font-size: var(--text-xl);
 }
 
 .session-card,
@@ -954,14 +982,32 @@ button, input, select, textarea { font-family: inherit; }
   gap: 2px;
 }
 
+/* Compact empty states (2/6): no active/next hearing shouldn't reserve
+   the same vertical space as a card actually showing hearing details. */
+.session-card--compact {
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
 .session-label,
 .summary-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--text-xs);
   color: var(--ink-3);
   text-transform: uppercase;
   letter-spacing: 0.09em;
   font-weight: 600;
   margin: 0 0 var(--space-2);
+}
+
+.session-label svg,
+.summary-title svg {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+  flex-shrink: 0;
 }
 
 .session-title {
@@ -998,22 +1044,27 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .session-empty {
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--ink-3);
   font-style: italic;
   margin: 0;
 }
 
-.summary-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--line);
+/* Today's Summary (3): a compact horizontal row of columns instead of
+   v0.8.0's stacked rows — reuses the same .summary-value/.summary-label
+   typography, just laid out side by side. */
+.summary-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  text-align: center;
 }
 
-.summary-row:last-child {
-  border-bottom: none;
+.summary-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
 }
 
 .summary-value {
@@ -1030,7 +1081,7 @@ button, input, select, textarea { font-family: inherit; }
   letter-spacing: 0.04em;
 }
 
-.quick-actions-card { margin-bottom: var(--space-6); }
+.quick-actions-card { margin-bottom: 0; }
 
 .quick-actions-row {
   display: flex;
@@ -1040,6 +1091,8 @@ button, input, select, textarea { font-family: inherit; }
 
 .quick-actions-row .btn-secondary { width: auto; }
 
+/* Today's Hearings timeline (1/6): more breathing room per row so it
+   reads as the dashboard's centerpiece, not a compact list. */
 .timeline-header {
   font-size: var(--text-xs);
   color: var(--ink-3);
@@ -1062,10 +1115,14 @@ button, input, select, textarea { font-family: inherit; }
   position: relative;
   display: flex;
   align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-2);
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
   cursor: pointer;
   border-radius: var(--radius-sm);
+}
+
+.timeline-item:not(:last-child) {
+  margin-bottom: var(--space-1);
 }
 
 .timeline-item:hover {
@@ -1115,9 +1172,9 @@ button, input, select, textarea { font-family: inherit; }
 .timeline-dot {
   position: relative;
   z-index: 1;
-  width: 10px;
-  height: 10px;
-  margin-top: 5px;
+  width: 11px;
+  height: 11px;
+  margin-top: 6px;
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--card);
@@ -1130,7 +1187,7 @@ button, input, select, textarea { font-family: inherit; }
 .timeline-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
   flex: 1;
 }
@@ -1142,7 +1199,7 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .timeline-case {
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   color: var(--ink);
 }
 
@@ -1166,6 +1223,34 @@ button, input, select, textarea { font-family: inherit; }
 .timeline-badge--next { background: var(--blue-bg); color: var(--blue); }
 .timeline-badge--completed { background: var(--gray-bg); color: var(--ink-3); }
 .timeline-badge--upcoming { background: var(--amber-bg); color: var(--amber); }
+
+/* Timeline empty state (4) — a more professional, court-oriented message
+   with a pointer to the two ways to schedule a hearing, in place of
+   v0.8.0's plain "Enjoy the quiet day." Deliberately its own class
+   rather than reusing .empty-row (which other pages' JS depends on). */
+.timeline-empty {
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.timeline-empty svg {
+  width: 28px;
+  height: 28px;
+  color: var(--ink-3);
+  margin-bottom: var(--space-3);
+}
+
+.timeline-empty-title {
+  font-size: var(--text-base);
+  color: var(--ink-2);
+  margin: 0 0 var(--space-1);
+}
+
+.timeline-empty-sub {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin: 0;
+}
 
 /* ---------------------------------------------------------------------- */
 /* v0.7.0 — Hearings global search (hearings.html)                         */
@@ -1295,9 +1380,16 @@ button, input, select, textarea { font-family: inherit; }
     grid-template-columns: 1fr;
   }
 
-  /* v0.8.0: Session/Summary cards and Quick Actions stack on a phone. */
-  .dashboard-live-row {
+  /* v0.8.1: Today's Hearings and the sidebar (Now/Next/Summary/Quick
+     Actions) stack single-column on a phone; Today's Hearings still
+     renders first since it's the first column in the row's DOM order. */
+  .dashboard-main-row {
     grid-template-columns: 1fr;
+  }
+
+  .summary-columns {
+    grid-template-columns: 1fr;
+    text-align: left;
   }
 
   .quick-actions-row {
