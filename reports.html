@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports &amp; Statistics — Docket Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <nav class="app-nav">
+    <span class="app-nav-brand">
+      <i data-lucide="scale" aria-hidden="true"></i>
+      Docket Management System
+    </span>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
+      <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
+      <a class="app-nav-link" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
+      <a class="app-nav-link" href="activity.html"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
+      <a class="app-nav-link active" href="reports.html"><i data-lucide="bar-chart-3" aria-hidden="true"></i>Reports</a>
+    </div>
+    <div class="app-nav-user">
+      <span class="app-nav-email" id="userEmail">&hellip;</span>
+      <button type="button" class="app-nav-logout" id="logoutBtn">
+        <i data-lucide="log-out" aria-hidden="true"></i>
+        <span>Log out</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="wrap wrap-wide">
+    <header class="header">
+      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
+      <h1>Reports &amp; Statistics</h1>
+      <p class="sub">Read-only summaries and breakdowns of the hearings already on the docket.</p>
+    </header>
+
+    <section class="dashboard-stats-grid" aria-label="Docket statistics">
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statTotalHearings">&hellip;</p>
+        <p class="dashboard-stat-label">Total Hearings</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statActiveCases">&hellip;</p>
+        <p class="dashboard-stat-label">Active Cases</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statHearingsThisMonth">&hellip;</p>
+        <p class="dashboard-stat-label">Hearings This Month</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statHearingsThisYear">&hellip;</p>
+        <p class="dashboard-stat-label">Hearings This Year</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statPendingHearings">&hellip;</p>
+        <p class="dashboard-stat-label">Pending Hearings</p>
+      </div>
+      <div class="card dashboard-stat-card">
+        <p class="dashboard-stat-value" id="statCompletedHearings">&hellip;</p>
+        <p class="dashboard-stat-label">Completed Hearings</p>
+      </div>
+    </section>
+
+    <div class="toolbar">
+      <div class="report-filters">
+        <div class="report-filter">
+          <label for="reportScopeSelect">Range</label>
+          <select id="reportScopeSelect">
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="custom">Custom Date Range</option>
+          </select>
+        </div>
+        <div class="report-filter" id="reportCustomRangeRow" hidden>
+          <label for="reportRangeStart">From</label>
+          <input type="date" id="reportRangeStart">
+          <label for="reportRangeEnd">To</label>
+          <input type="date" id="reportRangeEnd">
+        </div>
+        <div class="report-filter">
+          <label for="reportStatusSelect">Status</label>
+          <select id="reportStatusSelect">
+            <option value="All">All</option>
+          </select>
+        </div>
+        <div class="report-filter">
+          <label for="reportSectionSelect">Hearing Type</label>
+          <select id="reportSectionSelect">
+            <option value="All">All</option>
+          </select>
+        </div>
+      </div>
+      <div class="report-export-actions">
+        <button type="button" class="btn-small" id="exportCsvBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export CSV</span>
+        </button>
+        <button type="button" class="btn-small" id="exportWordBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export Word</span>
+        </button>
+      </div>
+    </div>
+    <p class="form-error" id="reportExportStatus" role="alert"></p>
+
+    <section class="card card-flush">
+      <div class="report-section-heading">
+        <h2>Hearing Report</h2>
+        <span class="muted" id="reportScopeSummary">&hellip;</span>
+      </div>
+      <table class="data-table" id="reportListTable">
+        <thead id="reportListHead"></thead>
+        <tbody id="reportListBody">
+          <tr><td class="empty-row">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="report-breakdowns">
+      <section class="card card-flush">
+        <div class="report-section-heading">
+          <h2>Hearing Status Report</h2>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Status</th><th>Count</th></tr>
+          </thead>
+          <tbody id="statusReportBody">
+            <tr><td colspan="2" class="empty-row">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card card-flush">
+        <div class="report-section-heading">
+          <h2>Hearing Type Report</h2>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Section</th><th>Count</th></tr>
+          </thead>
+          <tbody id="typeReportBody">
+            <tr><td colspan="2" class="empty-row">Loading&hellip;</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <footer class="app-footer">Created by Jordan Panganiban</footer>
+  </main>
+
+  <script type="module" src="js/reports.js"></script>
+  <script src="https://unpkg.com/docx@8.0.4/build/index.js" defer></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>if (window.lucide) { lucide.createIcons(); }</script>
+
+</body>
+</html>

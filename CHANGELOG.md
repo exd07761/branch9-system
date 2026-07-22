@@ -4,6 +4,108 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.1] — Reports & Statistics
+
+A read-only Reports module for the Branch Clerk of Court, built entirely
+on hearings/hearingCases data already loaded elsewhere. No CRUD behavior
+changes anywhere, no new Firestore listeners, no schema changes.
+
+**Added**
+- `js/reports-data.js` — pure computation only (no Firestore, no DOM):
+  report calculations, filtering, and statistics. Reuses rather than
+  re-implements what already exists: `getHearingsForDate/Week/Month`
+  from `export-data.js` (the exact functions every Word export mode
+  already uses), `computeDashboardStats()` from `dashboard-stats.js` for
+  Active Cases, and `DEFAULT_HEARING_DURATION_MINUTES` from
+  `dashboard-live.js` so "Completed" uses the same 30-minute assumption
+  the Home dashboard's Timeline already uses instead of a second
+  hardcoded number. Adds `getHearingsForYear` and
+  `getHearingsForDateRange` (Custom Date Range), status/section
+  filtering, day-grouping, the five reports, `computeSummaryStats()`,
+  and a pure CSV builder (`buildCsv`/`hearingsToCsvRows`/`CSV_HEADERS`).
+- `js/reports.js` — UI only: rendering, filters, and export actions. No
+  Firestore logic. Reuses the existing `subscribeToHearings()`/
+  `subscribeToCases()` live listeners (no new listener types), and
+  reuses `exportCourtCalendarForDate/Week/Month` from `docx-export.js`
+  verbatim for the Word export path — no second docx builder.
+- `reports.html` — new page, added to the nav on Home, Hearings,
+  Calendar, and Activity Log. Reuses the existing dashboard stat-card
+  grid, card/table/toolbar styling, and button styles — no new design
+  language.
+- New CSS in `css/styles.css` for the Reports filter row, export
+  actions, section headings, day-group divider rows, and the two-column
+  breakdown-report layout — additive only, using only existing design
+  tokens, no existing rule changed.
+
+**Reports implemented**
+- Daily / Weekly / Monthly Hearing Report — one unified hearing-list view
+  whose granularity follows the Range filter: Today (or a single-day
+  Custom Range) is a flat list; This Week, This Month, or a multi-day
+  Custom Range groups by day.
+- Hearing Status Report — counts by the actual `status` value present in
+  the data (see Architecture Note below).
+- Hearing Type Report — counts by `section` (see Architecture Note
+  below).
+- Summary cards: Total Hearings, Active Cases, Hearings This Month,
+  Hearings This Year, Pending Hearings, Completed Hearings — always
+  computed over the full dataset, same "global overview" behavior as the
+  Home dashboard's own stat cards, independent of the page's filters.
+- Filters: Today / This Week / This Month / Custom Date Range, Status,
+  and Hearing Type — all client-side over already-loaded data.
+- Export: CSV always reflects every active filter. Word reuses the
+  existing per-scope export functions verbatim and is only offered for
+  Today/Week/Month with Status and Hearing Type both set to "All" — see
+  Architecture Note.
+- Both export actions call the existing `logActivity()` helper
+  (`js/activity-data.js`, unchanged) — Milestone 8 documented "Reports"
+  as a category the Activity Log was explicitly designed to support
+  later without redesign; this is that.
+
+**Architecture notes**
+- `hearing.status` is a stage/purpose label (e.g. "Pre-Trial
+  Conference"), not a lifecycle state — Firestore has no Pending/
+  Completed/Postponed/Cancelled field (documented first in
+  `dashboard-live.js`, Milestone 8). Rather than invent that vocabulary,
+  the Hearing Status Report counts the real status values present in the
+  data, and the summary cards' Pending/Completed are derived from
+  `hearingDateTime` the same way the Home dashboard's Timeline already
+  derives "completed" for today's hearings — just generalized to every
+  hearing, not only today's.
+- `hearing.hearingType` is free text (e.g. "Cross Examination of
+  Prosecution's Witness AAA"); grouping by it verbatim would produce a
+  long tail of one-off buckets rather than a report. `hearing.section`
+  is the fixed, small set this milestone's Hearing Type Report examples
+  actually describe (Arraignment, Trial, Promulgation, Pre-Trial...), so
+  the Hearing Type Report groups by section instead.
+- Word export is only offered when reusing the existing
+  `exportCourtCalendarForDate/Week/Month` functions verbatim would
+  produce a document that actually matches what's on screen — i.e. no
+  Status/Hearing Type filter narrowing beyond the date scope, since
+  those functions re-derive their own date scope internally from the
+  full hearings/cases arrays. Rather than write a second docx builder
+  that accepts a pre-filtered subset (duplicating `docx-export.js`'s
+  internals), CSV — fully under this file's control — handles every
+  filter combination, and the Word button is simply disabled when a
+  Status/Hearing Type filter is active or the range is Custom.
+
+**Not changed:** Authentication flow, Dashboard/Live Dashboard/Timeline
+computation, Search, Calendar, Hearings CRUD, Quick View/Lightbox, Word
+Export document generation, Activity Log, responsive layout, and no
+Firestore schema or Security Rule changes of any kind — this milestone
+reads `hearings`/`hearingCases` only, and writes only to the existing
+`activityLogs` collection via the unchanged `logActivity()` helper.
+
+**Files confirmed byte-identical to v0.9.0:** `js/activity-data.js`,
+`js/activity.js`, `js/auth-guard.js`, `js/calendar-data.js`,
+`js/calendar.js`, `js/constants.js`, `js/dashboard-live.js`,
+`js/dashboard-stats.js`, `js/diagnostics.js`, `js/docx-export.js`,
+`js/export-data.js`, `js/firebase-config.js`, `js/firebase-init.js`,
+`js/hearings-data.js`, `js/hearings.js`, `js/home.js`, `js/index.js`,
+`js/login.js`, `js/nav-auth.js`, `index.html`, `login.html`,
+`diagnostics.html`, `CNAME`. (`activity.html`, `calendar.html`,
+`hearings.html`, `home.html`, and `css/styles.css` changed only to add
+the Reports nav link / its additive styling — see above.)
+
 ## [0.9.0] — Audit Trail & Activity Log
 
 Adds accountability logging across the system. Not a redesign, not a

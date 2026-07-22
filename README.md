@@ -711,3 +711,88 @@ See `CHANGELOG.md` for the full file-by-file breakdown.
 - [ ] No duplicate Firestore listeners were introduced, and every other
       `.js`/`.html` file not listed above is byte-identical to v0.8.2
 
+---
+
+# Milestone 10: Reports & Statistics
+
+A read-only Reports module for the Branch Clerk of Court. No CRUD
+behavior changes, no new Firestore listeners or reads beyond what
+`subscribeToHearings()`/`subscribeToCases()` already provide elsewhere,
+no schema changes, no new Security Rules needed.
+
+## 1. What's new
+
+- **`js/reports-data.js`** — pure computation only. Report calculations,
+  filtering, and statistics; no Firestore, no DOM. Reuses
+  `getHearingsForDate/Week/Month` (`export-data.js`),
+  `computeDashboardStats()` (`dashboard-stats.js`), and
+  `DEFAULT_HEARING_DURATION_MINUTES` (`dashboard-live.js`) rather than
+  recomputing any of them a second way.
+- **`js/reports.js` + `reports.html`** — the new Reports & Statistics
+  page, linked from the nav on Home, Hearings, Calendar, and Activity
+  Log. Six summary cards (reusing the Home dashboard's stat-card grid
+  verbatim), a unified Daily/Weekly/Monthly Hearing Report whose
+  granularity follows the Range filter, a Hearing Status Report, a
+  Hearing Type Report, and CSV/Word export — all client-side over
+  already-loaded data.
+
+## 2. Architecture notes worth knowing
+
+- **`hearing.status` is a stage/purpose label, not a lifecycle state.**
+  There is no Pending/Completed/Postponed/Cancelled field in Firestore
+  (this was already documented in `dashboard-live.js` back in Milestone
+  8). The Hearing Status Report counts whatever status values are
+  actually in the data; the Pending/Completed summary cards are derived
+  from `hearingDateTime` the same way the Home dashboard's Timeline
+  already derives "completed," just applied across all hearings instead
+  of only today's.
+- **The Hearing Type Report groups by `section`, not the free-text
+  `hearingType` field.** `hearingType` holds sentences like "Cross
+  Examination of Prosecution's Witness AAA" — grouping by it verbatim
+  wouldn't produce a report, just a long tail of one-off buckets.
+  `section` is the fixed, small set (Arraignment and Pre-Trial
+  Conference, Trial, Promulgation, Motions, ...) this milestone's report
+  examples actually describe.
+- **Word export is scope-limited on purpose.** It reuses
+  `exportCourtCalendarForDate/Week/Month` verbatim — no second docx
+  builder was written. Those functions re-derive their own date scope
+  from the full hearings/cases arrays internally, so they can only
+  guarantee an accurate match to what's on screen when Status and
+  Hearing Type are both "All" and the range is Today/Week/Month; the
+  Word button is disabled otherwise, and CSV (built entirely by
+  `reports-data.js`, so it always respects every active filter) is the
+  export path for anything more specific.
+- **No new Firestore listeners.** The page reuses
+  `subscribeToHearings()`/`subscribeToCases()` (`hearings-data.js`,
+  unchanged) exactly as Hearings and Home already do — same
+  per-page-subscribe convention already established, not a new pattern.
+- **Report exports are logged.** Both CSV and Word exports on this page
+  call the existing `logActivity()` helper from Milestone 8's Audit
+  Trail unchanged — that milestone explicitly designed the logger so
+  "Reports" could be logged later without a redesign; this is that.
+
+## 3. Testing Checklist
+
+- [ ] Total Hearings, Active Cases, Hearings This Month, Hearings This
+      Year, Pending Hearings, and Completed Hearings all show correct
+      counts and do not change when the page's filters change
+- [ ] Range = Today shows a flat list for today; This Week and This
+      Month show the same week/month Hearings' Export Calendar dropdown
+      already uses, grouped by day
+- [ ] Custom Date Range with the same start/end date shows a flat
+      single-day list; with different dates, groups by day
+- [ ] Status and Hearing Type filters narrow the main Hearing Report as
+      expected, and each breakdown report (Status / Type) still shows a
+      full breakdown when the other filter is narrowed
+- [ ] Export CSV downloads a file reflecting every active filter
+- [ ] Export Word is enabled only for Today/Week/Month with Status and
+      Hearing Type both "All," reuses the same Word export already used
+      on Hearings, and is disabled the rest of the time
+- [ ] Both export actions appear on the Activity Log page afterward
+- [ ] Dashboard, Live Dashboard, Timeline, Search, Calendar, Hearings
+      CRUD, Quick View/Lightbox, Activity Log, Word Export content, and
+      responsive layout all behave exactly as in v0.9.0
+- [ ] No new Firestore listener types were introduced, and every file
+      not listed above is byte-identical to v0.9.0
+
+
