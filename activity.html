@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activity Log — Docket Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <nav class="app-nav">
+    <span class="app-nav-brand">
+      <i data-lucide="scale" aria-hidden="true"></i>
+      Docket Management System
+    </span>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
+      <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
+      <a class="app-nav-link" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
+      <a class="app-nav-link active" href="activity.html"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
+    </div>
+    <div class="app-nav-user">
+      <span class="app-nav-email" id="userEmail">&hellip;</span>
+      <button type="button" class="app-nav-logout" id="logoutBtn">
+        <i data-lucide="log-out" aria-hidden="true"></i>
+        <span>Log out</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="wrap wrap-wide">
+    <header class="header">
+      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
+      <h1>Activity Log</h1>
+      <p class="sub">A record of sign-ins and record changes, newest first.</p>
+    </header>
+
+    <div class="toolbar">
+      <div class="activity-search">
+        <input type="search" id="activitySearchInput" placeholder="Search by user, action, or description&hellip;" aria-label="Search activity">
+      </div>
+      <div class="activity-filter">
+        <label for="activityFilterSelect" class="activity-filter-label">Filter</label>
+        <select id="activityFilterSelect" aria-label="Filter activity by category">
+          <option value="All">All</option>
+          <option value="CRUD">CRUD</option>
+          <option value="Export">Export</option>
+          <option value="Authentication">Authentication</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <section class="card card-flush" id="listCard">
+      <table class="data-table" id="activityTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Module</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody id="activityTableBody">
+          <tr><td colspan="5" class="empty-row">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="app-footer">Created by Jordan Panganiban</footer>
+  </main>
+
+  <script type="module" src="js/activity.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>if (window.lucide) { lucide.createIcons(); }</script>
+
+</body>
+</html>

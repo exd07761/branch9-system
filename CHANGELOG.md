@@ -4,6 +4,81 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.0] — Audit Trail & Activity Log
+
+Adds accountability logging across the system. Not a redesign, not a
+Firestore migration, not a schema rewrite — every feature working in
+v0.8.2 continues to work exactly as before. See the Verification
+Checklist below for what was re-confirmed unchanged.
+
+**Added**
+- New Firestore collection: `activityLogs` (only new collection —
+  `hearings`, `hearingCases`, `systemConfig`, and `users` are untouched,
+  no migration, no schema changes to any of them). Documents store
+  lightweight audit fields only (`timestamp`, `userEmail`, `action`,
+  `module`, `entityId`, `entityType`, `description`, and optional
+  `oldValue`/`newValue`) — never a full hearing object.
+- `js/activity-data.js` — the only file that reads or writes
+  `activityLogs`. Exports `logActivity(...)` (fire-and-forget; never
+  throws, so a logging failure never blocks or interrupts the action it
+  describes — a console warning is printed instead) and
+  `subscribeToActivityLogs()` (a live listener capped at the 500 most
+  recent entries, so the feed stays cheap regardless of how long the
+  court has been using the system). No UI code in this file, matching
+  the existing hearings-data.js/calendar-data.js split.
+- `js/activity.js` — Activity Log page controller: renders the live feed
+  newest-first, live client-side search (user/action/description,
+  case-insensitive), and a category filter (All/CRUD/Export/
+  Authentication/Other). No Firestore logic in this file.
+- `activity.html` — new page, added to the nav on Home, Hearings, and
+  Calendar. Reuses the existing card/table/toolbar/search styling —
+  no new design language.
+- New CSS in `css/styles.css` for the Activity Log's search box and
+  filter dropdown, using only existing design tokens — additive only,
+  no existing rule changed.
+
+**Changed (logging calls only — no behavior changes)**
+- `js/login.js` — logs `Login` after a successful sign-in, before the
+  redirect to Home.
+- `js/nav-auth.js` — logs `Logout` (captured while the user is still
+  known, since `auth.currentUser` clears once `signOut()` resolves)
+  before signing out. This is the single shared Logout handler already
+  used by Home, Hearings, and Calendar, so no logging code needed to be
+  duplicated across those three pages.
+- `js/hearings.js` — logs `Create Hearing` / `Edit Hearing` after a
+  successful save, `Delete Hearing` after a successful soft-delete,
+  `Export Hearing Order` after the per-hearing Word export, and
+  `Export Selected Date's Calendar` / `Export Weekly Calendar` /
+  `Export Monthly Calendar` after each Court Calendar export mode. The
+  three Court Calendar modes share one small `onSuccess` hook added to
+  the existing `withExportButton()` wrapper, so the logging call itself
+  isn't duplicated three times.
+- `js/home.js` — logs `Export Today's Calendar` after the dashboard
+  Quick Action's export succeeds.
+- No changes to `js/docx-export.js`. See "Architecture note" below.
+
+**Architecture note**
+- `docx-export.js` is documented as strictly isolated from Firestore and
+  auth. Rather than break that isolation to log exports from inside it,
+  every export log call was added at the existing call sites in
+  `hearings.js`/`home.js` — the same places that already have the
+  hearing data and signed-in user needed for a useful log description.
+  `docx-export.js` itself is unchanged.
+
+**Not changed:** Authentication flow, Dashboard/Live Dashboard/Timeline
+computation, Search, Calendar, Hearings CRUD business logic, Quick
+View/Lightbox, Word Export document generation, responsive layout,
+Firestore schema for `hearings`/`hearingCases`/`systemConfig`/`users`,
+and no existing Security Rule was modified (a new rule is required for
+the new `activityLogs` collection — see `README.md`).
+
+**Files confirmed byte-identical:** `js/auth-guard.js`,
+`js/calendar-data.js`, `js/calendar.js`, `js/constants.js`,
+`js/dashboard-live.js`, `js/dashboard-stats.js`, `js/diagnostics.js`,
+`js/docx-export.js`, `js/export-data.js`, `js/firebase-config.js`,
+`js/firebase-init.js`, `js/hearings-data.js`, `js/index.js`,
+`index.html`, `login.html`, `diagnostics.html`, `CNAME`.
+
 ## [0.8.2] — Responsive Dashboard & Productivity Polish
 
 UI/UX milestone only — no Firestore, auth, CRUD, Calendar, Word Export,

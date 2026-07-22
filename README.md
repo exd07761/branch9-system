@@ -618,3 +618,96 @@ See `CHANGELOG.md` for the full file-by-file breakdown.
 - [ ] Clicking a Timeline row, Quick Actions, Calendar links, global
       search, and both Word export modes all still work exactly as in
       v0.8.1
+
+---
+
+# Milestone 9: Audit Trail & Activity Log
+
+Adds accountability logging: who did what, and when. Not a redesign, not
+a Firestore migration, not a schema rewrite for any existing collection
+— everything working in v0.8.2 continues to work exactly as before.
+
+## 1. Updated Firestore Security Rules (required)
+
+This adds a rule for the new `activityLogs` collection only. The rules
+for `systemStatus`, `hearings`, and `hearingCases` are copied over
+unchanged from Milestone 3 — nothing about them is modified:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /systemStatus/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /hearings/{hearingId} {
+      allow read, write: if request.auth != null;
+    }
+    match /hearingCases/{caseId} {
+      allow read, write: if request.auth != null;
+    }
+    match /activityLogs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+Same "signed in is the entire authorization check" reasoning as the
+existing collections — there's still only one user account in V1.
+
+## 2. What's new
+
+- **`activityLogs` collection.** Each document is a lightweight audit
+  entry: `timestamp`, `userEmail`, `action`, `module`, `entityId`,
+  `entityType`, `description`, and optional `oldValue`/`newValue`. Full
+  hearing objects are never stored here.
+- **`js/activity-data.js`** — the only file that touches the
+  `activityLogs` collection. `logActivity(...)` is fire-and-forget by
+  design: it never throws, so a logging failure can never block or
+  interrupt the action it's describing (a console warning is printed
+  instead). `subscribeToActivityLogs()` is a live listener capped at the
+  500 most recent entries.
+- **`js/activity.js` + `activity.html`** — the new Activity Log page,
+  linked from the nav on Home, Hearings, and Calendar. Shows Time, User,
+  Action, Module, and Description, newest first, with live search and a
+  category filter (All / CRUD / Export / Authentication / Other). Reuses
+  existing card/table/toolbar styling — no new design language.
+- **Logging calls added** (behavior otherwise unchanged) to
+  `js/login.js` (Login), `js/nav-auth.js` (Logout — the one shared
+  handler used by Home/Hearings/Calendar), `js/hearings.js` (Create/
+  Edit/Delete Hearing, Export Hearing Order, and all three Court
+  Calendar export modes), and `js/home.js` (the Export Today's Calendar
+  Quick Action). `js/docx-export.js` was intentionally left untouched —
+  it's documented as strictly isolated from Firestore/auth, so the
+  export logging calls live at the existing call sites in
+  `hearings.js`/`home.js` instead, which already have the data needed
+  for a useful log entry.
+
+See `CHANGELOG.md` for the full file-by-file breakdown.
+
+## 3. Testing Checklist
+
+- [ ] Logging in records a `Login` entry with the signed-in email
+- [ ] Logging out records a `Logout` entry before the redirect to the
+      login page
+- [ ] Creating, editing, and deleting a hearing each record the
+      corresponding entry, and the hearing itself still saves/deletes
+      exactly as before
+- [ ] Exporting a hearing order, and each of the three Court Calendar
+      export modes on the Hearings page, all still download the correct
+      `.docx` file and each records one Activity Log entry
+- [ ] The Home page's "Export Today's Calendar" Quick Action still
+      exports correctly and records one Activity Log entry
+- [ ] Activity Log page shows entries newest-first; search filters by
+      user/action/description; the category dropdown filters correctly
+- [ ] Disconnecting the network (or otherwise forcing a logging failure)
+      does not block or interrupt the underlying action — only a console
+      warning appears
+- [ ] Dashboard, Live Dashboard, Timeline, Search, Calendar, Hearings
+      CRUD, Quick View/Lightbox, Word Export content, and responsive
+      layout all behave exactly as in v0.8.2
+- [ ] No duplicate Firestore listeners were introduced, and every other
+      `.js`/`.html` file not listed above is byte-identical to v0.8.2
+
