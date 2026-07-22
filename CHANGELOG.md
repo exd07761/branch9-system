@@ -4,6 +4,115 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.2] — Role-Based Access Control (RBAC)
+
+Introduces four built-in roles (Administrator, Branch Clerk, Encoder, Read
+Only), a centralized permission helper every page now calls, a new
+User Management page, and the Firestore Security Rules required to
+actually enforce it server-side — not just hide buttons client-side. No
+business logic changed: the same save/delete/export functions run
+exactly as before, they're just reachable by fewer roles now.
+
+**Added**
+- `js/permissions.js` — the one reusable permission helper. Pure logic,
+  no Firestore, no DOM: `ROLES`, `PERMISSIONS`, the role→permission
+  matrix, and `can(role, permission)`. Every page checks against this
+  instead of comparing role strings itself. Also defines
+  `PERMISSIONS.ARCHIVE_MANAGE`/`BACKUP_MANAGE` — unused today, reserved
+  so the Archive and Backup milestones can call `can()` directly instead
+  of adding new permission plumbing.
+- `js/users-data.js` — Firestore only, the sole file that reads/writes
+  the `users` collection. `getOrCreateUserRole(user)` resolves a
+  signed-in user's role, creating their `users/{uid}` document with the
+  default role (`branch_clerk`) the first time that account is ever
+  seen — there's no separate account-creation step, and no migration: a
+  document with no `role` field yet is treated as `branch_clerk` in
+  memory without being rewritten. Never throws — a Firestore failure
+  here falls back to the default role with a console warning rather
+  than blocking sign-in on every page. `subscribeToAllUsers()` powers
+  User Management; `updateUserRole()` changes one user's role.
+- `js/users.js` + `users.html` — the new User Management page.
+  Administrator only: lists every account that has ever signed in
+  (sourced from the `users` collection — this app has no Admin SDK
+  access and cannot enumerate Firebase Authentication accounts
+  directly), shows email and role, and lets an admin change a role via
+  a `<select>`. An admin can't change their own role from this screen
+  (prevents accidentally locking out the only admin). "Add User" is a
+  disabled placeholder — no account creation, matching the milestone
+  brief.
+- New CSS in `css/styles.css` for the Users role `<select>` — additive
+  only, existing design tokens, no existing rule changed.
+- `logActivity()` (unchanged) now also records `Change User Role` from
+  `users.js` — no new logging architecture, same helper every other
+  logged action already uses.
+
+**Changed**
+- `js/auth-guard.js` — `requireAuth()` now also resolves the signed-in
+  user's role (one Firestore read via `users-data.js`, not a listener)
+  and attaches it as `user.role`. This is the exact extension point this
+  file's own header comment anticipated back when it was written:
+  "pages that already call `requireAuth()` will not need to change" —
+  and none of them did, for the auth mechanism itself. Added
+  `requirePermission(user, permission, { redirectTo })`: the new
+  page-level gate, used by `activity.js`, `reports.js`, and `users.js`
+  to redirect away a role that's denied a whole page (as opposed to
+  individual buttons within a page the role can otherwise access, which
+  stays a per-page concern via `can()`).
+- `js/nav-auth.js` — `wireNavAuth()` now hides nav links a role can't
+  use, centrally, in the one place every page already calls to wire its
+  nav. A link opts in with `data-permission="<permission>"`; links with
+  none (Home, Hearings, Calendar) are always shown since every role has
+  access to those. This is the single call site for "which nav links
+  show" — no page repeats the check itself.
+- `home.html`, `hearings.html`, `calendar.html`, `activity.html`,
+  `reports.html` — added `data-permission` to the Activity Log and
+  Reports links, and a new Users link, all hidden/shown by the change
+  above.
+- `js/hearings.js` — Add/Edit/Delete are gated at their true
+  chokepoints (`openAddForm()`, `openEditForm()`, `handleDelete()`,
+  `handleSave()`) rather than scattered across every call site: Calendar
+  and Home's deep links, the row buttons, the Quick View's "Edit"
+  shortcut, and the `?action=add`/`?openHearing=` URL params all funnel
+  through the same few guarded functions. A role without edit
+  permission arriving via Calendar's `?openHearing=` link now sees the
+  read-only Quick View instead of nothing — Calendar itself needed no
+  changes for this. Row-level Edit/Delete buttons, the Add Hearing
+  button, the Export Calendar dropdown, and the per-hearing Export to
+  Word button are only rendered for roles with the matching permission
+  ("do not show actions the user cannot perform"), not just disabled.
+- `js/home.js` — the Add Hearing and Export Today's Calendar Quick
+  Action buttons are hidden (not just disabled) for roles without the
+  matching permission, with a defense-in-depth guard on the export
+  handler itself.
+- `js/reports.js` — the whole page now requires `reports.view`
+  (Encoder is redirected to Home); Export CSV/Word are hidden — not
+  just disabled — for Read Only, which has `reports.view` but not
+  `export`.
+- `js/activity.js` — the whole page now requires `activityLog.view`
+  (Encoder and Read Only are redirected to Home). No change to what's
+  logged or how — same `logActivity()`/`subscribeToActivityLogs()` as
+  before.
+
+**Roles and the permission matrix, Firestore Security Rules for RBAC
+(including an important nuance about how "Delete Hearing" is
+implemented), and the full testing checklist are in `README.md`,
+"Milestone 12: Role-Based Access Control (RBAC)."**
+
+**Not changed:** Any save/delete/export/report/logging business logic —
+every function that used to run for every signed-in user runs exactly
+the same way today, just gated to fewer roles. Dashboard/Calendar/
+Reports/Activity Log computation, Word Export document generation,
+Search, Quick View, responsive layout, and no Firestore schema changes
+(one new collection, `users`, with a `role` field — no migration).
+
+**Files confirmed byte-identical to v0.9.1:** `js/activity-data.js`,
+`js/calendar-data.js`, `js/calendar.js`, `js/constants.js`,
+`js/dashboard-live.js`, `js/dashboard-stats.js`, `js/diagnostics.js`,
+`js/docx-export.js`, `js/export-data.js`, `js/firebase-config.js`,
+`js/firebase-init.js`, `js/hearings-data.js`, `js/index.js`,
+`js/login.js`, `js/reports-data.js`, `index.html`, `login.html`,
+`diagnostics.html`, `CNAME`.
+
 ## [0.9.1] — Reports & Statistics
 
 A read-only Reports module for the Branch Clerk of Court, built entirely

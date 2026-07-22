@@ -795,4 +795,185 @@ no schema changes, no new Security Rules needed.
 - [ ] No new Firestore listener types were introduced, and every file
       not listed above is byte-identical to v0.9.0
 
+---
+
+# Milestone 12: Role-Based Access Control (RBAC)
+
+Four built-in roles, a centralized permission helper, a new User
+Management page, and the Firestore Security Rules required to actually
+enforce all of it — UI hiding alone is never the security boundary.
+
+## 1. Roles and the permission matrix
+
+If a `users/{uid}` document has no `role` field yet (or doesn't exist
+yet), the app treats that account as **Branch Clerk** — the same
+day-to-day access every account already effectively had before this
+milestone — so existing deployments keep working with no migration
+step.
+
+| Permission | Administrator | Branch Clerk | Encoder | Read Only |
+|---|:---:|:---:|:---:|:---:|
+| Dashboard | ✅ | ✅ | ✅ | ✅ |
+| Hearings — view / search / Quick View | ✅ | ✅ | ✅ | ✅ |
+| Hearings — create | ✅ | ✅ | ✅ | ❌ |
+| Hearings — edit | ✅ | ✅ | ✅ | ❌ |
+| Hearings — delete | ✅ | ✅ | ❌ | ❌ |
+| Calendar | ✅ | ✅ | ✅ | ✅ |
+| Reports | ✅ | ✅ | ❌ | ✅ |
+| Export (Word/CSV, Hearings + Reports) | ✅ | ✅ | ❌ | ❌ |
+| Activity Log | ✅ | ✅ | ❌ | ❌ |
+| User Management | ✅ | ❌ | ❌ | ❌ |
+| Archive / Backup *(reserved — not built yet)* | ✅ | ❌ | ❌ | ❌ |
+
+This table is `ROLE_PERMISSIONS` in `js/permissions.js`, restated for
+reference — that file is the actual source of truth; if the two ever
+disagree, the code wins and this table needs updating.
+
+## 2. User Management
+
+- **Accounts appear once they've signed in — there's no "add user"
+  step.** This app only has Firebase Authentication (client-side) to
+  work with, not the Admin SDK, so it cannot enumerate or create
+  Authentication accounts directly. Instead, the first time any account
+  signs in, `getOrCreateUserRole()` creates its `users/{uid}` document
+  with the default role. User Management lists that collection, not
+  Authentication directly — an account that has never signed in won't
+  appear yet, by design. The "Add User" button is a disabled
+  placeholder for this reason.
+- **An Administrator can't change their own role from this screen.**
+  Simple guardrail against accidentally locking out the only admin
+  account — not a Firestore-enforced rule, just a UI safeguard on top
+  of the real one below.
+- **Role changes are logged.** Every change calls the existing
+  `logActivity()` with action `Change User Role` — visible on the
+  Activity Log page like any other action, no new logging code.
+
+## 3. Firestore Security Rules for RBAC
+
+**UI permissions are not the security boundary.** Hiding a button stops
+someone from clicking it; it does not stop a direct API call. The rules
+below are what actually enforces this milestone — deploy them, don't
+just rely on the app's own hidden buttons.
+
+**One important nuance:** "Delete Hearing" in this app is a **soft
+delete** — `deleteHearing()` in `hearings-data.js` sets `isDeleted:
+true` via an `update`, it never issues a Firestore `delete`. That means
+Firestore's native `delete` permission can't be used to restrict who
+can "delete" a hearing — an Encoder flipping `isDeleted` to `true` is,
+to Firestore, indistinguishable from any other field edit unless the
+rule itself inspects that specific field transition. The `isSoftDelete()`
+helper below does exactly that. The flip side: Encoder editing a hearing
+*can* legitimately trigger a real Firestore `delete` on `hearingCases` —
+removing a case row during a routine edit deletes that case document
+(see `saveHearing()`) even though Encoder can never soft-delete the
+hearing itself. So `hearingCases` delete follows the same permission as
+`hearingCases` create/update, not the hearing-level delete permission.
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    function myRole() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'branch_clerk';
+    }
+
+    function isAdmin()            { return signedIn() && myRole() == 'administrator'; }
+    function canEditHearings()    { return signedIn() && myRole() in ['administrator', 'branch_clerk', 'encoder']; }
+    function canDeleteHearings()  { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+    function canViewActivityLog() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+
+    // Distinguishes deleteHearing()'s soft-delete update (isDeleted
+    // false -> true) from a routine field edit — see the note above.
+    function isSoftDelete() {
+      return request.resource.data.isDeleted == true && resource.data.isDeleted != true;
+    }
+
+    match /systemStatus/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /hearings/{hearingId} {
+      allow read: if signedIn();
+      allow create: if canEditHearings();
+      allow update: if canEditHearings() && (!isSoftDelete() || canDeleteHearings());
+      allow delete: if false; // the app never issues a hard delete here
+    }
+
+    match /hearingCases/{caseId} {
+      allow read: if signedIn();
+      // Encoder can remove a case row as a routine part of editing a
+      // hearing — a real Firestore delete on this collection even
+      // though Encoder can't soft-delete the hearing above. Follows
+      // canEditHearings(), not canDeleteHearings() — see the note above.
+      allow create, update, delete: if canEditHearings();
+    }
+
+    match /activityLogs/{logId} {
+      // Narrower than v0.9.0's rule (which allowed any signed-in user
+      // to read) now that Activity Log has its own view permission.
+      allow read: if canViewActivityLog();
+      allow create: if signedIn(); // every role's actions get logged
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // A user may create only their OWN document, and only with the
+      // default role — this is what stops someone from granting
+      // themselves administrator by writing their own users/{uid} doc.
+      allow create: if signedIn() && request.auth.uid == userId
+                     && request.resource.data.role == 'branch_clerk';
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}
+```
+
+This replaces the `hearings`/`hearingCases`/`activityLogs` rules
+documented in earlier milestones — those previously allowed any
+signed-in user full read/write; this narrows write access to match the
+roles above. `systemStatus` is unchanged.
+
+## 4. Testing Checklist
+
+- [ ] A brand-new account's first sign-in creates a `users/{uid}`
+      document with role `branch_clerk`, and that account has exactly
+      Branch Clerk's access
+- [ ] An existing account with no `role` field (or no document at all)
+      behaves exactly as Branch Clerk — no migration needed
+- [ ] Administrator sees every nav link and every action on every page
+- [ ] Branch Clerk: same as before this milestone, minus the Users nav
+      link and page
+- [ ] Encoder: Add/Edit Hearing work; no Delete button on any row; no
+      Export Calendar dropdown; Reports and Activity Log nav links are
+      hidden, and navigating to `reports.html`/`activity.html` directly
+      redirects to Home
+- [ ] Read Only: no Add Hearing button, no Edit/Delete buttons anywhere
+      (including inside Quick View), no Export Calendar dropdown; Search
+      and Quick View still work; Reports page shows data but Export
+      CSV/Word buttons are hidden; Activity Log and Users links are
+      hidden and both pages redirect away
+- [ ] Calendar's "Details" link opens the edit form for roles that can
+      edit, and the read-only Quick View for roles that can't — Calendar
+      itself needed no code changes for this
+- [ ] User Management (Administrator only): lists every account that has
+      signed in, role changes save and appear immediately, an admin
+      cannot change their own role, "Add User" is visibly disabled
+- [ ] Changing a role records a `Change User Role` entry on the Activity
+      Log
+- [ ] Signing in and out, Dashboard, Calendar, Hearings CRUD (for roles
+      that have it), Reports, Activity Log, and Word/CSV export content
+      all behave exactly as in v0.9.1 for whichever role is testing them
+- [ ] No duplicate Firestore listeners were introduced (role loading is
+      a one-time read per page load, not a listener), and every file not
+      listed in the Changelog as added/modified is byte-identical to
+      v0.9.1
+
+
 
