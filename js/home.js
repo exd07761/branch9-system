@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
-// Home page logic — post-login dashboard: summary stat cards, the
-// Current/Next Session card, Today's Summary, Quick Actions, and the
-// Today's Hearings timeline.
+// Home page logic — post-login dashboard: summary stat cards, the Now
+// Hearing / Next Hearing cards, Today's Summary, Quick Actions, and the
+// Today's Hearings timeline (the dashboard's visual centerpiece as of
+// v0.8.1).
 //
 // Auth: require a logged-in user, then hand off to the shared
 // wireNavAuth() helper for the nav bar's email display and Logout button
@@ -17,10 +18,11 @@
 //
 // Computation: dashboard-stats.js (stat cards, today's-hearings
 // filter+sort) and dashboard-live.js (current/next hearing, today's
-// summary, timeline status) are both pure, no-DOM modules. This file
+// summary, timeline status) are both pure, no-DOM modules, unchanged in
+// v0.8.1 — this file only changed how their results are painted. It
 // stays a thin wiring layer: subscribe -> compute -> paint, plus one
-// setInterval so the Session card/Timeline stay current as real time
-// passes even between Firestore updates.
+// setInterval so the cards/Timeline stay current as real time passes
+// even between Firestore updates.
 // ---------------------------------------------------------------------------
 
 import { requireAuth } from "./auth-guard.js";
@@ -64,40 +66,61 @@ function caseTitle(hearing) {
   return `${hearing.plaintiff || "People of the Philippines"} vs. ${(hearing.accused || []).join(", ") || "Not set"}`;
 }
 
-// --- Current Session / Next Hearing card ---------------------------------
+// --- Now Hearing / Next Hearing cards --------------------------------------
+//
+// v0.8.1: these were a single card that toggled between "Now" and "Next"
+// display, with the Next state only shown when nothing was active. They're
+// now two independent cards — a Clerk mid-hearing can still see what's
+// coming up next — each with its own compact empty state so an idle card
+// doesn't reserve as much space as one showing real hearing details.
+// Same getCurrentHearing()/getNextUpcomingHearing()/minutesUntil() calls
+// from dashboard-live.js as before — no computation changes.
 
-function renderSessionCard(todays) {
-  const root = document.getElementById("dashboardSessionCard");
-  const now = new Date();
-  const current = getCurrentHearing(todays, now);
+function renderNowCard(todays) {
+  const root = document.getElementById("dashboardNowCard");
+  const current = getCurrentHearing(todays, new Date());
 
-  if (current) {
+  if (!current) {
+    root.classList.add("session-card--compact");
     root.innerHTML = `
-      <p class="session-label">Now Hearing</p>
+      <p class="session-label"><i data-lucide="gavel" aria-hidden="true"></i>Now Hearing</p>
+      <p class="session-empty">No active hearing.</p>
+    `;
+  } else {
+    root.classList.remove("session-card--compact");
+    root.innerHTML = `
+      <p class="session-label"><i data-lucide="gavel" aria-hidden="true"></i>Now Hearing</p>
       <h3 class="session-title">${esc(caseTitle(current))}</h3>
       <p class="session-stage">${esc(current.status)}</p>
       <p class="session-time">${esc(formatHearingTime(current))}</p>
     `;
-    return;
   }
+  if (window.lucide) lucide.createIcons();
+}
 
+function renderNextCard(todays) {
+  const root = document.getElementById("dashboardNextCard");
+  const now = new Date();
   const next = getNextUpcomingHearing(todays, now);
-  if (!next) {
-    root.innerHTML = `
-      <p class="session-label">Now Hearing</p>
-      <p class="session-empty">No active hearing.</p>
-    `;
-    return;
-  }
 
-  const mins = minutesUntil(next, now);
-  root.innerHTML = `
-    <p class="session-label">Next Hearing</p>
-    <h3 class="session-title">${esc(formatHearingTime(next))}</h3>
-    <p class="session-case">${esc(caseTitle(next))}</p>
-    <p class="session-stage">${esc(next.status)}</p>
-    <p class="session-countdown">Starts in ${mins} minute${mins === 1 ? "" : "s"}</p>
-  `;
+  if (!next) {
+    root.classList.add("session-card--compact");
+    root.innerHTML = `
+      <p class="session-label"><i data-lucide="clock" aria-hidden="true"></i>Next Hearing</p>
+      <p class="session-empty">No upcoming hearings today.</p>
+    `;
+  } else {
+    root.classList.remove("session-card--compact");
+    const mins = minutesUntil(next, now);
+    root.innerHTML = `
+      <p class="session-label"><i data-lucide="clock" aria-hidden="true"></i>Next Hearing</p>
+      <h3 class="session-title">${esc(formatHearingTime(next))}</h3>
+      <p class="session-case">${esc(caseTitle(next))}</p>
+      <p class="session-stage">${esc(next.status)}</p>
+      <p class="session-countdown">Starts in ${mins} minute${mins === 1 ? "" : "s"}</p>
+    `;
+  }
+  if (window.lucide) lucide.createIcons();
 }
 
 // --- Today's Summary card --------------------------------------------------
@@ -106,11 +129,14 @@ function renderSummaryCard(todays) {
   const root = document.getElementById("dashboardSummaryCard");
   const summary = getTodaysSummary(todays, new Date());
   root.innerHTML = `
-    <p class="summary-title">Today's Hearings</p>
-    <div class="summary-row"><span class="summary-value">${summary.scheduled}</span><span class="summary-label">Scheduled</span></div>
-    <div class="summary-row"><span class="summary-value">${summary.completed}</span><span class="summary-label">Completed</span></div>
-    <div class="summary-row"><span class="summary-value">${summary.remaining}</span><span class="summary-label">Remaining</span></div>
+    <p class="summary-title"><i data-lucide="clipboard-list" aria-hidden="true"></i>Today's Summary</p>
+    <div class="summary-columns">
+      <div class="summary-col"><span class="summary-label">Scheduled</span><span class="summary-value">${summary.scheduled}</span></div>
+      <div class="summary-col"><span class="summary-label">Completed</span><span class="summary-value">${summary.completed}</span></div>
+      <div class="summary-col"><span class="summary-label">Remaining</span><span class="summary-value">${summary.remaining}</span></div>
+    </div>
   `;
+  if (window.lucide) lucide.createIcons();
 }
 
 // --- Today's Hearings timeline ---------------------------------------------
@@ -119,7 +145,14 @@ function renderTimeline(todays) {
   const container = document.getElementById("todaysHearingsList");
 
   if (!todays.length) {
-    container.innerHTML = `<p class="empty-row">No hearings scheduled today.<br>Enjoy the quiet day.</p>`;
+    container.innerHTML = `
+      <div class="timeline-empty">
+        <i data-lucide="calendar-check" aria-hidden="true"></i>
+        <p class="timeline-empty-title">No hearings scheduled for today.</p>
+        <p class="timeline-empty-sub">Use <strong>Add Hearing</strong> or open the Calendar to schedule one.</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
@@ -159,7 +192,8 @@ function renderTimeline(todays) {
 
 function renderLive() {
   const todays = getTodaysHearingsSorted(hearings);
-  renderSessionCard(todays);
+  renderNowCard(todays);
+  renderNextCard(todays);
   renderSummaryCard(todays);
   renderTimeline(todays);
 }
