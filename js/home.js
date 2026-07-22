@@ -143,8 +143,10 @@ function renderSummaryCard(todays) {
 
 function renderTimeline(todays) {
   const container = document.getElementById("todaysHearingsList");
+  const card = document.getElementById("dashboardTimelineCard");
 
   if (!todays.length) {
+    if (card) card.classList.add("dashboard-timeline-card--empty");
     container.innerHTML = `
       <div class="timeline-empty">
         <i data-lucide="calendar-check" aria-hidden="true"></i>
@@ -156,6 +158,8 @@ function renderTimeline(todays) {
     return;
   }
 
+  if (card) card.classList.remove("dashboard-timeline-card--empty");
+
   const annotated = annotateTimelineStatuses(todays, new Date());
 
   container.innerHTML = `
@@ -163,7 +167,7 @@ function renderTimeline(todays) {
     <ul class="timeline-list">
       ${annotated
         .map(({ hearing: h, status }) => `
-          <li class="timeline-item timeline-item--${status}" data-preview-hearing="${h.id}">
+          <li class="timeline-item timeline-item--${status}" data-preview-hearing="${h.id}" tabindex="0" role="button" aria-label="View hearing: ${esc(caseTitle(h))}, ${esc(formatHearingTime(h))}">
             <span class="timeline-rail"><span class="timeline-dot"></span></span>
             <span class="timeline-content">
               <span class="timeline-time">${esc(formatHearingTime(h))}</span>
@@ -180,10 +184,19 @@ function renderTimeline(todays) {
   // Opens the existing Hearing Lightbox — the Quick View modal already
   // defined in hearings.js (openPreview(), unchanged) — via a dedicated
   // ?previewHearing=<id> URL param. Deliberately separate from Calendar's
-  // ?openHearing=<id> mechanism, which stays completely unchanged.
+  // ?openHearing=<id> mechanism, which stays completely unchanged. Rows
+  // are keyboard-reachable (tabindex/role above) and Enter/Space trigger
+  // the same navigation as a click, so no behavior is duplicated.
   container.querySelectorAll("[data-preview-hearing]").forEach((el) => {
-    el.addEventListener("click", () => {
+    const openPreview = () => {
       window.location.href = `hearings.html?previewHearing=${encodeURIComponent(el.dataset.previewHearing)}`;
+    };
+    el.addEventListener("click", openPreview);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openPreview();
+      }
     });
   });
 }
