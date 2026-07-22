@@ -4,6 +4,67 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.8.1] — Dashboard UX Polish
+
+UI/UX refinement only — no Firestore, auth, CRUD, Calendar, Word Export,
+Search, Quick View implementation, or dashboard computation changes.
+
+**Changed**
+- **Today's Hearings is now the dashboard's visual centerpiece.** `home.html`
+  is restructured into a wide main column (the Timeline) alongside a
+  narrower sidebar (Now Hearing, Next Hearing, Today's Summary, Quick
+  Actions) — `.dashboard-main-row` / `.dashboard-main-col` /
+  `.dashboard-side-col`, replacing v0.8.0's equal-width
+  `.dashboard-live-row`. The Timeline's heading is larger, and each row
+  gets more padding/spacing for easier scanning. Click-to-Lightbox
+  behavior (`?previewHearing=<id>` → the existing Quick View modal) is
+  completely unchanged.
+- **Now Hearing and Next Hearing are now two independent cards** instead
+  of one card that toggled between them. A Clerk mid-hearing can now
+  still see what's coming up next. Each has its own compact empty state
+  (`.session-card--compact`, less padding) so an idle card doesn't
+  reserve the same space as one showing real hearing details: "No active
+  hearing." for Now Hearing, "No upcoming hearings today." for Next
+  Hearing (previously both cases just showed "No active hearing.").
+  Still built from the exact same `getCurrentHearing()` /
+  `getNextUpcomingHearing()` / `minutesUntil()` in `dashboard-live.js` —
+  that file is untouched.
+- **Today's Summary redesigned as a horizontal row** (Scheduled /
+  Completed / Remaining side by side) instead of v0.8.0's stacked rows —
+  same `getTodaysSummary()`, same `.summary-value`/`.summary-label`
+  typography, just a `.summary-columns` grid instead of `.summary-row`
+  stack.
+- **More professional empty state** for an empty Timeline: "No hearings
+  scheduled for today. Use Add Hearing or open the Calendar to schedule
+  one." replaces v0.8.0's "Enjoy the quiet day." New `.timeline-empty`
+  class (kept separate from the shared `.empty-row`, which other pages'
+  JS depends on, so it was safe to leave completely alone).
+- **Icons added to section headings** (Today's Hearings, Quick Actions,
+  Now Hearing, Next Hearing, Today's Summary) using Lucide, the same
+  library already loaded on every page — no new icon library, no new
+  colors.
+- Timeline status badges (Now/Next/Completed/Upcoming) get slightly more
+  breathing room to match the timeline's larger scale; same
+  `--green`/`--blue`/`--gray-bg`/`--amber` tokens as v0.8.0, no new color
+  variables.
+- Mobile (≤768px): the new `.dashboard-main-row` and `.summary-columns`
+  stack to one column, same pattern as v0.8.0's now-removed
+  `.dashboard-live-row` override. No broader responsive redesign, as
+  requested — that's planned for after v1.0.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar (page, `calendar.js`, or `calendar-data.js`),
+Word Export document builder, Court Calendar Export logic, Search, the
+Quick View/Lightbox implementation in `hearings.js`, or any function in
+`dashboard-stats.js`/`dashboard-live.js`. Confirmed by checksum:
+`hearings-data.js`, `calendar-data.js`, `calendar.js`, `calendar.html`,
+`hearings.html`, `hearings.js`, `nav-auth.js`, `firebase-init.js`,
+`firebase-config.js`, `auth-guard.js`, `diagnostics.js`, `diagnostics.html`,
+`login.js`, `login.html`, `index.js`, `index.html`, `docx-export.js`,
+`export-data.js`, `constants.js`, `dashboard-stats.js`, and
+`dashboard-live.js` are all byte-identical to v0.8.0 — only `home.html`,
+`js/home.js`, and `css/styles.css` were modified; no files were added.
+
 ## [0.8.0] — Branch Clerk Productivity Dashboard
 
 **Added**

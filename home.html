@@ -56,38 +56,45 @@
       </div>
     </section>
 
-    <section class="dashboard-live-row">
-      <div class="card session-card" id="dashboardSessionCard">
-        <p class="muted">Loading&hellip;</p>
+    <section class="dashboard-main-row">
+      <div class="dashboard-main-col">
+        <section class="card dashboard-timeline-card">
+          <h2 class="today-panel-title"><i data-lucide="gavel" aria-hidden="true"></i>Today's Hearings</h2>
+          <div id="todaysHearingsList">
+            <p class="empty-row">Loading&hellip;</p>
+          </div>
+        </section>
       </div>
-      <div class="card summary-card" id="dashboardSummaryCard">
-        <p class="muted">Loading&hellip;</p>
-      </div>
-    </section>
 
-    <section class="card quick-actions-card">
-      <h2 class="today-panel-title">Quick Actions</h2>
-      <div class="quick-actions-row">
-        <button type="button" class="btn-secondary" id="qaAddHearingBtn">
-          <i data-lucide="plus" aria-hidden="true"></i>
-          <span>Add Hearing</span>
-        </button>
-        <button type="button" class="btn-secondary" id="qaOpenCalendarBtn">
-          <i data-lucide="calendar-days" aria-hidden="true"></i>
-          <span>Open Calendar</span>
-        </button>
-        <button type="button" class="btn-secondary" id="qaExportTodayBtn">
-          <i data-lucide="file-down" aria-hidden="true"></i>
-          <span>Export Today's Calendar</span>
-        </button>
-      </div>
-      <p class="form-error" id="quickActionsStatus" role="alert"></p>
-    </section>
+      <div class="dashboard-side-col">
+        <div class="card session-card" id="dashboardNowCard">
+          <p class="muted">Loading&hellip;</p>
+        </div>
+        <div class="card session-card" id="dashboardNextCard">
+          <p class="muted">Loading&hellip;</p>
+        </div>
+        <div class="card summary-card" id="dashboardSummaryCard">
+          <p class="muted">Loading&hellip;</p>
+        </div>
 
-    <section class="card">
-      <h2 class="today-panel-title">Today's Hearings</h2>
-      <div id="todaysHearingsList">
-        <p class="empty-row">Loading&hellip;</p>
+        <section class="card quick-actions-card">
+          <h2 class="today-panel-title"><i data-lucide="zap" aria-hidden="true"></i>Quick Actions</h2>
+          <div class="quick-actions-row">
+            <button type="button" class="btn-secondary" id="qaAddHearingBtn">
+              <i data-lucide="plus" aria-hidden="true"></i>
+              <span>Add Hearing</span>
+            </button>
+            <button type="button" class="btn-secondary" id="qaOpenCalendarBtn">
+              <i data-lucide="calendar-days" aria-hidden="true"></i>
+              <span>Open Calendar</span>
+            </button>
+            <button type="button" class="btn-secondary" id="qaExportTodayBtn">
+              <i data-lucide="file-down" aria-hidden="true"></i>
+              <span>Export Today's Calendar</span>
+            </button>
+          </div>
+          <p class="form-error" id="quickActionsStatus" role="alert"></p>
+        </section>
       </div>
     </section>
 

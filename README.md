@@ -517,3 +517,55 @@ Opening Home at the start of the day tells the Clerk, at a glance, what's
 happening now, what's next, how the day is progressing, and gives one-
 click access to the day's most common actions — without needing to open
 Hearings or Calendar first.
+
+# v0.8.1: Dashboard UX Polish
+
+A UI/UX refinement pass on the v0.8.0 dashboard — no data, computation,
+or logic changes. Today's Hearings is now the dashboard's visual
+centerpiece; the smaller cards around it (Now Hearing, Next Hearing,
+Today's Summary, Quick Actions) sit in a sidebar and stay compact when
+they have nothing to show.
+
+## 1. What changed
+
+- Today's Hearings moved into a wide main column with more breathing
+  room per row; the rest of the dashboard now lives in a sidebar next
+  to it.
+- Now Hearing and Next Hearing are separate cards (previously one card
+  that toggled between them), each collapsing to a single line when
+  empty instead of reserving full card height.
+- Today's Summary is now a horizontal Scheduled / Completed / Remaining
+  row instead of stacked numbers.
+- The empty Timeline message now points the Clerk toward Add Hearing or
+  the Calendar instead of just saying nothing's scheduled.
+- Section headings now carry a small icon (Lucide, already in use
+  elsewhere in the app).
+
+Nothing about how hearings are loaded, filtered, sorted, or computed
+changed — see `CHANGELOG.md` for exactly which files were touched vs.
+left untouched.
+
+## 2. Testing Checklist
+
+- [ ] Today's Hearings reads as the largest, most prominent section on
+      Home
+- [ ] Now Hearing shows hearing details during an active hearing, and
+      collapses to a single compact line ("No active hearing.") otherwise
+- [ ] Next Hearing shows the next hearing and countdown when one exists
+      today, and collapses to a single compact line ("No upcoming
+      hearings today.") otherwise — independently of whether Now Hearing
+      is active
+- [ ] Today's Summary shows Scheduled / Completed / Remaining side by
+      side
+- [ ] An empty day shows the new "No hearings scheduled" message with
+      a pointer to Add Hearing / Calendar
+- [ ] Clicking a hearing on the timeline still opens the same Quick View
+      modal as before
+- [ ] Quick Actions (Add Hearing, Open Calendar, Export Today's Calendar)
+      all still work exactly as in v0.8.0
+- [ ] Calendar's `?openHearing=<id>` links still open the edit form as
+      before
+- [ ] Global search on the Hearings page and both Word export modes
+      still work exactly as before
+- [ ] On a narrow/phone-width screen, the dashboard still stacks
+      sensibly (Today's Hearings first, sidebar cards below)
