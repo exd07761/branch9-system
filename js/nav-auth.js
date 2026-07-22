@@ -20,6 +20,7 @@
 
 import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { auth } from "./firebase-init.js";
+import { logActivity } from "./activity-data.js";
 
 export function wireNavAuth(user, { loginPage = "login.html" } = {}) {
   const emailEl = document.getElementById("userEmail");
@@ -30,6 +31,14 @@ export function wireNavAuth(user, { loginPage = "login.html" } = {}) {
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
+      // Logged before signOut() — auth.currentUser is cleared once
+      // signOut() resolves, and logActivity() falls back to "unknown"
+      // without it. Not awaited: never delay the redirect over logging.
+      logActivity({
+        action: "Logout",
+        module: "Authentication",
+        description: `${user.email} logged out`,
+      });
       await signOut(auth);
       window.location.replace(loginPage);
     });

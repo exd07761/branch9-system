@@ -19,6 +19,7 @@ import {
   deleteHearing,
   isDuplicateCaseNumber,
 } from "./hearings-data.js";
+import { logActivity } from "./activity-data.js";
 
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
@@ -62,6 +63,16 @@ function fmtDate(iso) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// "YYYY-MM-DD" for a JS Date — only needed for Activity Log entityId/
+// description text on the week/month export logging below, not for any
+// rendered UI on this page. Same shape as home.js's todayDateStr().
+function isoDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function casesForHearing(hearingId) {
   return cases.filter((c) => c.hearingId === hearingId);
 }
@@ -70,6 +81,15 @@ function caseSummary(hearingId) {
   const list = casesForHearing(hearingId);
   if (!list.length) return "(no case numbers)";
   return list.map((c) => `${c.caseType || ""}. ${c.caseNo || ""}`).join("; ");
+}
+
+// Short "Plaintiff vs. Accused" label for Activity Log descriptions —
+// same shape as home.js's caseTitle(), kept local since it's only needed
+// here for logging text, not for any rendered UI on this page.
+function hearingLabel(data) {
+  const plaintiff = data.plaintiff || "People of the Philippines";
+  const accused = (data.accused || []).join(", ") || "Not set";
+  return `${plaintiff} vs. ${accused}`;
 }
 
 // --- Global search -------------------------------------------------------
@@ -510,10 +530,19 @@ async function handleSave() {
   saveBtn.textContent = "Saving\u2026";
 
   try {
+    const isNew = !editingHearingId;
     const existingCaseIds = editingHearingId
       ? casesForHearing(editingHearingId).map((c) => c.id)
       : [];
-    await saveHearing(editingHearingId, hearingData, validCaseRows, existingCaseIds);
+    const savedHearingId = await saveHearing(editingHearingId, hearingData, validCaseRows, existingCaseIds);
+    // Not awaited: logging must never delay closeForm() or block the UI.
+    logActivity({
+      action: isNew ? "Create Hearing" : "Edit Hearing",
+      module: "Hearings",
+      entityId: savedHearingId,
+      entityType: "hearing",
+      description: `${isNew ? "Created" : "Updated"} hearing for ${hearingLabel(hearingData)} on ${hearingData.hearingDate}`,
+    });
     closeForm();
   } catch (err) {
     showFormMessage(`Could not save: ${err.message}`);
@@ -542,6 +571,13 @@ async function handleExportWord() {
 
   try {
     await exportHearingOrderToWord(hearing, hearingCasesList);
+    logActivity({
+      action: "Export Hearing Order",
+      module: "Hearings",
+      entityId: hearing.id,
+      entityType: "hearing",
+      description: `Exported hearing order for ${hearingLabel(hearing)} on ${hearing.hearingDate}`,
+    });
   } catch (err) {
     showFormMessage(`Could not export: ${err.message}`);
   } finally {
@@ -596,7 +632,7 @@ function setToolbarExportStatus(text) {
   if (el) el.textContent = text || "";
 }
 
-async function withExportButton(buttonId, task) {
+async function withExportButton(buttonId, task, onSuccess) {
   if (!window.docx) {
     setToolbarExportStatus("Could not export: the Word export library failed to load. Check your internet connection and try again.");
     return;
@@ -611,6 +647,9 @@ async function withExportButton(buttonId, task) {
   setToolbarExportStatus("");
   try {
     await task();
+    // Not awaited: logging must never delay closing the dropdown or
+    // block the UI. Only called on success, same as the pattern below.
+    if (onSuccess) logActivity(onSuccess());
     closeExportDropdown();
   } catch (err) {
     setToolbarExportStatus(`Could not export: ${err.message}`);
@@ -627,15 +666,47 @@ async function handleExportSelectedDate() {
     setToolbarExportStatus("Pick a date first.");
     return;
   }
-  await withExportButton("exportDateBtn", () => exportCourtCalendarForDate(hearings, cases, dateStr));
+  await withExportButton(
+    "exportDateBtn",
+    () => exportCourtCalendarForDate(hearings, cases, dateStr),
+    () => ({
+      action: "Export Selected Date's Calendar",
+      module: "Hearings",
+      entityId: dateStr,
+      entityType: "calendarExport",
+      description: `Exported calendar for ${dateStr}`,
+    })
+  );
 }
 
 async function handleExportCurrentWeek() {
-  await withExportButton("exportWeekBtn", () => exportCourtCalendarForWeek(hearings, cases, new Date()));
+  const anchorDate = new Date();
+  await withExportButton(
+    "exportWeekBtn",
+    () => exportCourtCalendarForWeek(hearings, cases, anchorDate),
+    () => ({
+      action: "Export Weekly Calendar",
+      module: "Hearings",
+      entityId: isoDateStr(anchorDate),
+      entityType: "calendarExport",
+      description: `Exported calendar for the week of ${isoDateStr(anchorDate)}`,
+    })
+  );
 }
 
 async function handleExportCurrentMonth() {
-  await withExportButton("exportMonthBtn", () => exportCourtCalendarForMonth(hearings, cases, new Date()));
+  const anchorDate = new Date();
+  await withExportButton(
+    "exportMonthBtn",
+    () => exportCourtCalendarForMonth(hearings, cases, anchorDate),
+    () => ({
+      action: "Export Monthly Calendar",
+      module: "Hearings",
+      entityId: isoDateStr(anchorDate),
+      entityType: "calendarExport",
+      description: `Exported calendar for the month of ${anchorDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`,
+    })
+  );
 }
 
 async function handleDelete(hearingId) {
@@ -645,8 +716,20 @@ async function handleDelete(hearingId) {
     : "Delete this hearing? It will be removed from the list, but the record stays recoverable. Continue?";
   if (!confirm(msg)) return;
 
+  // Captured before the delete resolves — hearings[] won't have this
+  // hearing removed from it until the live listener's next update.
+  const hearing = hearings.find((h) => h.id === hearingId);
+
   try {
     await deleteHearing(hearingId);
+    // Not awaited: logging must never block the UI.
+    logActivity({
+      action: "Delete Hearing",
+      module: "Hearings",
+      entityId: hearingId,
+      entityType: "hearing",
+      description: hearing ? `Deleted hearing for ${hearingLabel(hearing)} on ${hearing.hearingDate}` : `Deleted hearing ${hearingId}`,
+    });
   } catch (err) {
     alert(`Could not delete: ${err.message}`);
   }

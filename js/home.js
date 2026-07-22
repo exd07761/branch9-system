@@ -37,6 +37,7 @@ import {
   annotateTimelineStatuses,
 } from "./dashboard-live.js";
 import { exportCourtCalendarForDate } from "./docx-export.js";
+import { logActivity } from "./activity-data.js";
 
 const STATUS_LABEL = { now: "Now", next: "Next", completed: "Completed", upcoming: "Upcoming" };
 
@@ -240,6 +241,14 @@ async function handleExportTodayQuickAction() {
   setQuickActionsStatus("");
   try {
     await exportCourtCalendarForDate(hearings, cases, todayDateStr());
+    // Not awaited: logging must never block the UI.
+    logActivity({
+      action: "Export Today's Calendar",
+      module: "Dashboard",
+      entityId: todayDateStr(),
+      entityType: "calendarExport",
+      description: `Exported calendar for ${todayDateStr()}`,
+    });
   } catch (err) {
     setQuickActionsStatus(`Could not export: ${err.message}`);
   } finally {

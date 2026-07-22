@@ -13,6 +13,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { auth } from "./firebase-init.js";
 import { redirectIfAuthenticated } from "./auth-guard.js";
+import { logActivity } from "./activity-data.js";
 
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");
@@ -69,6 +70,13 @@ form.addEventListener("submit", async (event) => {
     // behavior is documented in code rather than assumed.
     await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
+    // Not awaited: logging must never delay the redirect or block the UI
+    // (see activity-data.js — logActivity never throws on failure).
+    logActivity({
+      action: "Login",
+      module: "Authentication",
+      description: `${emailInput.value.trim()} logged in`,
+    });
     window.location.replace("home.html");
   } catch (err) {
     errorEl.textContent = friendlyError(err.code);
