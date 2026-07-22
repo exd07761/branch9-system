@@ -501,7 +501,7 @@ button, input, select, textarea { font-family: inherit; }
   background-color: var(--red); -webkit-mask: var(--icon-trash) center / contain no-repeat; mask: var(--icon-trash) center / contain no-repeat; }
 
 /* -------------------------------------------------------------------------
-   9. Toolbar (Hearings / Calendar)
+   9. Toolbar (Hearings / Calendar / Activity Log)
    ------------------------------------------------------------------------- */
 .toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-2); } /* JS-DEPENDENT */
 
@@ -1483,4 +1483,62 @@ button, input, select, textarea { font-family: inherit; }
   .quick-actions-row .btn-secondary:last-child {
     grid-column: 1 / -1;
   }
+}
+
+/* -------------------------------------------------------------------------
+   13. Activity Log (v0.9.0)
+   ------------------------------------------------------------------------- */
+/* Same input treatment as .hearings-search, given its own class since it
+   sits inside .toolbar's flex row (as a growing item) rather than as a
+   standalone full-width block above it. */
+.activity-search {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
+.activity-search input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--card);
+}
+
+.activity-search input:focus {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
+}
+
+.activity-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+}
+
+.activity-filter-label {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.activity-filter select {
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--card);
+}
+
+.activity-filter select:focus {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
 }
