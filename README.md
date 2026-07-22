@@ -569,3 +569,52 @@ left untouched.
       still work exactly as before
 - [ ] On a narrow/phone-width screen, the dashboard still stacks
       sensibly (Today's Hearings first, sidebar cards below)
+
+# v0.8.2: Responsive Dashboard & Productivity Polish
+
+Makes the Home dashboard from v0.8.0/v0.8.1 comfortable to use on
+tablets and phones, with a few remaining whitespace/accessibility
+touches. No data, computation, or logic changes.
+
+## 1. What changed
+
+- Today's Hearings and the sidebar (Now Hearing, Next Hearing, Today's
+  Summary, Quick Actions) now stack to one column starting at 1024px
+  (previously only at 768px), so tablets get the same clean single-
+  column reading order as phones. Desktop above 1024px is untouched.
+- The navigation bar's wrap-safety (so it never scrolls horizontally)
+  now also starts at 1024px instead of 768px.
+- Quick Actions becomes a 2-column grid on phones instead of a tall
+  single column.
+- Now Hearing, Next Hearing, and Today's Hearings all shrink a little
+  further when they have nothing to show, without ever using a fixed
+  height — they still grow to fit real content exactly as before.
+- The Timeline got more breathing room, a stronger connector line,
+  slightly larger status badges, and a clearer highlight on the current
+  hearing.
+- Buttons, nav links, and Timeline rows now show a visible focus outline
+  when navigating by keyboard, and Timeline rows can now be reached and
+  activated with Tab + Enter/Space, not just a mouse click.
+
+See `CHANGELOG.md` for the full file-by-file breakdown.
+
+## 2. Testing Checklist
+
+- [ ] Desktop widths (1920, 1440, 1280): dashboard layout matches
+      v0.8.1 exactly — two columns, Timeline on the left
+- [ ] Tablet widths (1024, 768): dashboard stacks to one column,
+      Today's Hearings first; nav doesn't overflow or scroll
+      horizontally at either width
+- [ ] Phone widths (430, 390, 375, 320): no horizontal scrolling
+      anywhere on the page; Quick Actions shows as a 2-column grid;
+      nav brand stays visible, email truncates, Logout stays reachable
+- [ ] An empty day: Now Hearing, Next Hearing, and Today's Hearings all
+      visibly take up less vertical space than when hearings exist
+- [ ] Tabbing through the page reaches Timeline rows in their visual
+      order, and Enter/Space on a focused row opens the same Quick View
+      modal a click would
+- [ ] Focus outlines are visible when tabbing through nav links, the
+      Logout button, and Quick Actions buttons
+- [ ] Clicking a Timeline row, Quick Actions, Calendar links, global
+      search, and both Word export modes all still work exactly as in
+      v0.8.1

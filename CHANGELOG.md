@@ -4,6 +4,72 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.8.2] — Responsive Dashboard & Productivity Polish
+
+UI/UX milestone only — no Firestore, auth, CRUD, Calendar, Word Export,
+Search, dashboard-computation, or listener changes.
+
+**Changed**
+- **New tablet breakpoint at ≤1024px** (previously the only breakpoint
+  was ≤768px). Home's two-column layout (`.dashboard-main-row`) now
+  collapses to one column starting at 1024px instead of 768px, so
+  Today's Hearings still reads clearly on a tablet, not just a phone —
+  it's still first in DOM order, so it still renders before the sidebar
+  cards. Nav wrap-safety (wrapping, brand truncation, email ellipsis,
+  logout staying reachable) was promoted from the ≤768px tier to this
+  new ≤1024px tier, since at the old threshold a nav with a full-length
+  brand + 3 links + email + logout could overflow horizontally on
+  tablet-width screens between 769–1024px. The ≤768px tier now only
+  holds its remaining phone-specific deltas (smaller nav text/padding,
+  34vw email truncation, 2x2 stat grid, the sticky-header workaround).
+  **Desktop (>1024px) is completely unchanged** — none of this applies
+  above 1024px.
+- **Quick Actions is now a 2-column grid on phones** (≤768px) instead of
+  a single stacked column, with the odd button (Export) spanning the
+  full width of its own row; desktop/tablet keep the existing single-row
+  layout. Buttons also gained `height: auto` + wrapping on phones so a
+  longer label (e.g. "Export Today's Calendar") can't get clipped in a
+  narrow column. Same buttons, same click handlers — no logic touched.
+- **Now Hearing / Next Hearing / Today's Hearings shrink a bit further
+  when empty.** `.session-card--compact`'s padding was tightened again,
+  and a new `.dashboard-timeline-card--empty` modifier (toggled by
+  `home.js` alongside the existing empty-state check — no new
+  computation, just a class toggle) trims the Timeline card's own
+  padding when there's nothing to show. No fixed heights were
+  introduced anywhere; cards still grow to fit real content exactly as
+  before.
+- **Timeline visual polish**: more vertical spacing and a larger
+  clickable area per row (bigger padding, no change to which element is
+  clickable or where it navigates), a thicker higher-contrast connector
+  line (`var(--line-strong)`, up from `var(--line)`), slightly larger
+  status badges, a smoother hover transition, and the current hearing
+  now gets an inset accent border (`var(--green)`) plus a larger dot for
+  a clearer highlight. All existing color tokens — no new ones.
+- **Keyboard accessibility**: Timeline rows are now focusable
+  (`tabindex="0"`, `role="button"`, a descriptive `aria-label`) and
+  Enter/Space trigger the same navigation a click does — previously
+  they were mouse-only. Visible `:focus-visible` outlines added to
+  buttons (`.btn-primary`/`.btn-secondary`/`.btn-small`), nav links, the
+  Logout button, and Timeline rows, all reusing existing
+  `--brass`/`--brass-dark` tokens. Tab order is unchanged (elements were
+  simply made reachable at their existing DOM position, not reordered).
+  Smoother hover transitions added to nav links and the Logout button to
+  match the buttons' existing transition.
+
+**Not changed:** Firestore schema, security rules, CRUD logic,
+authentication flow, Calendar (page, `calendar.js`, or `calendar-data.js`),
+Word Export document builder, Court Calendar Export logic, Search, the
+Quick View/Lightbox implementation in `hearings.js`, or any function in
+`dashboard-stats.js`/`dashboard-live.js`. No new Firestore listeners.
+Confirmed by checksum: `hearings-data.js`, `calendar-data.js`,
+`calendar.js`, `calendar.html`, `hearings.html`, `hearings.js`,
+`nav-auth.js`, `firebase-init.js`, `firebase-config.js`, `auth-guard.js`,
+`diagnostics.js`, `diagnostics.html`, `login.js`, `login.html`, `index.js`,
+`index.html`, `docx-export.js`, `export-data.js`, `constants.js`,
+`dashboard-stats.js`, and `dashboard-live.js` are all byte-identical to
+v0.8.1 — only `home.html`, `js/home.js`, and `css/styles.css` were
+modified; no files were added.
+
 ## [0.8.1] — Dashboard UX Polish
 
 UI/UX refinement only — no Firestore, auth, CRUD, Calendar, Word Export,
