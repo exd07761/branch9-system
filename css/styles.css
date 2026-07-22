@@ -501,7 +501,7 @@ button, input, select, textarea { font-family: inherit; }
   background-color: var(--red); -webkit-mask: var(--icon-trash) center / contain no-repeat; mask: var(--icon-trash) center / contain no-repeat; }
 
 /* -------------------------------------------------------------------------
-   9. Toolbar (Hearings / Calendar / Activity Log)
+   9. Toolbar (Hearings / Calendar / Activity Log / Reports)
    ------------------------------------------------------------------------- */
 .toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-2); } /* JS-DEPENDENT */
 
@@ -1541,4 +1541,80 @@ button, input, select, textarea { font-family: inherit; }
   outline: none;
   border-color: var(--brass);
   box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
+}
+
+/* -------------------------------------------------------------------------
+   14. Reports & Statistics (v0.9.1)
+   ------------------------------------------------------------------------- */
+.report-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.report-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.report-filter label {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.report-filter select,
+.report-filter input[type="date"] {
+  height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--card);
+}
+
+.report-filter select:focus,
+.report-filter input[type="date"]:focus {
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
+}
+
+.report-export-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.report-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.report-section-heading h2 {
+  font-size: var(--text-lg);
+}
+
+.report-day-divider {
+  font-weight: 600;
+  background: var(--paper);
+  color: var(--ink-2);
+}
+
+.report-breakdowns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 768px) {
+  .report-breakdowns {
+    grid-template-columns: 1fr;
+  }
 }
