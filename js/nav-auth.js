@@ -21,12 +21,28 @@
 import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { auth } from "./firebase-init.js";
 import { logActivity } from "./activity-data.js";
+import { can } from "./permissions.js";
+
+// v0.9.2 (RBAC): nav links a role can't use are hidden here, in the one
+// place every page already calls to wire its nav — this is the reusable
+// permission helper's single call site for "which nav links show," so no
+// page repeats this check itself. A link opts in by adding
+// data-permission="<permission>" (see permissions.js for the list); links
+// with no data-permission attribute (Home, Hearings, Calendar) are always
+// shown, since every role has access to those.
+function applyNavPermissions(role) {
+  document.querySelectorAll(".app-nav-links [data-permission]").forEach((link) => {
+    link.hidden = !can(role, link.dataset.permission);
+  });
+}
 
 export function wireNavAuth(user, { loginPage = "login.html" } = {}) {
   const emailEl = document.getElementById("userEmail");
   if (emailEl && user) {
     emailEl.textContent = user.email;
   }
+
+  if (user) applyNavPermissions(user.role);
 
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) {

@@ -20,6 +20,7 @@ import {
   isDuplicateCaseNumber,
 } from "./hearings-data.js";
 import { logActivity } from "./activity-data.js";
+import { can, PERMISSIONS } from "./permissions.js";
 
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
@@ -52,6 +53,7 @@ let cases = [];
 let editingHearingId = null;
 let formCaseRows = [];
 let formOpen = false;
+let currentRole = null;
 
 function esc(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
@@ -138,6 +140,12 @@ function renderList() {
       // caseCount is written on every save; fall back to counting live
       // case docs only for older records saved before this field existed.
       const count = typeof h.caseCount === "number" ? h.caseCount : casesForHearing(h.id).length;
+      const editBtn = can(currentRole, PERMISSIONS.HEARINGS_EDIT)
+        ? `<button type="button" class="btn-small" data-action="edit" data-id="${h.id}">Edit</button>`
+        : "";
+      const deleteBtn = can(currentRole, PERMISSIONS.HEARINGS_DELETE)
+        ? `<button type="button" class="btn-small btn-danger" data-action="delete" data-id="${h.id}">Delete</button>`
+        : "";
       return `
         <tr data-hearing-row="${h.id}">
           <td>${h.hearingDate ? esc(fmtDate(h.hearingDate)) : "<span class=\"muted\">Not set</span>"}</td>
@@ -148,8 +156,8 @@ function renderList() {
           <td>${esc(caseSummary(h.id))}</td>
           <td>${esc(accusedLine)}</td>
           <td class="row-actions">
-            <button type="button" class="btn-small" data-action="edit" data-id="${h.id}">Edit</button>
-            <button type="button" class="btn-small btn-danger" data-action="delete" data-id="${h.id}">Delete</button>
+            ${editBtn}
+            ${deleteBtn}
           </td>
         </tr>
       `;
@@ -258,7 +266,7 @@ function renderPreview() {
 
         <div class="preview-actions">
           <button type="button" class="btn-secondary" id="previewCloseBtn2">Close</button>
-          <button type="button" class="btn-primary btn-inline" id="previewEditBtn">Edit This Hearing</button>
+          ${can(currentRole, PERMISSIONS.HEARINGS_EDIT) ? '<button type="button" class="btn-primary btn-inline" id="previewEditBtn">Edit This Hearing</button>' : ""}
         </div>
       </div>
     </div>
@@ -270,10 +278,13 @@ function renderPreview() {
   });
   document.getElementById("previewCloseBtn").addEventListener("click", closePreview);
   document.getElementById("previewCloseBtn2").addEventListener("click", closePreview);
-  document.getElementById("previewEditBtn").addEventListener("click", () => {
-    closePreview();
-    openEditForm(previewHearingId || h.id);
-  });
+  const previewEditBtn = document.getElementById("previewEditBtn");
+  if (previewEditBtn) {
+    previewEditBtn.addEventListener("click", () => {
+      closePreview();
+      openEditForm(previewHearingId || h.id);
+    });
+  }
 }
 
 document.addEventListener("keydown", (e) => {
@@ -424,7 +435,7 @@ function renderForm() {
       <p class="form-error" id="formMessage" role="alert"></p>
 
       <div class="form-actions">
-        ${editingHearingId ? `<button type="button" class="btn-secondary" id="exportWordBtn"><i data-lucide="file-down" aria-hidden="true"></i><span>Export to Word</span></button>` : ""}
+        ${editingHearingId && can(currentRole, PERMISSIONS.EXPORT) ? `<button type="button" class="btn-secondary" id="exportWordBtn"><i data-lucide="file-down" aria-hidden="true"></i><span>Export to Word</span></button>` : ""}
         <button type="button" class="btn-secondary" id="cancelFormBtn">Cancel</button>
         <button type="button" class="btn-primary" id="saveFormBtn">Save Hearing</button>
       </div>
@@ -435,7 +446,7 @@ function renderForm() {
 
   if (window.lucide) lucide.createIcons();
 
-  if (editingHearingId) {
+  if (editingHearingId && can(currentRole, PERMISSIONS.EXPORT)) {
     document.getElementById("exportWordBtn").addEventListener("click", handleExportWord);
   }
 
@@ -452,6 +463,7 @@ function renderForm() {
 // --- Form open/close -----------------------------------------------------
 
 function openAddForm() {
+  if (!can(currentRole, PERMISSIONS.HEARINGS_CREATE)) return;
   editingHearingId = null;
   formCaseRows = [{ caseId: null, caseType: CASE_TYPES[0], caseNo: "", charge: "", dateFiled: "" }];
   formOpen = true;
@@ -460,6 +472,7 @@ function openAddForm() {
 }
 
 function openEditForm(hearingId) {
+  if (!can(currentRole, PERMISSIONS.HEARINGS_EDIT)) return;
   const existing = casesForHearing(hearingId);
   editingHearingId = hearingId;
   formCaseRows = existing.length
@@ -480,6 +493,9 @@ function closeForm() {
 // --- Save / Delete ---------------------------------------------------------
 
 async function handleSave() {
+  const requiredPermission = editingHearingId ? PERMISSIONS.HEARINGS_EDIT : PERMISSIONS.HEARINGS_CREATE;
+  if (!can(currentRole, requiredPermission)) return;
+
   syncCaseRowsFromDom();
   showFormMessage("");
 
@@ -552,6 +568,7 @@ async function handleSave() {
 }
 
 async function handleExportWord() {
+  if (!can(currentRole, PERMISSIONS.EXPORT)) return;
   if (!window.docx) {
     showFormMessage("Could not export: the Word export library failed to load. Check your internet connection and try again.");
     return;
@@ -633,6 +650,7 @@ function setToolbarExportStatus(text) {
 }
 
 async function withExportButton(buttonId, task, onSuccess) {
+  if (!can(currentRole, PERMISSIONS.EXPORT)) return;
   if (!window.docx) {
     setToolbarExportStatus("Could not export: the Word export library failed to load. Check your internet connection and try again.");
     return;
@@ -710,6 +728,7 @@ async function handleExportCurrentMonth() {
 }
 
 async function handleDelete(hearingId) {
+  if (!can(currentRole, PERMISSIONS.HEARINGS_DELETE)) return;
   const attached = casesForHearing(hearingId);
   const msg = attached.length
     ? `Delete this hearing? It will be removed from the list along with its ${attached.length} case number(s), but the record stays recoverable. Continue?`
@@ -765,7 +784,15 @@ function maybeAutoOpenFromUrl() {
   if (autoOpenId) {
     const targetId = autoOpenId;
     autoOpenId = null; // only ever attempt this once per page load
-    if (hearings.find((h) => h.id === targetId)) openEditForm(targetId);
+    if (hearings.find((h) => h.id === targetId)) {
+      // Calendar's "Details" link always points at ?openHearing= (see the
+      // comment above), which has always meant "open the edit form." A
+      // role without edit permission gets the read-only Quick View
+      // instead, rather than the link silently doing nothing — Calendar
+      // itself stays completely unchanged for this.
+      if (can(currentRole, PERMISSIONS.HEARINGS_EDIT)) openEditForm(targetId);
+      else openPreview(targetId);
+    }
   }
 
   if (autoPreviewId) {
@@ -785,13 +812,19 @@ async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return;
 
+  currentRole = user.role;
   wireNavAuth(user);
 
-  document.getElementById("addHearingBtn").addEventListener("click", openAddForm);
+  const addHearingBtn = document.getElementById("addHearingBtn");
+  if (can(currentRole, PERMISSIONS.HEARINGS_CREATE)) {
+    addHearingBtn.addEventListener("click", openAddForm);
+  } else {
+    addHearingBtn.hidden = true;
+  }
 
   if (autoAddAction) {
     autoAddAction = false;
-    openAddForm();
+    openAddForm(); // no-op if currentRole can't create — see openAddForm()
     const url = new URL(window.location.href);
     url.searchParams.delete("action");
     window.history.replaceState({}, "", url);
@@ -801,10 +834,18 @@ async function init() {
     searchQuery = e.target.value.trim();
     renderList();
   });
-  document.getElementById("exportDateBtn").addEventListener("click", handleExportSelectedDate);
-  document.getElementById("exportWeekBtn").addEventListener("click", handleExportCurrentWeek);
-  document.getElementById("exportMonthBtn").addEventListener("click", handleExportCurrentMonth);
-  wireExportDropdown();
+
+  // Export Calendar dropdown: Encoder and Read Only don't have export
+  // permission (see permissions.js) — hidden entirely rather than left
+  // clickable and silently doing nothing.
+  if (can(currentRole, PERMISSIONS.EXPORT)) {
+    document.getElementById("exportDateBtn").addEventListener("click", handleExportSelectedDate);
+    document.getElementById("exportWeekBtn").addEventListener("click", handleExportCurrentWeek);
+    document.getElementById("exportMonthBtn").addEventListener("click", handleExportCurrentMonth);
+    wireExportDropdown();
+  } else {
+    document.getElementById("exportDropdown").hidden = true;
+  }
 
   subscribeToHearings((data) => {
     hearings = data;

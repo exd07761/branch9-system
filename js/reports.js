@@ -12,11 +12,12 @@
 // listener types are introduced for this page.
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js";
+import { requireAuth, requirePermission } from "./auth-guard.js";
 import { wireNavAuth } from "./nav-auth.js";
 import { subscribeToHearings, subscribeToCases } from "./hearings-data.js";
 import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js";
 import { logActivity } from "./activity-data.js";
+import { can, PERMISSIONS } from "./permissions.js";
 import {
   getHearingsForDate,
   getHearingsForWeek,
@@ -37,6 +38,7 @@ import { SECTIONS } from "./constants.js";
 
 let hearings = [];
 let cases = [];
+let currentRole = null;
 
 // "today" | "week" | "month" | "custom" — mirrors the exact semantics
 // hearings.js's Export Calendar dropdown already uses for week/month
@@ -218,10 +220,16 @@ function downloadBlob(blob, filename) {
 }
 
 function wordExportAvailable() {
-  return (scope === "today" || scope === "week" || scope === "month") && statusFilter === "All" && sectionFilter === "All";
+  return (
+    can(currentRole, PERMISSIONS.EXPORT) &&
+    (scope === "today" || scope === "week" || scope === "month") &&
+    statusFilter === "All" &&
+    sectionFilter === "All"
+  );
 }
 
 async function handleExportCsv() {
+  if (!can(currentRole, PERMISSIONS.EXPORT)) return;
   const scoped = filterBySection(filterByStatus(dateScopedHearings(), statusFilter), sectionFilter);
   const csv = buildCsv(CSV_HEADERS, hearingsToCsvRows(scoped, cases));
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -274,6 +282,12 @@ function render() {
 
   document.getElementById("reportScopeSummary").textContent = scopeLabel();
   document.getElementById("exportWordBtn").disabled = !wordExportAvailable();
+  // Read Only has reports.view but not export — the buttons don't just
+  // disable for them, they're not shown at all ("do not show actions the
+  // user cannot perform").
+  const canExport = can(currentRole, PERMISSIONS.EXPORT);
+  document.getElementById("exportCsvBtn").hidden = !canExport;
+  document.getElementById("exportWordBtn").hidden = !canExport;
 }
 
 // --- Filter wiring ---------------------------------------------------------
@@ -341,7 +355,9 @@ function refreshStatusOptions() {
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return;
+  if (!requirePermission(user, PERMISSIONS.REPORTS_VIEW, { redirectTo: "home.html" })) return;
 
+  currentRole = user.role;
   wireNavAuth(user);
   populateSectionOptions();
   wireFilters();

@@ -8,9 +8,10 @@
 // and calendar.js/calendar-data.js already use.
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js";
+import { requireAuth, requirePermission } from "./auth-guard.js";
 import { wireNavAuth } from "./nav-auth.js";
 import { subscribeToActivityLogs } from "./activity-data.js";
+import { PERMISSIONS } from "./permissions.js";
 
 let entries = [];
 let searchQuery = "";
@@ -112,6 +113,7 @@ function wireFilter() {
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return; // requireAuth already redirected to login
+  if (!requirePermission(user, PERMISSIONS.ACTIVITY_LOG_VIEW, { redirectTo: "home.html" })) return;
 
   wireNavAuth(user);
   wireSearch();

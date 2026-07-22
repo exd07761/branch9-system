@@ -38,11 +38,13 @@ import {
 } from "./dashboard-live.js";
 import { exportCourtCalendarForDate } from "./docx-export.js";
 import { logActivity } from "./activity-data.js";
+import { can, PERMISSIONS } from "./permissions.js";
 
 const STATUS_LABEL = { now: "Now", next: "Next", completed: "Completed", upcoming: "Upcoming" };
 
 let hearings = [];
 let cases = [];
+let currentRole = null;
 
 function esc(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
@@ -227,6 +229,7 @@ function setQuickActionsStatus(text) {
 }
 
 async function handleExportTodayQuickAction() {
+  if (!can(currentRole, PERMISSIONS.EXPORT)) return;
   if (!window.docx) {
     setQuickActionsStatus("Could not export: the Word export library failed to load. Check your internet connection and try again.");
     return;
@@ -261,20 +264,33 @@ async function handleExportTodayQuickAction() {
 function wireQuickActions() {
   // Reuses the same ?action=add entry point hearings.js now supports —
   // calls the existing openAddForm(), no form logic duplicated here.
-  document.getElementById("qaAddHearingBtn").addEventListener("click", () => {
-    window.location.href = "hearings.html?action=add";
-  });
+  const addBtn = document.getElementById("qaAddHearingBtn");
+  if (can(currentRole, PERMISSIONS.HEARINGS_CREATE)) {
+    addBtn.addEventListener("click", () => {
+      window.location.href = "hearings.html?action=add";
+    });
+  } else {
+    addBtn.hidden = true;
+  }
+
   // Plain navigation — Calendar itself is completely unmodified.
   document.getElementById("qaOpenCalendarBtn").addEventListener("click", () => {
     window.location.href = "calendar.html";
   });
-  document.getElementById("qaExportTodayBtn").addEventListener("click", handleExportTodayQuickAction);
+
+  const exportBtn = document.getElementById("qaExportTodayBtn");
+  if (can(currentRole, PERMISSIONS.EXPORT)) {
+    exportBtn.addEventListener("click", handleExportTodayQuickAction);
+  } else {
+    exportBtn.hidden = true;
+  }
 }
 
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return; // requireAuth already redirected to login
 
+  currentRole = user.role;
   wireNavAuth(user);
   wireQuickActions();
 

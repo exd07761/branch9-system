@@ -5,11 +5,19 @@
 // page that needs to know "is someone logged in" goes through the two
 // functions below instead of talking to Firebase Auth directly.
 //
-// Why this matters for the future: this milestone only checks "does a
-// Firebase Auth user exist at all" — there is no concept of roles yet.
-// When roles/permissions are added later, the extra logic (e.g. checking a
-// user's role before granting access to a page) only needs to be added
-// HERE. Pages that already call requireAuth() will not need to change.
+// v0.9.2 (RBAC): this is the extension point this comment already
+// anticipated — requireAuth() now also resolves the signed-in user's role
+// (one Firestore read via users-data.js, not a listener — "load it once,
+// reuse it") and attaches it as user.role. Every page that already calls
+// requireAuth() automatically gets user.role with no call-site changes;
+// only pages that need to act on the role were touched this milestone.
+// requirePermission() is the new page-level gate: call it after
+// requireAuth() on any page a role might be denied entirely, and it
+// redirects away exactly the way requireAuth() already redirects signed-out
+// visitors to the login page. Button-level hiding (a different, UI-only
+// concern) still lives in each page's own render code via can() from
+// permissions.js — this file only decides "can this person be on this page
+// at all."
 //
 // Firebase init failure handling: if firebase-init.js failed to initialize
 // (bad config, blocked network, etc.), `auth` is null and calling
@@ -22,6 +30,8 @@
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { auth, firebaseInitError } from "./firebase-init.js";
+import { getOrCreateUserRole } from "./users-data.js";
+import { can } from "./permissions.js";
 
 function escapeHtml(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
@@ -53,7 +63,8 @@ function showFirebaseFatalError() {
 /**
  * Call at the top of any page that requires a logged-in user.
  * Redirects to the login page if nobody is signed in.
- * Resolves with the Firebase user object if authenticated.
+ * Resolves with the Firebase user object (with .role attached) if
+ * authenticated.
  * Resolves with null (and shows a fatal-error overlay) if Firebase itself
  * failed to initialize — the caller's usual "not authenticated" handling
  * (returning early, doing nothing further) is exactly the right response.
@@ -64,16 +75,32 @@ export function requireAuth({ loginPage = "login.html" } = {}) {
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       unsubscribe();
       if (!user) {
         window.location.replace(loginPage);
         resolve(null);
         return;
       }
+      user.role = await getOrCreateUserRole(user);
       resolve(user);
     });
   });
+}
+
+/**
+ * Call after requireAuth() on any page a role might be denied entirely
+ * (as opposed to individual buttons/actions within a page a role is
+ * otherwise allowed on — that's handled per-page via can() instead).
+ * Redirects to `redirectTo` and returns false if `user` lacks
+ * `permission`; returns true otherwise.
+ */
+export function requirePermission(user, permission, { redirectTo = "home.html" } = {}) {
+  if (!can(user.role, permission)) {
+    window.location.replace(redirectTo);
+    return false;
+  }
+  return true;
 }
 
 /**
