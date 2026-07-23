@@ -284,6 +284,28 @@ function wireQuickActions() {
   } else {
     exportBtn.hidden = true;
   }
+
+  updateQuickActionsLayout();
+}
+
+// The mobile 2-column grid (css/styles.css, "Quick Actions" media query)
+// spans a lone leftover button full-width via :last-child — but that
+// targets DOM position, not visibility. Once a permission hides one or
+// two of these three buttons, the DOM's last child may no longer be the
+// last *visible* one (e.g. Read Only: only Open Calendar remains, but
+// it's the middle child, not :last-child), which would leave it stuck in
+// column 1 with an empty column 2 beside it. This finds whichever button
+// is actually last among the visible ones and marks it directly, rather
+// than relying on DOM order.
+function updateQuickActionsLayout() {
+  const buttons = [
+    document.getElementById("qaAddHearingBtn"),
+    document.getElementById("qaOpenCalendarBtn"),
+    document.getElementById("qaExportTodayBtn"),
+  ];
+  buttons.forEach((b) => b.classList.remove("quick-action-last-visible"));
+  const visible = buttons.filter((b) => !b.hidden);
+  if (visible.length % 2 === 1) visible[visible.length - 1].classList.add("quick-action-last-visible");
 }
 
 async function init() {
