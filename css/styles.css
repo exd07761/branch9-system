@@ -1588,6 +1588,27 @@ button, input, select, textarea { font-family: inherit; }
   box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
 }
 
+.report-filter-checkbox {
+  justify-content: flex-end;
+}
+
+.report-filter-checkbox label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.report-filter-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brass);
+  cursor: pointer;
+}
+
 .report-export-actions {
   display: flex;
   align-items: center;
