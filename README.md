@@ -824,7 +824,7 @@ step.
 | Activity Log | ✅ | ✅ | ❌ | ❌ |
 | User Management | ✅ | ❌ | ❌ | ❌ |
 | Archive / Restore Hearings | ✅ | ✅ | ❌ | ❌ |
-| Backup *(reserved — not built yet)* | ✅ | ❌ | ❌ | ❌ |
+| Backup / Restore (system-wide) | ✅ | ❌ | ❌ | ❌ |
 
 This table is `ROLE_PERMISSIONS` in `js/permissions.js`, restated for
 reference — that file is the actual source of truth; if the two ever
@@ -939,8 +939,15 @@ service cloud.firestore {
       // A user may create only their OWN document, and only with the
       // default role — this is what stops someone from granting
       // themselves administrator by writing their own users/{uid} doc.
-      allow create: if signedIn() && request.auth.uid == userId
-                     && request.resource.data.role == 'branch_clerk';
+      // v0.9.4: Administrator may ALSO create any user's doc from
+      // scratch — needed for Backup & Restore's disaster-recovery/
+      // cross-project-migration scenario, where the destination project
+      // has no matching users/{uid} docs yet. This does not weaken the
+      // self-service path above; it only adds a second, admin-only way
+      // to create a user document.
+      allow create: if (signedIn() && request.auth.uid == userId
+                     && request.resource.data.role == 'branch_clerk')
+                     || isAdmin();
       allow update: if isAdmin();
       allow delete: if false;
     }
@@ -956,7 +963,12 @@ roles above. `systemStatus` is unchanged. **v0.9.3 update:** the
 guard described above — this is the only Firestore Rules change
 required for Archive & Case Lifecycle Management; `hearingCases`,
 `activityLogs`, `users`, and `systemStatus` rules are unchanged from
-v0.9.2.
+v0.9.2. **v0.9.4 update:** the `users` collection's `create` rule gained
+the Administrator branch described above — this is the only Firestore
+Rules change required for Backup & Restore; `hearings`, `hearingCases`,
+`activityLogs`, and `systemStatus` rules are unchanged from v0.9.3 (see
+Milestone 14 below for why `activityLogs`' restrictive `update: false`
+rule did NOT need to change).
 
 ## 4. Testing Checklist
 
@@ -1133,3 +1145,174 @@ security boundary.
       — every active-only view reuses the one `isActiveHearing()`
       function; every file not listed in the Changelog as added/modified
       is byte-identical to v0.9.2
+---
+
+# Milestone 14: Backup & Restore
+
+A system-wide Backup & Restore module for Administrators — manual
+backups, disaster recovery, migration between Firebase projects, and
+recovering from accidental data loss. No new Firestore collection; no
+schema changes to any existing collection.
+
+## 1. What gets backed up
+
+A single JSON file containing every document from:
+
+```
+hearings, hearingCases, activityLogs, users, systemStatus
+```
+
+**A note on "systemConfig":** this app has no collection by that name.
+Its only system-level collection is `systemStatus` — a lightweight,
+read-only connectivity probe used by `app.js`/`diagnostics.js`, holding
+no real configuration. That is what's backed up here, under its real
+name. It's included for completeness but is **never restored** — see
+below.
+
+Document IDs are preserved (`{ id, ...fields }`, the same shape used
+throughout this app). Firestore Timestamp fields (`hearingDateTime`,
+`createdAt`, `updatedAt`, `archivedAt`, `deletedAt`, the activity log's
+`timestamp`, etc.) are preserved too — serialized to
+`{ __type: "timestamp", seconds, nanoseconds }` on export and
+reconstructed as real `Timestamp` instances on restore, so fields
+Calendar's range queries depend on keep working correctly after a
+restore rather than silently becoming plain strings.
+
+Backup metadata:
+
+```json
+{
+  "backupVersion": "1.0",
+  "systemVersion": "0.9.4",
+  "createdAt": "2026-07-23T10:15:00.000Z",
+  "collections": { "hearings": [...], "hearingCases": [...], "activityLogs": [...], "users": [...], "systemStatus": [...] }
+}
+```
+
+Suggested filename: `branch9-backup-YYYY-MM-DD-HHMM.json` (local time).
+
+## 2. Restore behavior
+
+Restore rules, exactly as specified: **update** any document whose ID
+already exists at the destination, **create** any that's missing,
+**never delete** anything already in the system, **skip** malformed
+records, and **continue** past recoverable errors instead of aborting
+the whole restore.
+
+Per-collection policy (see `RESTORE_POLICY` in `js/backup-data.js`):
+
+- **hearings, hearingCases, users** — "upsert": every well-formed record
+  is written via `set(doc, data, { merge: true })`, whether or not it
+  already exists.
+- **activityLogs** — "create-missing": **only** entries that do NOT
+  already exist at the destination are written; an existing log entry
+  is left completely untouched. `activityLogs`' own Firestore rule is
+  intentionally `update, delete: if false` (an immutable audit trail) —
+  restoring must not fight that design, so this collection never
+  attempts an update, only fills in genuinely missing history. One bulk
+  read of existing IDs decides this, not one read per record.
+- **systemStatus** — "skip": exported for reference only, never written
+  back. Its rule is `write: if false` for every role, and it holds
+  nothing meaningful to restore.
+
+A record is **malformed** (and skipped) if it isn't an object, or its
+`id` isn't a non-empty string. Malformed records are filtered out
+*before* anything is batched, so one bad record can never take an
+otherwise-good batch of 400 down with it. If a batch's `commit()` itself
+fails (a **recoverable error** — e.g. a transient network blip), that
+batch's records are counted as failed and the restore continues with
+the next batch/collection rather than stopping.
+
+Before any write happens, the selected file is validated
+(`validateBackupFile()` in `js/backup-data.js` — pure, no Firestore
+access) and a confirmation dialog shows exactly what's about to happen —
+per-collection record counts, the backup's creation date, and the exact
+update/create/never-delete behavior — before the Administrator can
+proceed.
+
+## 3. Progress & batching
+
+Writes are chunked at 400 documents per `writeBatch` (Firestore's own
+limit is 500 — this keeps headroom), with a yield back to the browser's
+event loop between chunks (`setTimeout(resolve, 0)`) so a large restore
+never freezes the tab. `js/backup.js` renders a progress bar driven by an
+`onProgress({ collection, processed, total })` callback passed into
+`restoreFromBackup()` — no Firestore logic lives in `backup.js` itself.
+
+## 4. RBAC — Administrator only
+
+No new role. `PERMISSIONS.BACKUP_MANAGE` (reserved back in v0.9.2
+specifically for this milestone) now gates the entire `backup.html`
+page via `requirePermission()` — the same page-level gate
+`archived.html` and `users.html` already use. No other role has this
+permission; the "Backup" nav link (`data-permission="backup.manage"`) is
+hidden from everyone else the same way Users/Archived already are.
+
+**One real Firestore Rules change was required:** the `users`
+collection's `create` rule previously only allowed a signed-in user to
+create *their own* document. Restoring to a brand-new Firebase project
+(an explicitly stated goal — migration between projects) would then be
+unable to recreate *other* users' role documents. The rule now also
+allows Administrator to create any user's document from scratch — see
+"Firestore Security Rules for RBAC" above. No other collection's rules
+needed to change (`activityLogs`' restrictive rule is deliberately left
+alone — see "create-missing" above).
+
+## 5. Activity Log
+
+Reuses the existing `logActivity()` helper — no duplicated logging
+logic. Records: `Backup Created`, `Restore Started`, `Restore
+Completed`, `Restore Failed`.
+
+## 6. Limitations
+
+- This is a **client-side** backup/restore — very large collections
+  (tens of thousands of documents or more) will be slow to export/import
+  through the browser; there's no server-side/Admin SDK batch job.
+- Restore cannot distinguish "created" from "updated" without an extra
+  read per document (not worth it for a disaster-recovery tool at this
+  system's scale), so the summary reports `written` as one combined
+  count per collection, plus `skippedExisting` (activityLogs only),
+  `skippedMalformed`, and `failed`.
+- A failed batch is retried by nothing automatically — if the summary
+  shows failures, re-running the restore is safe (upsert is idempotent,
+  and activityLogs' create-missing check re-evaluates what's already
+  present) but is a manual step.
+- Restoring `users` documents restores **role assignments**, not
+  Firebase Authentication accounts themselves — this app has no Admin
+  SDK access, so it cannot recreate sign-in credentials. An account must
+  still sign in at least once (creating its own `users/{uid}` doc via
+  the existing self-service path) before a restored role document for
+  that UID has any effect, unless a matching UID already exists from the
+  original project.
+- `systemStatus` is exported for completeness only; it is never
+  restored (see above).
+
+## 7. Testing Checklist
+
+- [ ] Only Administrator sees the "Backup" nav link and can reach
+      `backup.html` directly; every other role is redirected to Home
+- [ ] "Download Backup" produces a JSON file named
+      `branch9-backup-YYYY-MM-DD-HHMM.json` containing all five
+      collections, with Timestamp fields serialized (not plain strings)
+- [ ] Selecting a valid backup file shows accurate per-collection record
+      counts and creation metadata before enabling "Restore"
+- [ ] Selecting an invalid/corrupted/non-JSON file shows specific
+      validation errors and keeps "Restore" disabled
+- [ ] The restore confirmation dialog states update/create/never-delete
+      behavior and per-collection counts before anything is written
+- [ ] Restoring a backup: existing hearings/cases/users are updated,
+      missing ones are created, nothing already present is deleted
+- [ ] Restoring an activityLogs entry whose ID already exists at the
+      destination leaves that entry completely unchanged; only
+      genuinely missing entries are created
+- [ ] A large backup (hundreds+ of records) shows a moving progress bar
+      and the browser tab stays responsive throughout
+- [ ] `Backup Created` / `Restore Started` / `Restore Completed` /
+      `Restore Failed` all appear correctly on the Activity Log
+- [ ] Dashboard, Calendar, Search, Reports, Word/CSV export, Archive &
+      Restore (hearings), and RBAC nav-hiding all behave exactly as in
+      v0.9.3 — no duplicated Firestore listener, filtering, or dashboard
+      computation was introduced by this milestone
+- [ ] No new Firestore collection was introduced; every file not listed
+      in the Changelog as added/modified is byte-identical to v0.9.3

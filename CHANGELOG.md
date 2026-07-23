@@ -4,6 +4,80 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.4] — Backup & Restore
+
+Introduces a system-wide Backup & Restore module for Administrators —
+manual backups, disaster recovery, migration between Firebase projects,
+and recovering from accidental data loss. No new Firestore collection;
+no schema changes.
+
+**Added**
+- `js/backup-data.js` — the sole Firestore access layer for this
+  milestone (no UI). `exportBackup()` reads `hearings`, `hearingCases`,
+  `activityLogs`, `users`, and `systemStatus` (this app's real
+  system-level collection — there is no `systemConfig` collection, see
+  README's Milestone 14 for why that name is mapped onto `systemStatus`
+  instead of inventing a new one) and serializes Firestore Timestamp
+  fields to a small recoverable `{ __type: "timestamp", seconds,
+  nanoseconds }` shape so they can be reconstructed as real Timestamps
+  on restore. `validateBackupFile()` is pure (no Firestore) and checks a
+  selected file's shape before anything is written.
+  `restoreFromBackup(backup, onProgress)` writes in 400-document
+  `writeBatch` chunks, yielding to the browser between chunks so a large
+  restore never freezes the tab, and reports progress via callback.
+  Per-collection restore policy: `hearings`/`hearingCases`/`users` are
+  "upsert" (update existing, create missing, never delete);
+  `activityLogs` is "create-missing" (only writes entries that don't
+  already exist at the destination, since its own Firestore rule is
+  intentionally `update: false` — an immutable audit trail that restore
+  must not fight); `systemStatus` is "skip" (exported for reference only,
+  never restored — its rule is `write: false` and it holds no real
+  configuration). Malformed records (missing/invalid `id`, or not an
+  object) are filtered out before batching, so one bad record can never
+  take an otherwise-good batch down with it; a batch whose `commit()`
+  fails (a recoverable error) is recorded as failed and the restore
+  continues with the next batch/collection.
+- `js/backup.js` — the page controller (Administrator only). Triggers
+  the backup download (own local `downloadBlob()`, same convention as
+  `docx-export.js`/`reports.js` each keeping their own copy rather than
+  sharing one), handles file selection + validation display, the
+  restore confirmation dialog (states the exact update/create/
+  never-delete behavior and per-collection counts before anything is
+  written), the progress bar, and the post-restore summary. No Firestore
+  logic of any kind lives in this file.
+- `backup.html` — new page, reuses the existing Branch 9 UI shell
+  (nav/header/card patterns) exactly as every other page does.
+- New "Backup" nav link (`data-permission="backup.manage"`) added to all
+  7 existing pages' nav bar, same `data-permission`-hiding mechanism
+  already used for Reports/Activity Log/Users/Archived.
+- `logActivity()` (unchanged) now also records `Backup Created`,
+  `Restore Started`, `Restore Completed`, and `Restore Failed` — reuses
+  the exact same helper every other logged action already uses.
+
+**Changed**
+- `js/permissions.js` — `PERMISSIONS.BACKUP_MANAGE` (reserved back in
+  v0.9.2 specifically for this milestone) is now wired to `backup.html`.
+  No role changes: it remains Administrator-only, exactly as v0.9.2's
+  permission matrix already documented.
+
+**Firestore Security Rules**
+- See README.md, "Firestore Security Rules for RBAC" — the `users`
+  collection's `create` rule gained an Administrator branch, allowing
+  Administrator to create any user's role document from scratch (not
+  just their own). This is required specifically for restoring to a
+  brand-new Firebase project during a migration, where the destination
+  has no matching `users/{uid}` docs yet. This is the only rules change
+  required for this milestone — `hearings`, `hearingCases`,
+  `activityLogs`, and `systemStatus` rules are unchanged from v0.9.3
+  (deliberately: see `activityLogs`' "create-missing" restore policy
+  above for why its restrictive rule did not need to change).
+
+**Recommendation going forward:** this is the last planned feature
+milestone before release hardening. v0.9.5 should be used exclusively
+for bug fixes, performance improvements, a security rules review,
+responsive UI polish, code cleanup, and final regression testing ahead
+of v1.0.0 — no new features.
+
 ## [0.9.3] — Archive & Case Lifecycle Management
 
 Introduces a proper Archive workflow, completely separate from the

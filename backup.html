@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Activity Log — Docket Management System</title>
+<title>Backup &amp; Restore — Docket Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -20,11 +20,11 @@
       <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
       <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
       <a class="app-nav-link" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
-      <a class="app-nav-link active" href="activity.html" data-permission="activityLog.view"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
+      <a class="app-nav-link" href="activity.html" data-permission="activityLog.view"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
       <a class="app-nav-link" href="reports.html" data-permission="reports.view"><i data-lucide="bar-chart-3" aria-hidden="true"></i>Reports</a>
       <a class="app-nav-link" href="users.html" data-permission="users.manage"><i data-lucide="users" aria-hidden="true"></i>Users</a>
       <a class="app-nav-link" href="archived.html" data-permission="archive.manage"><i data-lucide="archive" aria-hidden="true"></i>Archived</a>
-      <a class="app-nav-link" href="backup.html" data-permission="backup.manage"><i data-lucide="hard-drive" aria-hidden="true"></i>Backup</a>
+      <a class="app-nav-link active" href="backup.html" data-permission="backup.manage"><i data-lucide="hard-drive" aria-hidden="true"></i>Backup</a>
     </div>
     <div class="app-nav-user">
       <span class="app-nav-email" id="userEmail">&hellip;</span>
@@ -38,47 +38,46 @@
   <main class="wrap wrap-wide">
     <header class="header">
       <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Activity Log</h1>
-      <p class="sub">A record of sign-ins and record changes, newest first.</p>
+      <h1>Backup &amp; Restore</h1>
+      <p class="sub">Manual backups, disaster recovery, and migration between Firebase projects. Administrator only.</p>
     </header>
 
-    <div class="toolbar">
-      <div class="activity-search">
-        <input type="search" id="activitySearchInput" placeholder="Search by user, action, or description&hellip;" aria-label="Search activity">
-      </div>
-      <div class="activity-filter">
-        <label for="activityFilterSelect" class="activity-filter-label">Filter</label>
-        <select id="activityFilterSelect" aria-label="Filter activity by category">
-          <option value="All">All</option>
-          <option value="CRUD">CRUD</option>
-          <option value="Export">Export</option>
-          <option value="Authentication">Authentication</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-    </div>
+    <section class="card backup-panel">
+      <h2>Create Backup</h2>
+      <p class="muted">Downloads a single JSON file containing every hearing, case, activity log entry, and user account currently in the system.</p>
+      <button type="button" class="btn-primary" id="createBackupBtn">
+        <i data-lucide="download" aria-hidden="true"></i>
+        Download Backup
+      </button>
+      <p id="backupStatus" class="backup-status"></p>
+    </section>
 
-    <section class="card card-flush" id="listCard">
-      <table class="data-table" id="activityTable">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Module</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody id="activityTableBody">
-          <tr><td colspan="5" class="empty-row">Loading&hellip;</td></tr>
-        </tbody>
-      </table>
+    <section class="card backup-panel">
+      <h2>Restore from Backup</h2>
+      <p class="muted">Select a previously downloaded backup file. Existing records are updated, missing records are created. Nothing already in the system is ever deleted.</p>
+
+      <input type="file" id="restoreFileInput" accept="application/json,.json">
+      <div id="restoreValidation"></div>
+
+      <button type="button" class="btn-primary" id="restoreBtn" disabled>
+        <i data-lucide="upload" aria-hidden="true"></i>
+        Restore
+      </button>
+
+      <div id="restoreProgressWrap" class="backup-progress-wrap" style="display:none;">
+        <div class="backup-progress-track">
+          <div id="restoreProgressBar" class="backup-progress-bar"></div>
+        </div>
+        <p id="restoreProgressLabel" class="backup-progress-label"></p>
+      </div>
+
+      <div id="restoreResult"></div>
     </section>
 
     <footer class="app-footer">Created by Jordan Panganiban</footer>
   </main>
 
-  <script type="module" src="js/activity.js"></script>
+  <script type="module" src="js/backup.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 
