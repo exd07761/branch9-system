@@ -47,9 +47,10 @@ export const PERMISSIONS = {
   USERS_MANAGE: "users.manage",
   // v0.9.3: wired to Archive & Case Lifecycle Management — gates the
   // Archive/Restore row actions on Hearings/Archived Hearings and the
-  // whole Archived Hearings page. BACKUP_MANAGE remains reserved for a
-  // future milestone.
+  // whole Archived Hearings page.
   ARCHIVE_MANAGE: "archive.manage",
+  // v0.9.4: wired to Backup & Restore — gates the entire backup.html
+  // page. Administrator only; no other role has this permission.
   BACKUP_MANAGE: "backup.manage",
 };
 
