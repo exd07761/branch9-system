@@ -1463,8 +1463,13 @@ button, input, select, textarea { font-family: inherit; }
 
   /* Quick Actions (5): a 2-column grid on phones instead of a single
      stacked column, so all three buttons read as a compact block rather
-     than a tall list. The odd one out (Export) spans the full width so
-     it doesn't sit alone in a half-empty row. */
+     than a tall list. Whichever button ends up last among the ones a
+     role can actually see spans the full width so it doesn't sit alone
+     in a half-empty row — home.js's updateQuickActionsLayout() computes
+     that and applies .quick-action-last-visible, since v0.9.2's RBAC can
+     hide one or two of these three buttons per role and a plain
+     :last-child rule would still target whichever button is last in the
+     DOM regardless of whether that one is actually visible. */
   .quick-actions-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1480,7 +1485,7 @@ button, input, select, textarea { font-family: inherit; }
     text-align: center;
   }
 
-  .quick-actions-row .btn-secondary:last-child {
+  .quick-actions-row .btn-secondary.quick-action-last-visible {
     grid-column: 1 / -1;
   }
 }
