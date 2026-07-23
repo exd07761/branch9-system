@@ -83,7 +83,17 @@ exactly as before, they're just reachable by fewer roles now.
 - `js/home.js` — the Add Hearing and Export Today's Calendar Quick
   Action buttons are hidden (not just disabled) for roles without the
   matching permission, with a defense-in-depth guard on the export
-  handler itself.
+  handler itself. Also fixes a layout edge case this hiding introduced:
+  the mobile 2-column Quick Actions grid used to span a lone leftover
+  button full-width via a plain `:last-child` CSS rule, which only
+  looked at DOM position — with Export hidden for Read Only, the DOM's
+  last child stopped being the last *visible* one, leaving a single
+  remaining button (Open Calendar) stuck in column 1 with an empty
+  column 2 beside it. `updateQuickActionsLayout()` now computes which
+  button is actually last among the visible ones and marks it directly
+  (`.quick-action-last-visible` in `css/styles.css`), used only when
+  there's an odd number of visible buttons — with exactly two visible
+  they already fill one row evenly.
 - `js/reports.js` — the whole page now requires `reports.view`
   (Encoder is redirected to Home); Export CSV/Word are hidden — not
   just disabled — for Read Only, which has `reports.view` but not
