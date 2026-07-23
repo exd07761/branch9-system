@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Activity Log — Docket Management System</title>
+<title>Archived Hearings — Docket Management System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -20,10 +20,10 @@
       <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
       <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
       <a class="app-nav-link" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
-      <a class="app-nav-link active" href="activity.html" data-permission="activityLog.view"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
+      <a class="app-nav-link" href="activity.html" data-permission="activityLog.view"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
       <a class="app-nav-link" href="reports.html" data-permission="reports.view"><i data-lucide="bar-chart-3" aria-hidden="true"></i>Reports</a>
       <a class="app-nav-link" href="users.html" data-permission="users.manage"><i data-lucide="users" aria-hidden="true"></i>Users</a>
-      <a class="app-nav-link" href="archived.html" data-permission="archive.manage"><i data-lucide="archive" aria-hidden="true"></i>Archived</a>
+      <a class="app-nav-link active" href="archived.html" data-permission="archive.manage"><i data-lucide="archive" aria-hidden="true"></i>Archived</a>
     </div>
     <div class="app-nav-user">
       <span class="app-nav-email" id="userEmail">&hellip;</span>
@@ -37,47 +37,41 @@
   <main class="wrap wrap-wide">
     <header class="header">
       <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Activity Log</h1>
-      <p class="sub">A record of sign-ins and record changes, newest first.</p>
+      <h1>Archived Hearings</h1>
+      <p class="sub">Hearings archived out of active operations. Nothing here is deleted — every record can be restored.</p>
     </header>
 
-    <div class="toolbar">
-      <div class="activity-search">
-        <input type="search" id="activitySearchInput" placeholder="Search by user, action, or description&hellip;" aria-label="Search activity">
-      </div>
-      <div class="activity-filter">
-        <label for="activityFilterSelect" class="activity-filter-label">Filter</label>
-        <select id="activityFilterSelect" aria-label="Filter activity by category">
-          <option value="All">All</option>
-          <option value="CRUD">CRUD</option>
-          <option value="Export">Export</option>
-          <option value="Authentication">Authentication</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
+    <div class="hearings-search">
+      <input type="search" id="archivedSearchInput" placeholder="Search by case number, plaintiff, accused, charge, date, or status&hellip;" aria-label="Search archived hearings">
     </div>
 
     <section class="card card-flush" id="listCard">
-      <table class="data-table" id="activityTable">
+      <table class="data-table" id="archivedTable">
         <thead>
           <tr>
+            <th>Date</th>
             <th>Time</th>
-            <th>User</th>
-            <th>Action</th>
-            <th>Module</th>
-            <th>Description</th>
+            <th>Section</th>
+            <th>Status</th>
+            <th># Cases</th>
+            <th>Case No(s).</th>
+            <th>Accused</th>
+            <th>Archived On</th>
+            <th></th>
           </tr>
         </thead>
-        <tbody id="activityTableBody">
-          <tr><td colspan="5" class="empty-row">Loading&hellip;</td></tr>
+        <tbody id="archivedTableBody">
+          <tr><td colspan="9" class="empty-row">Loading&hellip;</td></tr>
         </tbody>
       </table>
     </section>
 
+    <div id="archivedPreviewRoot"></div>
+
     <footer class="app-footer">Created by Jordan Panganiban</footer>
   </main>
 
-  <script type="module" src="js/activity.js"></script>
+  <script type="module" src="js/archived.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 

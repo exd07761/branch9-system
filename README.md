@@ -823,7 +823,8 @@ step.
 | Export (Word/CSV, Hearings + Reports) | ✅ | ✅ | ❌ | ❌ |
 | Activity Log | ✅ | ✅ | ❌ | ❌ |
 | User Management | ✅ | ❌ | ❌ | ❌ |
-| Archive / Backup *(reserved — not built yet)* | ✅ | ❌ | ❌ | ❌ |
+| Archive / Restore Hearings | ✅ | ✅ | ❌ | ❌ |
+| Backup *(reserved — not built yet)* | ✅ | ❌ | ❌ | ❌ |
 
 This table is `ROLE_PERMISSIONS` in `js/permissions.js`, restated for
 reference — that file is the actual source of truth; if the two ever
@@ -884,12 +885,22 @@ service cloud.firestore {
     function isAdmin()            { return signedIn() && myRole() == 'administrator'; }
     function canEditHearings()    { return signedIn() && myRole() in ['administrator', 'branch_clerk', 'encoder']; }
     function canDeleteHearings()  { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+    function canArchiveHearings() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
     function canViewActivityLog() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
 
     // Distinguishes deleteHearing()'s soft-delete update (isDeleted
     // false -> true) from a routine field edit — see the note above.
     function isSoftDelete() {
       return request.resource.data.isDeleted == true && resource.data.isDeleted != true;
+    }
+
+    // Same idea as isSoftDelete() above, for the v0.9.3 Archive/Restore
+    // toggle: true if this update changes isArchived in either
+    // direction (archiveHearing() flips it to true, restoreHearing()
+    // flips it back to false). A routine field edit that leaves
+    // isArchived alone is not affected by this rule.
+    function isArchiveChange() {
+      return request.resource.data.isArchived != resource.data.isArchived;
     }
 
     match /systemStatus/{docId} {
@@ -900,7 +911,9 @@ service cloud.firestore {
     match /hearings/{hearingId} {
       allow read: if signedIn();
       allow create: if canEditHearings();
-      allow update: if canEditHearings() && (!isSoftDelete() || canDeleteHearings());
+      allow update: if canEditHearings()
+                    && (!isSoftDelete() || canDeleteHearings())
+                    && (!isArchiveChange() || canArchiveHearings());
       allow delete: if false; // the app never issues a hard delete here
     }
 
@@ -938,7 +951,12 @@ service cloud.firestore {
 This replaces the `hearings`/`hearingCases`/`activityLogs` rules
 documented in earlier milestones — those previously allowed any
 signed-in user full read/write; this narrows write access to match the
-roles above. `systemStatus` is unchanged.
+roles above. `systemStatus` is unchanged. **v0.9.3 update:** the
+`hearings` collection's `update` rule gained the `isArchiveChange()`
+guard described above — this is the only Firestore Rules change
+required for Archive & Case Lifecycle Management; `hearingCases`,
+`activityLogs`, `users`, and `systemStatus` rules are unchanged from
+v0.9.2.
 
 ## 4. Testing Checklist
 
@@ -974,6 +992,144 @@ roles above. `systemStatus` is unchanged.
       a one-time read per page load, not a listener), and every file not
       listed in the Changelog as added/modified is byte-identical to
       v0.9.1
+---
 
+# Milestone 13: Archive & Case Lifecycle Management
 
+A proper Archive workflow, completely separate from the existing
+soft-delete. **This is not deletion** — an archived hearing's document
+(and its cases) are never touched beyond four new fields, nothing is
+ever moved or duplicated into a second collection, and every archived
+hearing can be restored to active operations at any time.
 
+## 1. Schema
+
+Both fields live directly on the existing `hearings` documents — no new
+collection:
+
+```
+isArchived:    true | false
+archivedAt:    Timestamp | null
+archivedBy:    UID | null
+archiveReason: ""
+```
+
+`hearingCases` is completely untouched by archiving — a hearing's case
+rows stay exactly where they are, archived or not.
+
+## 2. Centralized filtering — one function, not a scattered check
+
+`isActiveHearing(h)` in `js/hearings-data.js` is the single place "is
+this hearing in active operations" is decided:
+
+```js
+export function isActiveHearing(h) {
+  return h.isDeleted !== true && h.isArchived !== true;
+}
+```
+
+`subscribeToHearings()` applies it by default, so every existing
+consumer — Home Dashboard, Today's Timeline, Search, Active Hearings,
+Quick Actions — automatically stopped showing archived hearings with
+**zero call-site changes**. `calendar-data.js`'s
+`subscribeToHearingsInRange()` now imports and reuses this same helper
+instead of its own inline `isDeleted` check (a small pre-existing
+duplication, fixed in the same pass rather than left to duplicate
+further). Reports opts into seeing archived hearings via
+`{ includeArchived: true }` on `subscribeToHearings()`, then applies
+`isActiveHearing()` itself in a local `reportHearings()` helper —
+toggled by the "Include Archived" checkbox — so the same filter
+function is reused a third time rather than reimplemented.
+
+## 3. Archive / Restore
+
+- `archiveHearing(hearingId, reason)` and `restoreHearing(hearingId)` in
+  `js/hearings-data.js` mirror the existing `deleteHearing()` pattern
+  exactly: a `writeBatch` that `set(..., { merge: true })`s the state
+  fields — never a Firestore `delete`, never a document move.
+- On Hearings, the row action that used to be "Delete" (soft-delete) is
+  now "Archive" — gated by `PERMISSIONS.ARCHIVE_MANAGE` instead of
+  `PERMISSIONS.HEARINGS_DELETE`. `deleteHearing()` itself is untouched
+  and still callable; this milestone only changes what that one button
+  calls. Confirmation copy: *"Archive this hearing? It will disappear
+  from active operations but remain available in Archived Hearings. This
+  action can be restored later."*
+- The new Archived Hearings page (`archived.html`/`js/archived.js`)
+  lists only `isArchived == true` hearings via the new
+  `subscribeToArchivedHearings()`, reusing the existing hearings table
+  styling and the existing Quick View modal's CSS/layout for its own
+  read-only View action (plus the archive-specific Archived On/By/Reason
+  fields). Restore simply resets `isArchived` to `false` and leaves
+  `archivedAt`/`archivedBy`/`archiveReason` in place as historical
+  record. **No editing happens on this page at all.**
+
+## 4. Reports
+
+"Include Archived" — a checkbox, **default OFF**. Reports excludes
+archived hearings unless explicitly requested. When checked, every
+report (Hearing Report, Status Report, Hearing Type Report, summary
+cards) and the CSV export include archived hearings, all routed through
+the same `reportHearings()`/`isActiveHearing()` filter described above —
+no second copy of the archived/active distinction anywhere in
+`reports.js` or `reports-data.js`. **Word export is explicitly
+unaffected by this checkbox** — it always covers active hearings only,
+per this milestone's requirement that the DOCX generator
+(`docx-export.js`) stay completely untouched; `reports.js` simply
+filters with `isActiveHearing()` before calling the existing
+`exportCourtCalendarFor*()` functions, regardless of the checkbox.
+
+## 5. RBAC
+
+No new role. `PERMISSIONS.ARCHIVE_MANAGE` — reserved back in v0.9.2
+specifically for this milestone — now gates the Archive/Restore row
+actions and the entire Archived Hearings page. **Bug fix found and
+corrected in this same pass:** Branch Clerk's permission list in
+`js/permissions.js` was missing `ARCHIVE_MANAGE` even though v0.9.2's own
+permission-matrix table already documented Branch Clerk as having
+Archive/Backup access reserved for later — added, matching
+Administrator. Encoder and Read Only remain without it, matching the
+milestone brief (❌ for both).
+
+See the updated permission matrix in Milestone 12 above, and "Firestore
+Security Rules for RBAC" for the corresponding `canArchiveHearings()` /
+`isArchiveChange()` rule additions — UI hiding alone is never the
+security boundary.
+
+## 6. Testing Checklist
+
+- [ ] Administrator and Branch Clerk see an "Archive" button on every
+      Hearings row (in place of the old "Delete"); Encoder and Read Only
+      do not
+- [ ] Archiving a hearing shows the exact confirmation copy above, then
+      the hearing immediately disappears from: Home Dashboard (stat
+      cards + Today's Timeline), Calendar (all three views), Hearings'
+      list + Search, and Reports (with "Include Archived" unchecked) —
+      but the record itself is untouched in Firestore (verify via the
+      Archived Hearings page)
+- [ ] The hearing's case rows in `hearingCases` are completely
+      unaffected by archiving (still attached, still editable if the
+      hearing were restored)
+- [ ] Archived Hearings page (Administrator/Branch Clerk only — direct
+      navigation by Encoder/Read Only redirects to Home, and their nav
+      bar never shows the "Archived" link): lists every archived
+      hearing, search works the same as Hearings' search, View opens a
+      read-only modal with Archived On/By/Reason, no Edit option appears
+      anywhere on this page
+- [ ] Restore returns a hearing to every active view listed above, and
+      the record is removed from the Archived Hearings list
+- [ ] Both actions record `Archived Hearing`/`Restored Hearing` on the
+      Activity Log, filed under the existing "CRUD" category
+- [ ] Reports: "Include Archived" is unchecked by default; checking it
+      adds archived hearings to the Hearing Report, both breakdown
+      reports, the summary cards, and the CSV export; Word export stays
+      active-only regardless of the checkbox's state
+- [ ] Dashboard, Timeline, Calendar, Search, Quick View/Lightbox, Hearing
+      CRUD (for roles that have it), RBAC nav-hiding, Activity Log, and
+      Word/CSV export content all behave exactly as in v0.9.2 aside from
+      the changes documented above
+- [ ] No new Firestore collection was introduced; no document was ever
+      moved or duplicated; no duplicated Firestore listener, dashboard
+      computation, filtering check, or archive-logic copy was introduced
+      — every active-only view reuses the one `isActiveHearing()`
+      function; every file not listed in the Changelog as added/modified
+      is byte-identical to v0.9.2

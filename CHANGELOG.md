@@ -4,6 +4,80 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.3] — Archive & Case Lifecycle Management
+
+Introduces a proper Archive workflow, completely separate from the
+existing soft-delete. Archiving a hearing is a soft state change only —
+the document (and its cases) are never touched beyond four new fields,
+nothing is ever moved or duplicated, and every archived hearing can be
+restored. No new Firestore collection.
+
+**Added**
+- `isArchived` / `archivedAt` / `archivedBy` / `archiveReason` fields on
+  the existing `hearings` documents — same collection, same document,
+  additive fields only. `hearingCases` is untouched by archiving.
+- `isActiveHearing(h)` in `js/hearings-data.js` — the ONE centralized
+  definition of "is this hearing in active operations" (not soft-deleted
+  AND not archived). `subscribeToHearings()` uses it by default so every
+  existing caller (Home Dashboard, Today's Timeline, Search, Active
+  Hearings, Quick Actions) automatically excludes archived hearings with
+  no call-site changes required. `calendar-data.js`'s
+  `subscribeToHearingsInRange()` now imports and reuses this same helper
+  instead of its own inline `isDeleted` check, fixing a small pre-existing
+  duplication in the same pass.
+- `archiveHearing(hearingId, reason)` / `restoreHearing(hearingId)` in
+  `js/hearings-data.js` — mirror the existing `deleteHearing()`
+  soft-state pattern exactly (a `writeBatch` merge, never a document
+  delete or move).
+- `subscribeToArchivedHearings()` in `js/hearings-data.js` — same
+  collection/query shape as `subscribeToHearings()`, opposite filter;
+  powers the new Archived Hearings page.
+- `archived.html` + `js/archived.js` — new Archived Hearings page
+  (Administrator/Branch Clerk only, gated by `PERMISSIONS.ARCHIVE_MANAGE`
+  same as the row actions below). Reuses the existing hearings table
+  styling and the existing Quick View modal's CSS classes/layout for its
+  own read-only View action; no create/edit/delete logic of any kind
+  lives here. Restore resets `isArchived` to `false`. Live client-side
+  search, same matching fields as Hearings' search.
+- "Include Archived" checkbox on Reports (`reports.html`/`js/reports.js`),
+  **default OFF**. When on, every report (Hearing Report, Status Report,
+  Hearing Type Report, summary cards) and the CSV export include archived
+  hearings — reusing the same `isActiveHearing()` filter, applied once in
+  a new `reportHearings()` helper that every existing computation already
+  routes through. Word export is explicitly unaffected by this checkbox
+  and always covers active hearings only, per this milestone's
+  requirement that the DOCX generator itself stay untouched.
+- New "Archived" nav link (`data-permission="archive.manage"`) added to
+  all 6 existing pages' nav bar, same `data-permission`-hiding mechanism
+  `nav-auth.js` already uses for Reports/Activity Log/Users.
+- `logActivity()` (unchanged) now also records `Archived Hearing` and
+  `Restored Hearing` — reuses the exact same helper every other logged
+  action already uses. `activity.js`'s existing CRUD category bucket
+  grows to include both (was: Create/Edit/Delete Hearing only).
+
+**Changed**
+- `js/permissions.js` — `PERMISSIONS.ARCHIVE_MANAGE` (reserved back in
+  v0.9.2 specifically for this milestone) is now wired to the Archive/
+  Restore row actions and the whole Archived Hearings page. **Bug fix in
+  the same pass:** Branch Clerk's permission list was missing
+  `ARCHIVE_MANAGE` even though the v0.9.2 permission-matrix table already
+  documented Branch Clerk as having Archive/Backup access reserved —
+  added, matching Administrator; Encoder and Read Only remain without it,
+  per this milestone's RBAC requirement.
+- `js/hearings.js` — the "Delete" row action (soft-delete via
+  `deleteHearing()`) is replaced with "Archive" (`archiveHearing()`),
+  gated by `PERMISSIONS.ARCHIVE_MANAGE` instead of
+  `PERMISSIONS.HEARINGS_DELETE`. `deleteHearing()` itself is untouched in
+  `hearings-data.js` and remains available to any other code path; this
+  milestone only changes what the Hearings page's own row button calls.
+
+**Firestore Security Rules**
+- See README.md, "Firestore Security Rules for RBAC" — a
+  `canArchiveHearings()` function and an `isArchiveChange()` guard
+  (mirroring the existing `isSoftDelete()` guard) were added to the
+  `hearings` collection's `update` rule. Deploy the updated rules
+  alongside this release; UI hiding alone is never the security boundary.
+
 ## [0.9.2] — Role-Based Access Control (RBAC)
 
 Introduces four built-in roles (Administrator, Branch Clerk, Encoder, Read
