@@ -9,12 +9,16 @@
 //
 // Data: reuses the same subscribeToHearings()/subscribeToCases() live
 // listeners hearings.js and home.js already use — no new Firestore
-// listener types are introduced for this page.
+// listener types are introduced for this page. v0.9.3: subscribes with
+// { includeArchived: true } so archived hearings are available in memory
+// for the "Include Archived" checkbox — reportHearings() below is the
+// one place that decides which of them are actually in scope, reusing
+// the same isActiveHearing() filter every other active-only view uses.
 // ---------------------------------------------------------------------------
 
 import { requireAuth, requirePermission } from "./auth-guard.js";
 import { wireNavAuth } from "./nav-auth.js";
-import { subscribeToHearings, subscribeToCases } from "./hearings-data.js";
+import { subscribeToHearings, subscribeToCases, isActiveHearing } from "./hearings-data.js";
 import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js";
 import { logActivity } from "./activity-data.js";
 import { can, PERMISSIONS } from "./permissions.js";
@@ -49,6 +53,23 @@ let customStart = "";
 let customEnd = "";
 let statusFilter = "All";
 let sectionFilter = "All";
+// v0.9.3 (Archive & Case Lifecycle Management): OFF by default — Reports
+// excludes archived hearings unless explicitly requested via the
+// "Include Archived" checkbox. hearings[] itself now holds every
+// non-deleted hearing (active AND archived; see init()'s
+// { includeArchived: true } subscription below) so toggling this needs
+// no re-subscription, just a different in-memory filter.
+let includeArchived = false;
+
+// The one place this page decides which hearings are in scope for
+// everything below (summary cards, date-range filters, breakdown
+// reports, CSV export) — reuses the same centralized isActiveHearing()
+// helper hearings-data.js's default subscribeToHearings() behavior (and
+// calendar-data.js) already use, rather than a second copy of that
+// check.
+function reportHearings() {
+  return includeArchived ? hearings : hearings.filter(isActiveHearing);
+}
 
 function esc(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
@@ -87,11 +108,12 @@ function caseCountFor(hearing) {
 // so the date logic is never duplicated within this file.
 
 function dateScopedHearings() {
-  if (scope === "today") return getHearingsForDate(hearings, todayDateStr());
-  if (scope === "week") return getHearingsForWeek(hearings, new Date());
-  if (scope === "month") return getHearingsForMonth(hearings, new Date());
-  if (scope === "custom") return getHearingsForDateRange(hearings, customStart, customEnd);
-  return hearings;
+  const scoped = reportHearings();
+  if (scope === "today") return getHearingsForDate(scoped, todayDateStr());
+  if (scope === "week") return getHearingsForWeek(scoped, new Date());
+  if (scope === "month") return getHearingsForMonth(scoped, new Date());
+  if (scope === "custom") return getHearingsForDateRange(scoped, customStart, customEnd);
+  return scoped;
 }
 
 function scopeLabel() {
@@ -110,7 +132,7 @@ function scopeLabel() {
 // as the Home dashboard's stat cards — not affected by the filters below.
 
 function renderSummary() {
-  const stats = computeSummaryStats(hearings);
+  const stats = computeSummaryStats(reportHearings());
   document.getElementById("statTotalHearings").textContent = stats.totalHearings;
   document.getElementById("statActiveCases").textContent = stats.activeCases;
   document.getElementById("statHearingsThisMonth").textContent = stats.hearingsThisMonth;
@@ -239,7 +261,7 @@ async function handleExportCsv() {
     module: "Reports",
     entityId: null,
     entityType: "report",
-    description: `Exported CSV report for ${scopeLabel()}${statusFilter !== "All" ? `, status: ${statusFilter}` : ""}${sectionFilter !== "All" ? `, type: ${sectionFilter}` : ""}`,
+    description: `Exported CSV report for ${scopeLabel()}${statusFilter !== "All" ? `, status: ${statusFilter}` : ""}${sectionFilter !== "All" ? `, type: ${sectionFilter}` : ""}${includeArchived ? ", including archived" : ""}`,
   });
 }
 
@@ -249,10 +271,14 @@ async function handleExportWord() {
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
   btn.textContent = "Exporting\u2026";
+  // Word export always covers active hearings only, even when "Include
+  // Archived" is checked — this milestone leaves the DOCX generator and
+  // its exportCourtCalendarFor*() call sites untouched (see CHANGELOG).
+  const activeHearings = hearings.filter(isActiveHearing);
   try {
-    if (scope === "today") await exportCourtCalendarForDate(hearings, cases, todayDateStr());
-    else if (scope === "week") await exportCourtCalendarForWeek(hearings, cases, new Date());
-    else if (scope === "month") await exportCourtCalendarForMonth(hearings, cases, new Date());
+    if (scope === "today") await exportCourtCalendarForDate(activeHearings, cases, todayDateStr());
+    else if (scope === "week") await exportCourtCalendarForWeek(activeHearings, cases, new Date());
+    else if (scope === "month") await exportCourtCalendarForMonth(activeHearings, cases, new Date());
     logActivity({
       action: "Export Report (Word)",
       module: "Reports",
@@ -328,6 +354,13 @@ function wireFilters() {
     render();
   });
 
+  const includeArchivedCheckbox = document.getElementById("reportIncludeArchived");
+  includeArchivedCheckbox.addEventListener("change", () => {
+    includeArchived = includeArchivedCheckbox.checked;
+    refreshStatusOptions();
+    render();
+  });
+
   document.getElementById("exportCsvBtn").addEventListener("click", handleExportCsv);
   document.getElementById("exportWordBtn").addEventListener("click", handleExportWord);
 }
@@ -344,7 +377,7 @@ function populateSectionOptions() {
 function refreshStatusOptions() {
   const select = document.getElementById("reportStatusSelect");
   const current = select.value || "All";
-  const statuses = getDistinctStatuses(hearings);
+  const statuses = getDistinctStatuses(reportHearings());
   select.innerHTML = `<option value="All">All</option>${statuses.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("")}`;
   select.value = statuses.includes(current) || current === "All" ? current : "All";
   statusFilter = select.value;
@@ -372,7 +405,7 @@ async function init() {
     hearings = data;
     refreshStatusOptions();
     render();
-  });
+  }, { includeArchived: true });
   subscribeToCases((data) => {
     cases = data;
     render();

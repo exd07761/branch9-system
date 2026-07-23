@@ -16,7 +16,7 @@ import {
   subscribeToHearings,
   subscribeToCases,
   saveHearing,
-  deleteHearing,
+  archiveHearing,
   isDuplicateCaseNumber,
 } from "./hearings-data.js";
 import { logActivity } from "./activity-data.js";
@@ -143,8 +143,14 @@ function renderList() {
       const editBtn = can(currentRole, PERMISSIONS.HEARINGS_EDIT)
         ? `<button type="button" class="btn-small" data-action="edit" data-id="${h.id}">Edit</button>`
         : "";
-      const deleteBtn = can(currentRole, PERMISSIONS.HEARINGS_DELETE)
-        ? `<button type="button" class="btn-small btn-danger" data-action="delete" data-id="${h.id}">Delete</button>`
+      // v0.9.3 (Archive & Case Lifecycle Management): the row action here
+      // used to be "Delete" (a soft-delete via deleteHearing()). Per that
+      // milestone it's replaced with "Archive" — a separate, restorable
+      // soft state (see archiveHearing() in hearings-data.js) gated by
+      // the ARCHIVE_MANAGE permission (Administrator/Branch Clerk only,
+      // same as delete used to be).
+      const archiveBtn = can(currentRole, PERMISSIONS.ARCHIVE_MANAGE)
+        ? `<button type="button" class="btn-small btn-danger" data-action="archive" data-id="${h.id}">Archive</button>`
         : "";
       return `
         <tr data-hearing-row="${h.id}">
@@ -157,7 +163,7 @@ function renderList() {
           <td>${esc(accusedLine)}</td>
           <td class="row-actions">
             ${editBtn}
-            ${deleteBtn}
+            ${archiveBtn}
           </td>
         </tr>
       `;
@@ -167,13 +173,13 @@ function renderList() {
   tbody.querySelectorAll('[data-action="edit"]').forEach((btn) => {
     btn.addEventListener("click", () => openEditForm(btn.dataset.id));
   });
-  tbody.querySelectorAll('[data-action="delete"]').forEach((btn) => {
-    btn.addEventListener("click", () => handleDelete(btn.dataset.id));
+  tbody.querySelectorAll('[data-action="archive"]').forEach((btn) => {
+    btn.addEventListener("click", () => handleArchive(btn.dataset.id));
   });
 
   // Row click opens the read-only quick-view modal — but not when the
-  // click originated from the Edit/Delete buttons above, which must keep
-  // working exactly as they already do.
+  // click originated from the Edit/Archive buttons above, which must
+  // keep working exactly as they already do.
   tbody.querySelectorAll("[data-hearing-row]").forEach((tr) => {
     tr.addEventListener("click", (e) => {
       if (e.target.closest("[data-action]")) return;
@@ -528,9 +534,10 @@ async function handleSave() {
   }
 
   // --- Duplicate case number warning ---
-  // hearings[] only ever contains non-deleted hearings (subscribeToHearings
-  // filters isDeleted out), so this Set naturally excludes soft-deleted
-  // hearings' case numbers from the duplicate check.
+  // hearings[] only ever contains active hearings (subscribeToHearings
+  // filters isDeleted and, as of v0.9.3, isArchived out by default), so
+  // this Set naturally excludes soft-deleted/archived hearings' case
+  // numbers from the duplicate check.
   const activeHearingIds = new Set(hearings.map((h) => h.id));
   for (const row of validCaseRows) {
     if (isDuplicateCaseNumber(cases, row.caseType, row.caseNo, editingHearingId, activeHearingIds)) {
@@ -727,30 +734,30 @@ async function handleExportCurrentMonth() {
   );
 }
 
-async function handleDelete(hearingId) {
-  if (!can(currentRole, PERMISSIONS.HEARINGS_DELETE)) return;
-  const attached = casesForHearing(hearingId);
-  const msg = attached.length
-    ? `Delete this hearing? It will be removed from the list along with its ${attached.length} case number(s), but the record stays recoverable. Continue?`
-    : "Delete this hearing? It will be removed from the list, but the record stays recoverable. Continue?";
+// v0.9.3 (Archive & Case Lifecycle Management): replaces the previous
+// handleDelete() row action. Archive is a soft state change only — see
+// archiveHearing() in hearings-data.js — never a delete.
+async function handleArchive(hearingId) {
+  if (!can(currentRole, PERMISSIONS.ARCHIVE_MANAGE)) return;
+  const msg = "Archive this hearing? It will disappear from active operations but remain available in Archived Hearings. This action can be restored later.";
   if (!confirm(msg)) return;
 
-  // Captured before the delete resolves — hearings[] won't have this
+  // Captured before the archive resolves — hearings[] won't have this
   // hearing removed from it until the live listener's next update.
   const hearing = hearings.find((h) => h.id === hearingId);
 
   try {
-    await deleteHearing(hearingId);
+    await archiveHearing(hearingId);
     // Not awaited: logging must never block the UI.
     logActivity({
-      action: "Delete Hearing",
+      action: "Archived Hearing",
       module: "Hearings",
       entityId: hearingId,
       entityType: "hearing",
-      description: hearing ? `Deleted hearing for ${hearingLabel(hearing)} on ${hearing.hearingDate}` : `Deleted hearing ${hearingId}`,
+      description: hearing ? `Archived hearing for ${hearingLabel(hearing)} on ${hearing.hearingDate}` : `Archived hearing ${hearingId}`,
     });
   } catch (err) {
-    alert(`Could not delete: ${err.message}`);
+    alert(`Could not archive: ${err.message}`);
   }
 }
 

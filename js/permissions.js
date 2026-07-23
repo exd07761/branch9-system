@@ -45,9 +45,10 @@ export const PERMISSIONS = {
   EXPORT: "export", // Word/CSV export actions, on both Hearings and Reports
   ACTIVITY_LOG_VIEW: "activityLog.view",
   USERS_MANAGE: "users.manage",
-  // Not wired to any page yet — reserved so the Archive and Backup
-  // milestones can call can(role, PERMISSIONS.ARCHIVE_MANAGE) /
-  // BACKUP_MANAGE directly instead of adding new permission plumbing.
+  // v0.9.3: wired to Archive & Case Lifecycle Management — gates the
+  // Archive/Restore row actions on Hearings/Archived Hearings and the
+  // whole Archived Hearings page. BACKUP_MANAGE remains reserved for a
+  // future milestone.
   ARCHIVE_MANAGE: "archive.manage",
   BACKUP_MANAGE: "backup.manage",
 };
@@ -80,6 +81,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.EXPORT,
     PERMISSIONS.ACTIVITY_LOG_VIEW,
+    PERMISSIONS.ARCHIVE_MANAGE,
   ],
   [ROLES.ENCODER]: [
     PERMISSIONS.DASHBOARD_VIEW,

@@ -7,6 +7,7 @@
 //
 // Schema notes (kept simple, no normalization):
 //   hearings:      ...existing fields..., isDeleted, deletedAt, deletedBy,
+//                  isArchived, archivedAt, archivedBy, archiveReason,
 //                  caseCount, hearingDateTime, createdAt, updatedAt,
 //                  createdBy, updatedBy
 //   hearingCases:  ...existing fields..., createdAt, updatedAt,
@@ -22,6 +23,19 @@
 // set, but the document (and its case documents) are never removed, so
 // they remain recoverable. The list query filters deleted hearings out
 // client-side — no restore UI exists yet (not in this milestone's scope).
+//
+// v0.9.3 (Archive & Case Lifecycle Management): "Archive" is a SEPARATE
+// soft state from "Delete" — isArchived/archivedAt/archivedBy/
+// archiveReason. It is NOT deletion: an archived hearing keeps its
+// document (and its cases) completely untouched beyond these four
+// fields, and is fully restorable. Archive exists so records that are
+// done with active operations can leave the day-to-day views
+// (Dashboard, Calendar, Search, Active Hearings, Reports by default)
+// without ever disappearing from Firestore. isActiveHearing() below is
+// the ONE place "should this hearing show up in active views" is
+// decided — every query in this app that needs an active-only list
+// calls it (or subscribeToHearings()'s default behavior, which already
+// applies it) instead of re-checking isDeleted/isArchived itself.
 // ---------------------------------------------------------------------------
 
 import {
@@ -76,17 +90,49 @@ function computeHearingDateTime(hearingDate, hearingTime) {
 }
 
 /**
- * Subscribe to live updates of all non-deleted hearings, ordered by
- * hearing date. Soft-deleted hearings are filtered out here so the rest
- * of the app never has to think about isDeleted. Returns an unsubscribe
- * function.
+ * The single, centralized definition of "is this hearing in active
+ * operations" — not soft-deleted, and not archived. Every page/feature
+ * that needs an active-only list (Home Dashboard, Today's Timeline,
+ * Calendar, Search, Active Hearings, Dashboard statistics, Upcoming
+ * Hearings, Quick Actions, Reports by default) reuses this one function
+ * (directly, or via subscribeToHearings()'s default below) instead of
+ * re-checking isDeleted/isArchived itself.
  */
-export function subscribeToHearings(onChange) {
+export function isActiveHearing(h) {
+  return h.isDeleted !== true && h.isArchived !== true;
+}
+
+/**
+ * Subscribe to live updates of hearings, ordered by hearing date.
+ * Soft-deleted hearings are always filtered out. By default, archived
+ * hearings are filtered out too (the normal "active operations" view
+ * every page except Archived Hearings/Reports-with-checkbox wants) —
+ * pass { includeArchived: true } to also receive archived (but still
+ * non-deleted) hearings, e.g. for Reports' "Include Archived" option.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToHearings(onChange, { includeArchived = false } = {}) {
   const q = query(hearingsCol, orderBy("hearingDate", "asc"));
   return onSnapshot(q, (snapshot) => {
     const hearings = snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((h) => h.isDeleted !== true);
+      .filter((h) => (includeArchived ? h.isDeleted !== true : isActiveHearing(h)));
+    onChange(hearings);
+  });
+}
+
+/**
+ * Subscribe to live updates of archived (and non-deleted) hearings only —
+ * powers the Archived Hearings page. Same collection, same query shape as
+ * subscribeToHearings() above, just the opposite filter; not a new
+ * listener type.
+ */
+export function subscribeToArchivedHearings(onChange) {
+  const q = query(hearingsCol, orderBy("hearingDate", "asc"));
+  return onSnapshot(q, (snapshot) => {
+    const hearings = snapshot.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((h) => h.isDeleted !== true && h.isArchived === true);
     onChange(hearings);
   });
 }
@@ -218,6 +264,55 @@ export async function deleteHearing(hearingId) {
       isDeleted: true,
       deletedAt: serverTimestamp(),
       deletedBy: userEmail,
+      updatedAt: serverTimestamp(),
+      updatedBy: userEmail,
+    },
+    { merge: true }
+  );
+  await batch.commit();
+}
+
+/**
+ * Archive a hearing: a soft state change only, completely separate from
+ * deleteHearing() above — sets isArchived/archivedAt/archivedBy/
+ * archiveReason, never isDeleted. The document (and its cases) are
+ * otherwise untouched, so it stays fully visible/restorable from the
+ * Archived Hearings page.
+ *
+ * @param {string} hearingId
+ * @param {string} [reason] - optional free-text reason, stored as-is
+ */
+export async function archiveHearing(hearingId, reason = "") {
+  const userEmail = currentUserEmail();
+  const batch = writeBatch(db);
+  batch.set(
+    doc(db, "hearings", hearingId),
+    {
+      isArchived: true,
+      archivedAt: serverTimestamp(),
+      archivedBy: userEmail,
+      archiveReason: reason || "",
+      updatedAt: serverTimestamp(),
+      updatedBy: userEmail,
+    },
+    { merge: true }
+  );
+  await batch.commit();
+}
+
+/**
+ * Restore a previously-archived hearing: simply resets isArchived to
+ * false. archivedAt/archivedBy/archiveReason are left in place as
+ * historical record of the last archive action rather than cleared —
+ * they're only ever read while isArchived is true.
+ */
+export async function restoreHearing(hearingId) {
+  const userEmail = currentUserEmail();
+  const batch = writeBatch(db);
+  batch.set(
+    doc(db, "hearings", hearingId),
+    {
+      isArchived: false,
       updatedAt: serverTimestamp(),
       updatedBy: userEmail,
     },

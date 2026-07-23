@@ -28,7 +28,7 @@ function esc(s) {
 
 function categoryForAction(action) {
   if (action === "Login" || action === "Logout") return "Authentication";
-  if (action === "Create Hearing" || action === "Edit Hearing" || action === "Delete Hearing") return "CRUD";
+  if (action === "Create Hearing" || action === "Edit Hearing" || action === "Delete Hearing" || action === "Archived Hearing" || action === "Restored Hearing") return "CRUD";
   if ((action || "").startsWith("Export")) return "Export";
   return "Other";
 }

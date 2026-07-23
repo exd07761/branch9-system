@@ -25,6 +25,7 @@ import {
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { db } from "./firebase-init.js";
+import { isActiveHearing } from "./hearings-data.js";
 
 const hearingsCol = collection(db, "hearings");
 const hearingCasesCol = collection(db, "hearingCases");
@@ -32,10 +33,12 @@ const hearingCasesCol = collection(db, "hearingCases");
 /**
  * Subscribe to hearings whose hearingDateTime falls within
  * [rangeStart, rangeEnd). Used by all three views (Month/Week/Day) — only
- * the range passed in differs. Soft-deleted hearings are filtered out
- * client-side, same pattern as hearings-data.js, so no composite index is
- * required (a single range + orderBy on the same field only needs
- * Firestore's automatic single-field index).
+ * the range passed in differs. Filtered client-side via the same
+ * isActiveHearing() helper hearings-data.js's subscribeToHearings() uses
+ * (soft-deleted AND, as of v0.9.3, archived hearings are excluded — not a
+ * second copy of that check), so no composite index is required (a
+ * single range + orderBy on the same field only needs Firestore's
+ * automatic single-field index).
  *
  * Returns an unsubscribe function.
  */
@@ -49,7 +52,7 @@ export function subscribeToHearingsInRange(rangeStart, rangeEnd, onChange) {
   return onSnapshot(q, (snapshot) => {
     const hearings = snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((h) => h.isDeleted !== true);
+      .filter(isActiveHearing);
     onChange(hearings);
   });
 }
