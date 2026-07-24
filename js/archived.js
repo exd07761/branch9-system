@@ -19,11 +19,11 @@
 // excludes them by default), so there is nothing there to reuse.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js";
-import { wireNavAuth } from "./nav-auth.js";
-import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from "./hearings-data.js";
-import { logActivity } from "./activity-data.js";
-import { can, PERMISSIONS } from "./permissions.js";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.6";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
+import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from "./hearings-data.js?v=0.9.6";
+import { logActivity } from "./activity-data.js?v=0.9.6";
+import { can, PERMISSIONS } from "./permissions.js?v=0.9.6";
 
 let hearings = [];
 let cases = [];
@@ -119,7 +119,7 @@ function renderList() {
         ? `<button type="button" class="btn-small" data-action="restore" data-id="${h.id}">Restore</button>`
         : "";
       return `
-        <tr data-hearing-row="${h.id}">
+        <tr data-hearing-row="${h.id}" tabindex="0" role="button" aria-label="View archived hearing: ${esc(hearingLabel(h))}">
           <td>${h.hearingDate ? esc(fmtDate(h.hearingDate)) : "<span class=\"muted\">Not set</span>"}</td>
           <td>${esc(h.hearingTime) || '<span class="muted">&mdash;</span>'}</td>
           <td>${esc(h.section)}</td>
@@ -144,12 +144,20 @@ function renderList() {
     btn.addEventListener("click", () => handleRestore(btn.dataset.id));
   });
 
-  // Row click also opens the read-only preview — but not when the click
-  // originated from the View/Restore buttons above.
+  // Row click (or Enter/Space when focused via keyboard) also opens the
+  // read-only preview — but not when it originated from the View/Restore
+  // buttons above.
   tbody.querySelectorAll("[data-hearing-row]").forEach((tr) => {
     tr.addEventListener("click", (e) => {
       if (e.target.closest("[data-action]")) return;
       openPreview(tr.dataset.hearingRow);
+    });
+    tr.addEventListener("keydown", (e) => {
+      if (e.target.closest("[data-action]")) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openPreview(tr.dataset.hearingRow);
+      }
     });
   });
 }
@@ -194,7 +202,7 @@ function renderPreview() {
 
   root.innerHTML = `
     <div class="preview-overlay" id="archivedPreviewOverlay">
-      <div class="preview-card">
+      <div class="preview-card" role="dialog" aria-modal="true" aria-label="Archived hearing details">
         <button type="button" class="preview-close" id="archivedPreviewCloseBtn" aria-label="Close">&times;</button>
         <p class="eyebrow">${esc(h.section)}</p>
         <h2 class="preview-title">${esc(h.hearingType) || "Hearing"}</h2>

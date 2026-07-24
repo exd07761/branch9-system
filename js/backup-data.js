@@ -50,7 +50,7 @@ import {
   writeBatch,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./firebase-init.js";
+import { db } from "./firebase-init.js?v=0.9.6";
 
 export const BACKUP_VERSION = "1.0";
 
@@ -137,10 +137,12 @@ function deserializeValue(v) {
  */
 export async function exportBackup(systemVersion) {
   const collections = {};
-  for (const name of ALL_COLLECTIONS) {
-    const snapshot = await getDocs(collection(db, name));
-    collections[name] = snapshot.docs.map((d) => serializeValue({ id: d.id, ...d.data() }));
-  }
+  // Independent reads — no ordering dependency between collections — so
+  // they run concurrently rather than one at a time.
+  const snapshots = await Promise.all(ALL_COLLECTIONS.map((name) => getDocs(collection(db, name))));
+  ALL_COLLECTIONS.forEach((name, i) => {
+    collections[name] = snapshots[i].docs.map((d) => serializeValue({ id: d.id, ...d.data() }));
+  });
 
   return {
     backupVersion: BACKUP_VERSION,

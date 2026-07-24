@@ -14,11 +14,11 @@
 // "Add User" button in users.html is a disabled placeholder only.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js";
-import { wireNavAuth } from "./nav-auth.js";
-import { subscribeToAllUsers, updateUserRole } from "./users-data.js";
-import { logActivity } from "./activity-data.js";
-import { ALL_ROLES, ROLE_LABELS, PERMISSIONS } from "./permissions.js";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.6";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
+import { subscribeToAllUsers, updateUserRole } from "./users-data.js?v=0.9.6";
+import { logActivity } from "./activity-data.js?v=0.9.6";
+import { ALL_ROLES, ROLE_LABELS, PERMISSIONS } from "./permissions.js?v=0.9.6";
 
 let currentUser = null;
 let users = [];
@@ -53,7 +53,7 @@ function render() {
         <tr>
           <td>${esc(u.email)}</td>
           <td>
-            <select class="role-select" data-role-select data-uid="${esc(u.id)}" ${isSelf ? "disabled" : ""}>
+            <select class="role-select" data-role-select data-uid="${esc(u.id)}" aria-label="Role for ${esc(u.email)}" ${isSelf ? "disabled" : ""}>
               ${roleOptionsHtml(u.role)}
             </select>
           </td>

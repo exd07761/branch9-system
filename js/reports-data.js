@@ -39,10 +39,10 @@
 // the Architecture Note in README.md.
 // ---------------------------------------------------------------------------
 
-import { getHearingsForDate, getHearingsForWeek, getHearingsForMonth } from "./export-data.js";
-import { computeDashboardStats } from "./dashboard-stats.js";
-import { DEFAULT_HEARING_DURATION_MINUTES } from "./dashboard-live.js";
-import { SECTIONS } from "./constants.js";
+import { getHearingsForDate, getHearingsForWeek, getHearingsForMonth } from "./export-data.js?v=0.9.6";
+import { computeDashboardStats } from "./dashboard-stats.js?v=0.9.6";
+import { DEFAULT_HEARING_DURATION_MINUTES } from "./dashboard-live.js?v=0.9.6";
+import { SECTIONS } from "./constants.js?v=0.9.6";
 
 export { getHearingsForDate, getHearingsForWeek, getHearingsForMonth };
 
@@ -138,32 +138,6 @@ export function groupByDay(hearings) {
 }
 
 // --- Reports -----------------------------------------------------------
-
-/** Daily Hearing Report: every hearing on one date, sorted by time. */
-export function computeDailyReport(hearings, dateStr) {
-  return { date: dateStr, hearings: sortByHearingDateTime(getHearingsForDate(hearings, dateStr)) };
-}
-
-/** Weekly Hearing Report: the Sun–Sat week containing anchorDate, grouped
- * by day (matches the same week boundaries exportCourtCalendarForWeek()
- * already uses, so the report and the Word export agree). */
-export function computeWeeklyReport(hearings, anchorDate = new Date()) {
-  const start = atMidnight(anchorDate);
-  start.setDate(start.getDate() - start.getDay());
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
-  return { weekStart: start, weekEnd: end, days: groupByDay(getHearingsForWeek(hearings, anchorDate)) };
-}
-
-/** Monthly Hearing Report: the calendar month containing anchorDate,
- * grouped by date. */
-export function computeMonthlyReport(hearings, anchorDate = new Date()) {
-  return {
-    month: anchorDate.getMonth(),
-    year: anchorDate.getFullYear(),
-    days: groupByDay(getHearingsForMonth(hearings, anchorDate)),
-  };
-}
 
 /** Hearing Status Report: counts per actual status value present in the
  * data (see the schema note at the top of this file), most-common first. */

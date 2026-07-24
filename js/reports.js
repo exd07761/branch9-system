@@ -16,12 +16,12 @@
 // the same isActiveHearing() filter every other active-only view uses.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js";
-import { wireNavAuth } from "./nav-auth.js";
-import { subscribeToHearings, subscribeToCases, isActiveHearing } from "./hearings-data.js";
-import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js";
-import { logActivity } from "./activity-data.js";
-import { can, PERMISSIONS } from "./permissions.js";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.6";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
+import { subscribeToHearings, subscribeToCases, isActiveHearing } from "./hearings-data.js?v=0.9.6";
+import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=0.9.6";
+import { logActivity } from "./activity-data.js?v=0.9.6";
+import { can, PERMISSIONS } from "./permissions.js?v=0.9.6";
 import {
   getHearingsForDate,
   getHearingsForWeek,
@@ -37,8 +37,8 @@ import {
   buildCsv,
   hearingsToCsvRows,
   CSV_HEADERS,
-} from "./reports-data.js";
-import { SECTIONS } from "./constants.js";
+} from "./reports-data.js?v=0.9.6";
+import { SECTIONS } from "./constants.js?v=0.9.6";
 
 let hearings = [];
 let cases = [];
@@ -107,8 +107,8 @@ function caseCountFor(hearing) {
 // the hearing-list table, the two breakdown reports, and both exports,
 // so the date logic is never duplicated within this file.
 
-function dateScopedHearings() {
-  const scoped = reportHearings();
+function dateScopedHearings(inScope) {
+  const scoped = inScope || reportHearings();
   if (scope === "today") return getHearingsForDate(scoped, todayDateStr());
   if (scope === "week") return getHearingsForWeek(scoped, new Date());
   if (scope === "month") return getHearingsForMonth(scoped, new Date());
@@ -131,8 +131,8 @@ function scopeLabel() {
 // Always the full already-loaded dataset, same "global overview" behavior
 // as the Home dashboard's stat cards — not affected by the filters below.
 
-function renderSummary() {
-  const stats = computeSummaryStats(reportHearings());
+function renderSummary(inScope) {
+  const stats = computeSummaryStats(inScope || reportHearings());
   document.getElementById("statTotalHearings").textContent = stats.totalHearings;
   document.getElementById("statActiveCases").textContent = stats.activeCases;
   document.getElementById("statHearingsThisMonth").textContent = stats.hearingsThisMonth;
@@ -298,9 +298,10 @@ async function handleExportWord() {
 // --- Full render ---------------------------------------------------------
 
 function render() {
-  renderSummary();
+  const inScope = reportHearings();
+  renderSummary(inScope);
 
-  const scoped = dateScopedHearings();
+  const scoped = dateScopedHearings(inScope);
   const mainList = filterBySection(filterByStatus(scoped, statusFilter), sectionFilter);
   renderHearingList(mainList);
   renderStatusReport(computeStatusReport(filterBySection(scoped, sectionFilter)));

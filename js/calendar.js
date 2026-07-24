@@ -17,9 +17,9 @@
 //   - Day View's on-demand case loading is isolated to its own small block
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js";
-import { wireNavAuth } from "./nav-auth.js";
-import { subscribeToHearingsInRange, fetchCasesForHearing } from "./calendar-data.js";
+import { requireAuth } from "./auth-guard.js?v=0.9.6";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
+import { subscribeToHearingsInRange, fetchCasesForHearing } from "./calendar-data.js?v=0.9.6";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

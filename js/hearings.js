@@ -8,19 +8,19 @@
 // nothing in this file calls Firestore directly.
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js";
-import { wireNavAuth } from "./nav-auth.js";
-import { SECTIONS } from "./constants.js";
-import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js";
+import { requireAuth } from "./auth-guard.js?v=0.9.6";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
+import { SECTIONS } from "./constants.js?v=0.9.6";
+import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=0.9.6";
 import {
   subscribeToHearings,
   subscribeToCases,
   saveHearing,
   archiveHearing,
   isDuplicateCaseNumber,
-} from "./hearings-data.js";
-import { logActivity } from "./activity-data.js";
-import { can, PERMISSIONS } from "./permissions.js";
+} from "./hearings-data.js?v=0.9.6";
+import { logActivity } from "./activity-data.js?v=0.9.6";
+import { can, PERMISSIONS } from "./permissions.js?v=0.9.6";
 
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
@@ -153,7 +153,7 @@ function renderList() {
         ? `<button type="button" class="btn-small btn-danger" data-action="archive" data-id="${h.id}">Archive</button>`
         : "";
       return `
-        <tr data-hearing-row="${h.id}">
+        <tr data-hearing-row="${h.id}" tabindex="0" role="button" aria-label="View hearing: ${esc(hearingLabel(h))}">
           <td>${h.hearingDate ? esc(fmtDate(h.hearingDate)) : "<span class=\"muted\">Not set</span>"}</td>
           <td>${esc(h.hearingTime) || '<span class="muted">&mdash;</span>'}</td>
           <td>${esc(h.section)}</td>
@@ -177,13 +177,21 @@ function renderList() {
     btn.addEventListener("click", () => handleArchive(btn.dataset.id));
   });
 
-  // Row click opens the read-only quick-view modal — but not when the
-  // click originated from the Edit/Archive buttons above, which must
-  // keep working exactly as they already do.
+  // Row click (or Enter/Space when focused via keyboard) opens the
+  // read-only quick-view modal — but not when it originated from the
+  // Edit/Archive buttons above, which must keep working exactly as they
+  // already do.
   tbody.querySelectorAll("[data-hearing-row]").forEach((tr) => {
     tr.addEventListener("click", (e) => {
       if (e.target.closest("[data-action]")) return;
       openPreview(tr.dataset.hearingRow);
+    });
+    tr.addEventListener("keydown", (e) => {
+      if (e.target.closest("[data-action]")) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openPreview(tr.dataset.hearingRow);
+      }
     });
   });
 }
@@ -233,7 +241,7 @@ function renderPreview() {
 
   root.innerHTML = `
     <div class="preview-overlay" id="previewOverlay">
-      <div class="preview-card">
+      <div class="preview-card" role="dialog" aria-modal="true" aria-label="Hearing details">
         <button type="button" class="preview-close" id="previewCloseBtn" aria-label="Close">&times;</button>
         <p class="eyebrow">${esc(h.section)}</p>
         <h2 class="preview-title">${esc(h.hearingType) || "Hearing"}</h2>

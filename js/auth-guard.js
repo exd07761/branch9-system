@@ -29,9 +29,9 @@
 // ---------------------------------------------------------------------------
 
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { auth, firebaseInitError } from "./firebase-init.js";
-import { getOrCreateUserRole } from "./users-data.js";
-import { can } from "./permissions.js";
+import { auth, firebaseInitError } from "./firebase-init.js?v=0.9.6";
+import { getOrCreateUserRole } from "./users-data.js?v=0.9.6";
+import { can } from "./permissions.js?v=0.9.6";
 
 function escapeHtml(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
