@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/styles.css?v=0.9.6">
 </head>
 <body>
 
@@ -45,21 +45,22 @@
     <section class="card backup-panel">
       <h2>Create Backup</h2>
       <p class="muted">Downloads a single JSON file containing every hearing, case, activity log entry, and user account currently in the system.</p>
-      <button type="button" class="btn-primary" id="createBackupBtn">
+      <button type="button" class="btn-primary btn-inline" id="createBackupBtn">
         <i data-lucide="download" aria-hidden="true"></i>
         Download Backup
       </button>
-      <p id="backupStatus" class="backup-status"></p>
+      <p id="backupStatus" class="backup-status" role="status"></p>
     </section>
 
     <section class="card backup-panel">
       <h2>Restore from Backup</h2>
       <p class="muted">Select a previously downloaded backup file. Existing records are updated, missing records are created. Nothing already in the system is ever deleted.</p>
 
+      <label for="restoreFileInput">Backup file</label>
       <input type="file" id="restoreFileInput" accept="application/json,.json">
-      <div id="restoreValidation"></div>
+      <div id="restoreValidation" role="status"></div>
 
-      <button type="button" class="btn-primary" id="restoreBtn" disabled>
+      <button type="button" class="btn-primary btn-inline" id="restoreBtn" disabled>
         <i data-lucide="upload" aria-hidden="true"></i>
         Restore
       </button>
@@ -71,13 +72,13 @@
         <p id="restoreProgressLabel" class="backup-progress-label"></p>
       </div>
 
-      <div id="restoreResult"></div>
+      <div id="restoreResult" role="status"></div>
     </section>
 
     <footer class="app-footer">Created by Jordan Panganiban</footer>
   </main>
 
-  <script type="module" src="js/backup.js"></script>
+  <script type="module" src="js/backup.js?v=0.9.6"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 

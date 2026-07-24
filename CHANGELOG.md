@@ -4,6 +4,167 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.6] — UI Polish & Visual Consistency
+
+Final milestone before v1.0.0. Not a redesign, not a feature milestone —
+a visual polish, consistency, and cache-busting pass across all 9 pages
+(Login, Home, Hearings, Calendar, Reports, Activity Log, Archived
+Hearings, Users, Backup & Restore). No Firestore schema changes, no new
+collections, no business-logic or RBAC changes, no layout redesigns.
+
+**Visual consistency audit:** every page was compared against every
+other for cards, buttons, forms, tables, typography, icons, and color
+tokens. The codebase's existing token system (`var(--space-N)`,
+`var(--text-N)`, shared `.btn-primary`/`.btn-secondary`/`.btn-small`,
+`.card`, `.data-table`, `.empty-row`, the `eyebrow`/`h1`/`sub` header
+pattern) turned out to already be applied consistently almost
+everywhere — three concrete inconsistencies were found and fixed:
+
+**Fixed**
+- `backup.html` — "Download Backup" and "Restore" used bare
+  `.btn-primary` (which is `width: 100%`, appropriate for Login's narrow
+  card), so both rendered as full-width buttons spanning the entire
+  card — the only two buttons in the app styled that way outside of
+  Login. Every other standalone primary button (Add Hearing, Edit/
+  Restore This Hearing) uses `.btn-primary.btn-inline` for a normal
+  content-sized button; these two now match.
+- `reports.html` — the Hearing Report table's initial "Loading…" row was
+  missing a `colspan`, unlike every other table's loading/empty row in
+  the app (which all span their full column count). Added
+  `colspan="7"` to match.
+- `css/styles.css` — disabled-state styling (`opacity: 0.55; cursor:
+  not-allowed;`) previously existed only for `.btn-primary`. Several
+  disabled buttons across the app use `.btn-secondary`
+  (`exportWordBtn`) or `.btn-small` (various Backup & Restore buttons)
+  and had no visual indication of being disabled at all. Extended the
+  same rule to all three button classes.
+
+**Reviewed, already consistent — no change needed:** card padding/
+spacing/radius/shadows across every page; the `eyebrow`/`h1`/`sub`
+header pattern (identical on all 9 pages); table header capitalization
+and column labeling (Archived Hearings correctly extends Hearings'
+exact column set); empty-state and loading-state wording (all reuse
+`.empty-row`); keyboard navigation, focus-visible outlines, and dialog
+`role`/`aria-*` attributes (all addressed in v0.9.5, reused unchanged
+here); responsive behavior for the two newest pages, Archived Hearings
+and Backup & Restore (both reuse existing fluid layout classes rather
+than introducing page-specific ones, so they already inherit the nav/
+table responsive rules tuned in earlier milestones).
+
+**Cache busting (new in this milestone):** every internal asset
+reference — `css/styles.css` in all 11 HTML files, each page's own
+`<script type="module">` entry point, and every local `import ... from
+"./*.js"` statement across all 23 JS files — now carries a `?v=0.9.6`
+query string tied to the current `VERSION`. This is a static, no-build-
+step approach (consistent with the rest of this project's
+architecture): every internal module URL changes on every release,
+forcing browsers to fetch fresh copies of the whole dependency graph
+instead of serving a stale cached file from before the last deploy —
+addresses the browser-caching issue observed after previous releases.
+Every file that imports a shared singleton module (e.g.
+`firebase-init.js`, used by 8+ files for the shared `auth`/`db`
+instances) uses the identical version suffix, so the module still
+resolves to one single instance across the whole app — no duplicate
+Firebase app instances were introduced. **Process for future releases:**
+bump `VERSION`, then update the `?v=` suffix to match everywhere it
+appears (a single find-and-replace across `*.html` and `js/*.js` is
+sufficient — see README's Deployment Checklist, updated with this step).
+
+**Verification:** confirmed via diff against the v0.9.5 baseline that
+32 files changed *only* by the addition of the `?v=0.9.6` query string
+(zero other bytes differ), 3 files also received the visual fixes above,
+and 9 files are fully untouched.
+
+## [0.9.5] — Hardening, QA & Release Preparation
+
+Feature freeze. No new CRUD functionality, no Firestore schema changes,
+no new collections, no redesign. A full regression audit, Firestore
+listener review, security rules review, responsive/accessibility review,
+performance review, and code cleanup pass, in preparation for v1.0.0.
+Every defect found was fixed with the smallest possible change while
+preserving the established architecture.
+
+**Regression audit:** every module — Authentication, Dashboard,
+Timeline, Hearings, Calendar, Quick View, Reports, Activity Log,
+Archive, Backup & Restore, Word Export, CSV Export, RBAC, Search,
+Navigation — was traced end to end. No regressions found.
+
+**Firestore review:** confirmed exactly one live listener per data need,
+across every page controller (`grep`-verified: no page subscribes twice
+to the same collection). No duplicated queries. `calendar-data.js`'s and
+`reports.js`'s active/archived filtering both already routed through the
+same centralized `isActiveHearing()` (v0.9.3); no change needed there.
+Range queries still only need Firestore's automatic single-field index.
+No unnecessary reads found.
+
+**Security review:** every Firestore rule was checked line-by-line
+against `js/permissions.js`'s role matrix — `hearings` (create/update,
+including the soft-delete and archive guards), `hearingCases`,
+`activityLogs` (including its intentional immutability), `users`
+(including the v0.9.4 Administrator-create branch), and `systemStatus`.
+All match the RBAC matrix; no unauthorized-write paths found; no rule
+changes required this milestone.
+
+**Fixed**
+- `js/reports-data.js` — removed three confirmed-dead functions
+  (`computeDailyReport`, `computeWeeklyReport`, `computeMonthlyReport`):
+  defined in an earlier Reports iteration, superseded by the current
+  scope-filter approach, and never called from `reports.js` or anywhere
+  else. `groupByDay`, `getHearingsForYear`, and every other helper in the
+  file remain — all still in active use.
+- `js/reports.js` — `render()` was calling `reportHearings()` (the
+  active/archived filter) twice per render (once inside `renderSummary()`,
+  once inside `dateScopedHearings()`). Both functions now accept an
+  optional pre-filtered array; `render()` computes it once and passes it
+  to both. The CSV-export call site is unaffected (still computes its own
+  when called directly).
+- `js/backup-data.js` — `exportBackup()` read its 5 collections one at a
+  time with sequential `await`s; they have no ordering dependency, so
+  they now run concurrently via `Promise.all()`. Same data, same shape,
+  faster on real network latency.
+- `css/styles.css` — removed 3 confirmed-dead rules (`.auth-btn`, `.field
+  .hint`, `.home-nav` + its 2 descendant rules) and the now-orphaned
+  `[data-action="delete"]::before` icon rule and `--icon-trash` custom
+  property (both left over from before "Delete" was replaced by
+  "Archive" in v0.9.3 — nothing has used `data-action="delete"` since).
+- **Accessibility:** Hearings' and Archived Hearings' table rows were
+  mouse-only (click-to-preview with no keyboard path) — Home's Timeline
+  rows already solved this exact problem in v0.8.2 (tabindex, role, Enter/
+  Space handling) but the fix was never extended to these two tables.
+  Applied the same technique to both, plus a matching `:focus-visible`
+  outline. Added `role="dialog"`/`aria-modal`/`aria-label` to both Quick
+  View modals (Hearings' and Archived Hearings') — previously not
+  identified as dialogs to assistive tech. Added an `aria-label` to each
+  row's role `<select>` on the Users page (previously relied only on
+  table position for its accessible name). Added a `<label>` for
+  Backup's file input (previously had none) and `role="status"` to
+  Backup & Restore's dynamic status/validation/result regions so they're
+  announced when populated.
+
+**Reviewed, no change needed:** responsive layout for every page at
+tablet/phone widths (the two newest pages, Archived Hearings and Backup
+& Restore, both reuse existing fluid `.card`/`.wrap-wide`/`.data-table`/
+`.hearings-search` patterns rather than introducing new ones, so they
+already inherit the nav/table responsive behavior tuned in earlier
+milestones); color contrast (unchanged design-system tokens); tab order
+(no non-`0` `tabindex` values anywhere in the app).
+
+**Identified, deliberately not changed:** `hearingsToCsvRows()` and the
+`casesForHearing()`-style lookup used throughout the app filter the full
+cases array per hearing (O(n·m)) rather than pre-grouping by hearing ID
+once. This is a pre-existing pattern used consistently across
+`hearings.js`, `archived.js`, and `reports-data.js` — changing it would
+mean touching the shared data-access pattern in multiple files, which is
+a redesign, not a fix, and out of scope for a minimal-change hardening
+pass. At this system's realistic scale (a single RTC branch's docket)
+it is not expected to be a real bottleneck; noted for a future
+performance-focused milestone if data volume ever grows enough to
+matter.
+
+**Documentation:** added Deployment Checklist, Production Checklist,
+Backup Procedure, Restore Procedure, Recommended Browser Support, and
+Known Limitations to README.md (see Milestone 15 below).
+
 ## [0.9.4] — Backup & Restore
 
 Introduces a system-wide Backup & Restore module for Administrators —

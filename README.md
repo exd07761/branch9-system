@@ -1316,3 +1316,291 @@ Completed`, `Restore Failed`.
       computation was introduced by this milestone
 - [ ] No new Firestore collection was introduced; every file not listed
       in the Changelog as added/modified is byte-identical to v0.9.3
+---
+
+# Milestone 15: Hardening, QA & Release Preparation
+
+Feature freeze. This milestone made no CRUD changes, no Firestore schema
+changes, no new collections, and no redesign — it is a full audit of
+everything built in Milestones 1–14, fixing what it found with the
+smallest possible change. See CHANGELOG.md's v0.9.5 entry for the
+itemized list of fixes; this section is the reusable reference material
+that comes out of that audit — the checklists and procedures you'll want
+for every future deployment, not just this one.
+
+## 1. Deployment Checklist
+
+Run through this every time a new version is deployed to GitHub Pages
+(or wherever this app is hosted next):
+
+- [ ] `js/firebase-config.js` points at the intended Firebase project
+      (not a dev/test project)
+- [ ] Firestore Security Rules in the Firebase Console match
+      "Firestore Security Rules for RBAC" below exactly — copy-paste the
+      whole block, don't hand-edit around it
+- [ ] `VERSION` file matches the release you're deploying
+- [ ] Every `?v=` cache-busting query string (in all `*.html` files'
+      `css/styles.css`/`<script type="module">` references, and every
+      local `import ... from "./*.js"` in every file under `js/`) matches
+      the new `VERSION` — a single find-and-replace of the old version
+      string with the new one across `*.html` and `js/*.js` is
+      sufficient (see Milestone 16 below for why every file needs it)
+- [ ] CHANGELOG.md has an entry for this version
+- [ ] A fresh backup was taken (see "Backup Procedure" below) before
+      deploying, in case anything needs to be rolled back
+- [ ] Test sign-in with at least one account per role (Administrator,
+      Branch Clerk, Encoder, Read Only) after deploying — not just
+      Administrator
+- [ ] Open the browser console on Home, Hearings, and Calendar after
+      deploying and confirm there are no errors
+- [ ] Click through every nav link once per role to confirm the
+      permission-based hide/show behavior still matches the matrix below
+
+## 2. Production Checklist
+
+Functional confirmation before calling a build production-ready:
+
+- [ ] Authentication — sign in, sign out, session persists across a
+      page reload, redirected to Login when signed out
+- [ ] RBAC — all 4 roles see exactly the nav links/buttons/pages their
+      row in the permission matrix says they should
+- [ ] Dashboard — stat cards and Today's Hearings Timeline reflect
+      current data, excluding archived hearings
+- [ ] Timeline — Now/Next highlighting and the 30-second live refresh
+      both work
+- [ ] Calendar — Month/Week/Day views all load, all exclude archived
+      hearings, clicking a hearing opens it in Hearings
+- [ ] Search — Hearings' and Archived Hearings' search both filter
+      correctly across case number/plaintiff/accused/charge/date/status
+- [ ] Reports — every scope (Today/Week/Month/Custom), the Status and
+      Hearing Type breakdowns, and the "Include Archived" checkbox all
+      produce correct results
+- [ ] Activity Log — every logged action type appears with the correct
+      category and timestamp
+- [ ] Archive — archiving and restoring both work, and archived hearings
+      correctly disappear from/reappear in every active view
+- [ ] Backup — downloads a complete, correctly-named JSON file
+- [ ] Restore — validates a file, shows an accurate confirmation, and
+      correctly updates/creates/never-deletes
+- [ ] Word Export — every mode (This Hearing/Date/Week/Month) produces a
+      correctly formatted .docx, active hearings only
+- [ ] CSV Export — matches the current Reports filters/scope
+- [ ] Mobile — every page usable at a phone width (see "Recommended
+      Browser Support" below for what's actually been tested)
+- [ ] Desktop — every page usable at a standard desktop width
+- [ ] Firestore Rules — deployed rules match README exactly (see
+      Deployment Checklist above)
+- [ ] No console errors on any page, for any role
+- [ ] No broken internal links (nav, quick actions, calendar-to-hearing
+      deep links)
+- [ ] No missing imports (`node --check` passes on every file in `js/`)
+
+## 3. Backup Procedure
+
+1. Sign in as Administrator and open **Backup** from the nav.
+2. Click **Download Backup**. A file named
+   `branch9-backup-YYYY-MM-DD-HHMM.json` downloads — save it somewhere
+   durable (not just the Downloads folder of one machine).
+3. Confirm the on-page status line reports all 5 collections with
+   non-zero counts you'd expect (skip this check only for a genuinely
+   empty system).
+4. A `Backup Created` entry appears on the Activity Log.
+5. **Recommended cadence:** before every deployment (see Deployment
+   Checklist), and on whatever regular schedule your court's data-loss
+   tolerance calls for — this app has no automatic/scheduled backup, only
+   the manual one described here (see "Known Limitations").
+
+## 4. Restore Procedure
+
+1. Sign in as Administrator and open **Backup**.
+2. Under "Restore from Backup," select a previously downloaded backup
+   file. The page shows per-collection record counts and the backup's
+   creation date — check these look right before continuing.
+3. Click **Restore**. Read the confirmation dialog — it states exactly
+   what's about to happen (update existing, create missing, never
+   delete) — then confirm.
+4. Watch the progress bar; do not close the tab while it's running.
+5. Read the summary: `written` / `already present (kept as-is)` /
+   `malformed (skipped)` / `failed` per collection. If anything shows as
+   `failed`, re-running the restore with the same file is safe (see
+   "Limitations" in Milestone 14 above) — upserts are idempotent and the
+   activityLogs check re-evaluates what's already present.
+6. `Restore Started` and `Restore Completed`/`Restore Failed` entries
+   appear on the Activity Log.
+7. **Migrating to a new Firebase project:** create the new project,
+   paste its config into `js/firebase-config.js`, deploy the Firestore
+   Security Rules (Section on Firestore Rules above), sign in once with
+   an Administrator account (creating that account's own `users/{uid}`
+   doc), then restore the most recent backup into it.
+
+## 5. Recommended Browser Support
+
+Built and manually verified against:
+
+- Chrome/Edge (current — Chromium-based), desktop and Android
+- Safari (current), desktop and iOS
+- Firefox (current), desktop
+
+No IE11 or legacy-Edge support — the app uses the Firebase Modular SDK
+(ES modules, native `<script type="module">`), which those don't
+support. No specific minimum version pinning is done beyond "a current
+release of one of the above" — this is a small internal court tool, not
+a public-facing site, so browser-matrix testing is scoped accordingly.
+
+## 6. Known Limitations
+
+- **No pagination.** Hearings, Archived Hearings, Activity Log (capped
+  at its existing `limit()`), and Users all load their full result set
+  into the browser via a live listener. Fine at a single RTC branch's
+  realistic data volume; would need real work (cursor-based pagination)
+  before this could serve a much larger docket.
+- **Backup & Restore is client-side.** Very large collections (tens of
+  thousands of documents+) would be slow to export/import through the
+  browser — there's no server-side/Admin SDK batch job. See Milestone 14
+  for the rest of Backup & Restore's specific limitations (role
+  restoration vs. Auth account recreation, `systemStatus` never being
+  restored, etc.).
+- **No automatic/scheduled backups.** Backup is a manual,
+  Administrator-triggered action only (see "Backup Procedure" above).
+- **`hearingsToCsvRows()` and similar per-hearing case lookups are
+  O(n·m)** (filtering the full cases array per hearing rather than
+  pre-grouping once) — see the CHANGELOG's v0.9.5 entry, "Identified,
+  deliberately not changed."
+- **Single Firebase project, no environment separation.** There's no
+  built-in staging/production split; deploying to a different
+  environment means swapping `js/firebase-config.js` and redeploying.
+- **GitHub Pages hosting.** Fine for this app's current needs (static
+  files, no server-side rendering), but note for future planning: GitHub
+  Pages doesn't support server-side secrets or private repos serving
+  content without extra tooling — worth revisiting if this repository
+  is made private post-v1.0.0.
+---
+
+# Milestone 16: UI Polish & Visual Consistency
+
+Final milestone before v1.0.0. Not a redesign — a visual polish,
+consistency, and cache-busting pass across all 9 pages (Login, Home,
+Hearings, Calendar, Reports, Activity Log, Archived Hearings, Users,
+Backup & Restore). No Firestore schema changes, no new collections, no
+business-logic or RBAC changes, no layout redesigns.
+
+## 1. Visual consistency audit
+
+Every page was compared against every other for cards, buttons, forms,
+tables, typography, icons, and color tokens, checking specifically
+whether the existing token system (`var(--space-N)`, `var(--text-N)`,
+the shared `.btn-primary`/`.btn-secondary`/`.btn-small` base rule,
+`.card`, `.data-table`, `.empty-row`, and the `eyebrow`/`h1`/`sub` header
+pattern used identically on all 9 pages) was actually being applied
+consistently, rather than introducing anything new. It was, almost
+everywhere — a testament to building each milestone by reusing existing
+classes rather than writing page-specific CSS. Three real
+inconsistencies were found and fixed (see CHANGELOG's v0.9.6 entry for
+the itemized list): two standalone Backup & Restore buttons that were
+accidentally full-width instead of content-sized, one table's loading
+row missing a `colspan` its column count needed, and disabled-button
+styling that existed for `.btn-primary` but not `.btn-secondary`/
+`.btn-small` (both of which do have disabled buttons elsewhere in the
+app).
+
+## 2. Responsive review
+
+Re-checked all 9 pages at desktop, tablet (≤ 1024px), and phone
+(≤ 768px) widths. No new breakpoints or layout changes were needed —
+Archived Hearings and Backup & Restore (the two newest pages, added in
+v0.9.3/v0.9.4) both reuse existing fluid `.card`/`.wrap-wide`/
+`.data-table`/`.hearings-search` classes rather than introducing
+page-specific ones, so they already inherit the nav-wrapping and
+table-header-collapse rules tuned for phone/tablet in earlier
+milestones (v0.6.1, v0.8.2).
+
+## 3. Accessibility review
+
+Re-verified (not re-implemented) v0.9.5's keyboard-navigation, focus-
+visible, dialog-role, and form-label work is intact and consistent
+across every page. No new gaps found this pass.
+
+## 4. Cache busting
+
+**The problem:** browsers (and GitHub Pages' CDN, which sets a
+`max-age` on served files) cache static assets by URL. Without any
+versioning, a deploy that changes `css/styles.css` or any file under
+`js/` can leave returning visitors' browsers serving the *previous*
+version of that file for a while after deployment, even on a hard
+navigation — this was observed after earlier releases in this project.
+
+**The fix:** every internal asset reference now carries a `?v=0.9.6`
+query string tied to the current `VERSION` — a different URL for every
+release, which every browser treats as a cache miss:
+
+- `css/styles.css` in all 11 HTML files
+- each page's own `<script type="module" src="js/*.js">` entry point
+- every local `import ... from "./*.js"` statement across all 23 files
+  under `js/` (not just the HTML entry points) — ES modules are cached
+  by browsers per-file, independent of which page loaded them, so a
+  shared dependency like `hearings-data.js` needed its own versioned
+  URL too, not just the page controller that imports it
+
+This is a static, no-build-step approach, consistent with the rest of
+this project's architecture (plain files, no bundler, no build
+pipeline) — the version string is just a query parameter added to
+existing URLs, nothing about how the files are served or loaded
+changes. External CDN scripts (the Firebase SDK, `docx@8.0.4`,
+`lucide@latest`) are untouched — they're independently versioned by
+their own URLs already, and aren't this app's assets to cache-bust.
+
+**Why every file needed the same version string:** several files (most
+notably `firebase-init.js`, importing the shared `auth`/`db` instances
+into 8+ other files) are imported from many places. ES modules are
+deduplicated by their *resolved URL* — if two importers referenced
+`firebase-init.js` with different (or missing) version query strings,
+the browser would load two separate module instances, meaning two
+separate Firebase app instances sharing nothing. Every import in this
+codebase uses the identical `?v=0.9.6` suffix, so every reference to a
+given file resolves to the exact same URL and thus the same single
+module instance — verified by grep across every importer of
+`firebase-init.js` before shipping this.
+
+**Keeping it lightweight for future releases:** there's no build step
+that does this automatically. The process is a single find-and-replace
+of the old version string with the new one across `*.html` and
+`js/*.js` (now a step in the Deployment Checklist above) — mechanical,
+but simple enough not to need new tooling for a project this size.
+
+## 5. Files modified vs. byte-identical
+
+Because cache-busting touches an asset reference or import line in
+nearly every file, "byte-identical" isn't the most useful lens for this
+particular milestone — instead, every changed file was diffed against
+the v0.9.5 baseline with the `?v=0.9.6` strings stripped back out, to
+confirm exactly what (if anything) changed *beyond* the version string:
+
+- **32 files** changed *only* by the `?v=0.9.6` addition (11 HTML files,
+  21 JS files with at least one local import) — zero other bytes differ
+  from v0.9.5
+- **3 files** also received a real fix: `backup.html` (button classes),
+  `reports.html` (loading-row colspan), `css/styles.css` (disabled-state
+  rule + the button/table fixes' supporting styles)
+- **9 files** are fully untouched: `CHANGELOG.md`, `CNAME`, `README.md`,
+  `VERSION`, `js/constants.js`, `js/dashboard-live.js`,
+  `js/dashboard-stats.js`, `js/firebase-config.js`, `js/permissions.js`
+  (these have no local imports and aren't referenced as a `<script>`
+  entry point by any HTML file, so nothing in them needed a version
+  string)
+
+## 6. Final Visual Readiness Assessment
+
+Every page uses the same design tokens, the same component classes, and
+the same interaction patterns (buttons, tables, empty/loading states,
+dialogs, keyboard access) — confirmed by direct comparison across all 9
+pages rather than assumed. The three inconsistencies this pass found
+were genuinely minor (two oversized buttons, one missing `colspan`, one
+missing disabled-state rule) — not signs of a fragmented design system,
+but normal drift from building 16 milestones' worth of pages by hand.
+Cache busting is in place and verified not to have introduced duplicate
+module instances. This project has not been visually reviewed in an
+actual browser as part of this milestone (all review here was
+static-analysis and cross-file comparison) — a final look in a real
+browser, across the desktop/tablet/phone widths this document lists, is
+worth doing before v1.0.0 ships, alongside the fresh-Firebase-project
+test already planned for that stage.
