@@ -4,6 +4,67 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.7] — Final Acceptance Testing Patch (pre-v1.0.0)
+
+A QA-only pass: no new features, no schema changes, no UI/architecture
+changes. Two real defects were found during release-readiness review
+and fixed with the smallest possible change; nothing else in the
+project was touched (confirmed via checksum — only the two files below
+differ from v0.9.6).
+
+**Fixed**
+- `js/backup.js` — a real race condition in Backup & Restore's file
+  picker: selecting a backup file starts an async `FileReader` read;
+  selecting a *different* file before the first read finishes started a
+  second read without invalidating the first. Whichever read happened
+  to finish last "won" and silently became `pendingBackup` — which could
+  be the *first*, now-stale file, not the one the file input currently
+  shows selected. An Administrator could end up restoring from an
+  unintended file without any indication anything was wrong. Fixed with
+  a selection-generation counter: each file-input `change` event
+  increments a token, and a `FileReader` callback bails out if a newer
+  selection has since superseded it.
+- `js/backup-data.js` — `restoreFromBackup()`'s progress bar could
+  permanently under-report and never reach 100%, even on a fully
+  successful restore. `grandTotal` counts every record in the backup
+  file, but `grandProcessed` previously only advanced for records that
+  actually went through a write batch — so malformed records (any
+  collection), already-existing entries skipped under `activityLogs`'
+  "create-missing" policy, and records under an unrecognized collection
+  key were all counted toward the total but never toward progress.  In
+  practice this reliably happens on **any restore into an
+  already-populated system** (the "recovering from accidental data
+  loss" use case explicitly listed for this feature) — its `activityLogs`
+  correctly skips every already-existing entry, and this bug meant the
+  progress bar would visibly stall short of 100% every time. Fixed so
+  every record is now accounted for exactly once: skipped records
+  advance the counter immediately (since they're resolved without a
+  write), written/failed ones advance it via the existing per-chunk
+  logic.
+
+**Cache-busting version bump:** because v0.9.6 tied asset URLs to
+`VERSION` specifically so that a code change reaches previously-visited
+browsers, shipping the fix above required bumping every `?v=` reference
+from `0.9.6` to `0.9.7` (all 11 HTML files + all 23 files under `js/`) —
+otherwise a browser that had already cached v0.9.6's `js/backup.js`
+could keep serving the pre-fix version indefinitely. No other content
+changed in those files; confirmed via diff that stripping the version
+string back out reproduces v0.9.6 byte-for-byte in every file except
+the two listed above.
+
+**Reviewed, no defect found — every other module:** Authentication,
+Dashboard, Today's Timeline, Hearings (including case-row save/delete
+diffing), Calendar (including the Day View case-fetch cache), Reports
+(including custom date-range input and the Include Archived checkbox),
+Activity Log, Archive, Users (including the self-role-lock guard), RBAC,
+Search, Word Export, CSV Export, and Navigation were all reviewed for
+logic bugs, null/undefined access, race conditions, permission
+mistakes, and broken links. See the project's QA report for the full
+list of what was checked, including two narrow non-issues noted but
+deliberately not changed (an extremely-low-impact duplicate-fetch edge
+case in Calendar's Day View, and a missing but harmless input-order
+validation on Reports' custom end-date field).
+
 ## [0.9.6] — UI Polish & Visual Consistency
 
 Final milestone before v1.0.0. Not a redesign, not a feature milestone —
