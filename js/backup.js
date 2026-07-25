@@ -9,11 +9,11 @@
 // this app (hearings.js/hearings-data.js, users.js/users-data.js, etc.).
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.6";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
-import { PERMISSIONS } from "./permissions.js?v=0.9.6";
-import { exportBackup, validateBackupFile, restoreFromBackup } from "./backup-data.js?v=0.9.6";
-import { logActivity } from "./activity-data.js?v=0.9.6";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.7";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.7";
+import { PERMISSIONS } from "./permissions.js?v=0.9.7";
+import { exportBackup, validateBackupFile, restoreFromBackup } from "./backup-data.js?v=0.9.7";
+import { logActivity } from "./activity-data.js?v=0.9.7";
 
 const SYSTEM_VERSION = "0.9.4";
 
@@ -121,8 +121,11 @@ function renderValidation(errors, summary) {
 
 function wireFileInput() {
   const input = document.getElementById("restoreFileInput");
+  let selectionToken = 0; // guards against a stale (superseded) FileReader.onload winning
+
   input.addEventListener("change", () => {
     const file = input.files && input.files[0];
+    const thisSelection = ++selectionToken;
     pendingBackup = null;
     document.getElementById("restoreResult").innerHTML = "";
     renderValidation([], null);
@@ -131,6 +134,7 @@ function wireFileInput() {
 
     const reader = new FileReader();
     reader.onload = () => {
+      if (thisSelection !== selectionToken) return; // a newer file was selected before this read finished
       let parsed;
       try {
         parsed = JSON.parse(reader.result);
@@ -143,6 +147,7 @@ function wireFileInput() {
       if (valid) pendingBackup = parsed;
     };
     reader.onerror = () => {
+      if (thisSelection !== selectionToken) return;
       renderValidation(["Could not read the selected file."], null);
     };
     reader.readAsText(file);

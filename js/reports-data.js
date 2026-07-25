@@ -39,10 +39,10 @@
 // the Architecture Note in README.md.
 // ---------------------------------------------------------------------------
 
-import { getHearingsForDate, getHearingsForWeek, getHearingsForMonth } from "./export-data.js?v=0.9.6";
-import { computeDashboardStats } from "./dashboard-stats.js?v=0.9.6";
-import { DEFAULT_HEARING_DURATION_MINUTES } from "./dashboard-live.js?v=0.9.6";
-import { SECTIONS } from "./constants.js?v=0.9.6";
+import { getHearingsForDate, getHearingsForWeek, getHearingsForMonth } from "./export-data.js?v=0.9.7";
+import { computeDashboardStats } from "./dashboard-stats.js?v=0.9.7";
+import { DEFAULT_HEARING_DURATION_MINUTES } from "./dashboard-live.js?v=0.9.7";
+import { SECTIONS } from "./constants.js?v=0.9.7";
 
 export { getHearingsForDate, getHearingsForWeek, getHearingsForMonth };
 

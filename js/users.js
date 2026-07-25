@@ -14,11 +14,11 @@
 // "Add User" button in users.html is a disabled placeholder only.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.6";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
-import { subscribeToAllUsers, updateUserRole } from "./users-data.js?v=0.9.6";
-import { logActivity } from "./activity-data.js?v=0.9.6";
-import { ALL_ROLES, ROLE_LABELS, PERMISSIONS } from "./permissions.js?v=0.9.6";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.7";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.7";
+import { subscribeToAllUsers, updateUserRole } from "./users-data.js?v=0.9.7";
+import { logActivity } from "./activity-data.js?v=0.9.7";
+import { ALL_ROLES, ROLE_LABELS, PERMISSIONS } from "./permissions.js?v=0.9.7";
 
 let currentUser = null;
 let users = [];

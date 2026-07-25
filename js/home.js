@@ -25,20 +25,20 @@
 // even between Firestore updates.
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js?v=0.9.6";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
-import { subscribeToHearings, subscribeToCases } from "./hearings-data.js?v=0.9.6";
-import { computeDashboardStats, getTodaysHearingsSorted } from "./dashboard-stats.js?v=0.9.6";
+import { requireAuth } from "./auth-guard.js?v=0.9.7";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.7";
+import { subscribeToHearings, subscribeToCases } from "./hearings-data.js?v=0.9.7";
+import { computeDashboardStats, getTodaysHearingsSorted } from "./dashboard-stats.js?v=0.9.7";
 import {
   getCurrentHearing,
   getNextUpcomingHearing,
   getTodaysSummary,
   minutesUntil,
   annotateTimelineStatuses,
-} from "./dashboard-live.js?v=0.9.6";
-import { exportCourtCalendarForDate } from "./docx-export.js?v=0.9.6";
-import { logActivity } from "./activity-data.js?v=0.9.6";
-import { can, PERMISSIONS } from "./permissions.js?v=0.9.6";
+} from "./dashboard-live.js?v=0.9.7";
+import { exportCourtCalendarForDate } from "./docx-export.js?v=0.9.7";
+import { logActivity } from "./activity-data.js?v=0.9.7";
+import { can, PERMISSIONS } from "./permissions.js?v=0.9.7";
 
 const STATUS_LABEL = { now: "Now", next: "Next", completed: "Completed", upcoming: "Upcoming" };
 

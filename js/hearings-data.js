@@ -48,7 +48,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db, auth } from "./firebase-init.js?v=0.9.6";
+import { db, auth } from "./firebase-init.js?v=0.9.7";
 
 const hearingsCol = collection(db, "hearings");
 const hearingCasesCol = collection(db, "hearingCases");

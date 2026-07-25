@@ -50,7 +50,7 @@ import {
   writeBatch,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./firebase-init.js?v=0.9.6";
+import { db } from "./firebase-init.js?v=0.9.7";
 
 export const BACKUP_VERSION = "1.0";
 
@@ -231,7 +231,11 @@ export async function restoreFromBackup(backup, onProgress) {
     if (!policy) {
       // Unknown collection name in the file (e.g. from a newer/older
       // backup format) — not part of this app's schema, so it's simply
-      // not restorable. Not an error; just not written.
+      // not restorable. Not an error; just not written. Still counts
+      // toward grandProcessed (it was counted in grandTotal above) so
+      // the progress bar can still reach 100%.
+      grandProcessed += records.length;
+      if (onProgress) onProgress({ collection: name, processed: grandProcessed, total: grandTotal });
       results[name] = { written: 0, skippedMalformed: 0, skippedExisting: 0, failed: 0, note: "Unknown collection — not restored." };
       continue;
     }
@@ -270,6 +274,16 @@ export async function restoreFromBackup(backup, onProgress) {
           toWrite.push(r);
         }
       }
+    }
+
+    // Records skipped above (malformed, or already-existing under
+    // create-missing) never enter the chunk loop below, but they were
+    // counted in grandTotal — account for them here so grandProcessed
+    // can still reach grandTotal by the end of the restore.
+    const skippedSoFar = summary.skippedMalformed + summary.skippedExisting;
+    if (skippedSoFar) {
+      grandProcessed += skippedSoFar;
+      if (onProgress) onProgress({ collection: name, processed: grandProcessed, total: grandTotal });
     }
 
     for (const group of chunk(toWrite, BATCH_SIZE)) {

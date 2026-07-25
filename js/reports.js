@@ -16,12 +16,12 @@
 // the same isActiveHearing() filter every other active-only view uses.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.6";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.6";
-import { subscribeToHearings, subscribeToCases, isActiveHearing } from "./hearings-data.js?v=0.9.6";
-import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=0.9.6";
-import { logActivity } from "./activity-data.js?v=0.9.6";
-import { can, PERMISSIONS } from "./permissions.js?v=0.9.6";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.7";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.7";
+import { subscribeToHearings, subscribeToCases, isActiveHearing } from "./hearings-data.js?v=0.9.7";
+import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=0.9.7";
+import { logActivity } from "./activity-data.js?v=0.9.7";
+import { can, PERMISSIONS } from "./permissions.js?v=0.9.7";
 import {
   getHearingsForDate,
   getHearingsForWeek,
@@ -37,8 +37,8 @@ import {
   buildCsv,
   hearingsToCsvRows,
   CSV_HEADERS,
-} from "./reports-data.js?v=0.9.6";
-import { SECTIONS } from "./constants.js?v=0.9.6";
+} from "./reports-data.js?v=0.9.7";
+import { SECTIONS } from "./constants.js?v=0.9.7";
 
 let hearings = [];
 let cases = [];
