@@ -24,8 +24,8 @@ import {
   getDocs,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./firebase-init.js?v=0.9.8";
-import { isActiveHearing } from "./hearings-data.js?v=0.9.8";
+import { db } from "./firebase-init.js?v=0.9.9";
+import { isActiveHearing } from "./hearings-data.js?v=0.9.9";
 
 const hearingsCol = collection(db, "hearings");
 const hearingCasesCol = collection(db, "hearingCases");

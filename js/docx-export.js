@@ -63,7 +63,7 @@ import {
   getHearingsForWeek,
   getHearingsForMonth,
   prepareExportDataset,
-} from "./export-data.js?v=0.9.8";
+} from "./export-data.js?v=0.9.9";
 
 const FONT = "Century Schoolbook";
 const BLACK = "000000";

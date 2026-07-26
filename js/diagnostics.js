@@ -14,8 +14,8 @@
 // throwaway test data is ever created in the database.
 // ---------------------------------------------------------------------------
 
-import { firebaseConfig } from "./firebase-config.js?v=0.9.8";
-import { auth, db, firebaseInitError } from "./firebase-init.js?v=0.9.8";
+import { firebaseConfig } from "./firebase-config.js?v=0.9.9";
+import { auth, db, firebaseInitError } from "./firebase-init.js?v=0.9.9";
 import { collection, query, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 function setStatus(id, state, detailText) {

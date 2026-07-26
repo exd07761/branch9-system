@@ -10,7 +10,7 @@
 // on to home.html instead of rendering any content of its own.
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js?v=0.9.8";
+import { requireAuth } from "./auth-guard.js?v=0.9.9";
 
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
