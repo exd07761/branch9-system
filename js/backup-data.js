@@ -50,7 +50,7 @@ import {
   writeBatch,
   Timestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./firebase-init.js?v=0.9.7";
+import { db } from "./firebase-init.js?v=0.9.8";
 
 export const BACKUP_VERSION = "1.0";
 

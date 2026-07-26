@@ -8,10 +8,10 @@
 // and calendar.js/calendar-data.js already use.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.7";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.7";
-import { subscribeToActivityLogs } from "./activity-data.js?v=0.9.7";
-import { PERMISSIONS } from "./permissions.js?v=0.9.7";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.8";
+import { wireNavAuth } from "./nav-auth.js?v=0.9.8";
+import { subscribeToActivityLogs } from "./activity-data.js?v=0.9.8";
+import { PERMISSIONS } from "./permissions.js?v=0.9.8";
 
 let entries = [];
 let searchQuery = "";
