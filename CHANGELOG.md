@@ -4,6 +4,62 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.8] — Final UI/CSS Polish Pass
+
+CSS-only pass across all 9 pages. No JavaScript logic changed, no
+Firestore/RBAC/schema changes, no layout redesign, no new features —
+confirmed via checksum: `css/styles.css`, `VERSION`, `CHANGELOG.md`, and
+the cache-busting version string in every HTML/JS file are the only
+things that differ from v0.9.7; every JS file's actual logic is
+byte-identical once that version string is stripped back out.
+
+**Fixed**
+- `.cal-month-entry` (Calendar Month view's event chip) used a hardcoded
+  `border-radius: 4px`, while every other chip/badge in the app —
+  including `.cal-week-entry`, the visually-equivalent chip in Week
+  view — uses the `var(--radius-sm)` token (6px). Now consistent.
+
+**CSS cleanup — duplication removed (8 rule blocks consolidated, CSS
+brace count 310 → 302):**
+- The identical 3-line focus treatment (`outline: none; border-color:
+  var(--brass); box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);`) was
+  repeated verbatim across 6 separate rules (`.field input/select/
+  textarea`, `.hearings-search input`, `.activity-search input`,
+  `.activity-filter select`, `.report-filter select`/`input[type="date"]`,
+  `.role-select`). Consolidated into one shared rule with a combined
+  selector list.
+- `.hearings-search input` and `.activity-search input` were
+  byte-identical (9 properties each) — the file even had a comment
+  acknowledging this ("same input treatment as .hearings-search").
+  Consolidated into one rule; the two wrapper classes stay separate
+  since their layout genuinely differs (flex item vs. standalone block).
+- `.activity-filter select`, `.report-filter select`/`input[type="date"]`,
+  and `.role-select` shared an identical 8-property base style.
+  Consolidated into one rule.
+- A systematic re-scan for duplicate multi-property rule blocks after
+  these merges found none remaining.
+
+**Reviewed, already consistent — no change needed:** table header/row
+height, hover color, and empty/loading-state appearance across
+Hearings/Reports/Archive/Activity/Users (all reuse the single
+`.data-table` class with no page-specific overrides, so consistency is
+structural, not coincidental); card padding/radius/shadow/title spacing;
+button height/padding/icon-spacing/hover/focus/disabled states (disabled
+states were already fixed in v0.9.6); navigation active/hover states and
+icon alignment; the Login page's visual match to the rest of the app;
+focus-visible coverage (every place `outline: none` is used pairs it
+with a visible replacement — none found that silently remove focus
+indication); responsive spacing for Archived Hearings and Backup &
+Restore (both inherit existing fluid layout classes, reviewed and
+unchanged since v0.9.5/v0.9.6). One micro-spacing token gap was
+identified and deliberately left alone (`.cal-month-entries`/`.cal-*`
+grid gaps below the `--space-1` token floor are intentional hairline/
+tight-grouping values, not part of the section/card spacing scale).
+
+**Performance:** this pass reduced CSS size (8 fewer rule blocks) rather
+than increasing it — no new selectors, classes, or custom properties
+were introduced.
+
 ## [0.9.7] — Final Acceptance Testing Patch (pre-v1.0.0)
 
 A QA-only pass: no new features, no schema changes, no UI/architecture
