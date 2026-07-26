@@ -368,7 +368,16 @@ button, input, select, textarea { font-family: inherit; }
 
 .field textarea { height: auto; min-height: 64px; padding: var(--space-2) var(--space-3); resize: vertical; }
 
-.field input:focus, .field select:focus, .field textarea:focus {
+/* Shared focus treatment for every text-style form control across the
+   app (main form fields, search inputs, filter selects/dates, the Users
+   role select) — consolidated from 6 identical copies into one rule;
+   same selectors, same declarations, nothing visually changes. */
+.field input:focus, .field select:focus, .field textarea:focus,
+.hearings-search input:focus,
+.activity-search input:focus,
+.activity-filter select:focus,
+.report-filter select:focus, .report-filter input[type="date"]:focus,
+.role-select:focus {
   outline: none;
   border-color: var(--brass);
   box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
@@ -662,7 +671,7 @@ button, input, select, textarea { font-family: inherit; }
 .cal-month-cell-today .cal-month-daynum { background: var(--brass); color: #1A1508; border-radius: 50%; } /* JS-DEPENDENT */
 .cal-month-daynum { font-size: var(--text-sm); font-weight: 600; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-1); } /* JS-DEPENDENT */
 .cal-month-entries { display: flex; flex-direction: column; gap: 3px; }  /* JS-DEPENDENT */
-.cal-month-entry { font-size: var(--text-xs); background: var(--blue-bg); color: var(--blue); padding: 2px 6px; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; } /* JS-DEPENDENT */
+.cal-month-entry { font-size: var(--text-xs); background: var(--blue-bg); color: var(--blue); padding: 2px 6px; border-radius: var(--radius-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; } /* JS-DEPENDENT */
 .cal-month-entry:hover { opacity: 0.85; }
 .cal-month-more { font-size: var(--text-xs); color: var(--ink-3); }  /* JS-DEPENDENT */
 
@@ -1280,7 +1289,8 @@ button, input, select, textarea { font-family: inherit; }
   margin-bottom: var(--space-4);
 }
 
-.hearings-search input {
+.hearings-search input,
+.activity-search input {
   width: 100%;
   height: 40px;
   border: 1px solid var(--line-strong);
@@ -1290,12 +1300,6 @@ button, input, select, textarea { font-family: inherit; }
   font-family: inherit;
   color: var(--ink);
   background: var(--card);
-}
-
-.hearings-search input:focus {
-  outline: none;
-  border-color: var(--brass);
-  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1480,7 +1484,8 @@ button, input, select, textarea { font-family: inherit; }
 /* -------------------------------------------------------------------------
    13. Activity Log (v0.9.0)
    ------------------------------------------------------------------------- */
-/* Same input treatment as .hearings-search, given its own class since it
+/* Input styling is shared with .hearings-search input above (see that
+   rule's selector list) — only the wrapper here differs, since this one
    sits inside .toolbar's flex row (as a growing item) rather than as a
    standalone full-width block above it. */
 .activity-search {
@@ -1488,23 +1493,6 @@ button, input, select, textarea { font-family: inherit; }
   min-width: 200px;
 }
 
-.activity-search input {
-  width: 100%;
-  height: 40px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  font-size: var(--text-base);
-  font-family: inherit;
-  color: var(--ink);
-  background: var(--card);
-}
-
-.activity-search input:focus {
-  outline: none;
-  border-color: var(--brass);
-  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
-}
 
 .activity-filter {
   display: flex;
@@ -1518,7 +1506,10 @@ button, input, select, textarea { font-family: inherit; }
   color: var(--ink-2);
 }
 
-.activity-filter select {
+.activity-filter select,
+.report-filter select,
+.report-filter input[type="date"],
+.role-select {
   height: 40px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
@@ -1527,12 +1518,6 @@ button, input, select, textarea { font-family: inherit; }
   font-family: inherit;
   color: var(--ink);
   background: var(--card);
-}
-
-.activity-filter select:focus {
-  outline: none;
-  border-color: var(--brass);
-  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
 }
 
 /* -------------------------------------------------------------------------
@@ -1554,25 +1539,6 @@ button, input, select, textarea { font-family: inherit; }
 .report-filter label {
   font-size: var(--text-sm);
   color: var(--ink-2);
-}
-
-.report-filter select,
-.report-filter input[type="date"] {
-  height: 40px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  font-size: var(--text-base);
-  font-family: inherit;
-  color: var(--ink);
-  background: var(--card);
-}
-
-.report-filter select:focus,
-.report-filter input[type="date"]:focus {
-  outline: none;
-  border-color: var(--brass);
-  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
 }
 
 .report-filter-checkbox {
@@ -1635,23 +1601,6 @@ button, input, select, textarea { font-family: inherit; }
 /* -------------------------------------------------------------------------
    15. Role-Based Access Control / Users (v0.9.2)
    ------------------------------------------------------------------------- */
-.role-select {
-  height: 40px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  font-size: var(--text-base);
-  font-family: inherit;
-  color: var(--ink);
-  background: var(--card);
-}
-
-.role-select:focus {
-  outline: none;
-  border-color: var(--brass);
-  box-shadow: 0 0 0 3px rgba(169, 128, 46, 0.15);
-}
-
 .role-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
