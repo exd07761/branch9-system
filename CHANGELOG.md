@@ -4,6 +4,72 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [0.9.9] — Final Production Readiness Review (pre-v1.0.0)
+
+A production-polish review pass: no new features, no Firestore/RBAC/
+schema changes, no redesign. Three small, safe, isolated gaps were
+found and fixed; two supply-chain/deployment risks were found and are
+flagged for the person deploying this to decide on, rather than fixed
+blindly (see "Flagged, not changed" below for why).
+
+**Fixed**
+- **Missing favicon** — every page showed the browser's generic default
+  tab icon. Added a simple on-brand favicon (a scales-of-justice glyph
+  in the app's own `--ink`/`--brass` colors) as an inline SVG data URI —
+  no new binary asset file, no external request, no font-glyph
+  dependency (pure SVG shapes, so it renders identically everywhere).
+  Added identically to all 11 HTML pages plus the new `404.html` below.
+- **Missing custom 404 page** — GitHub Pages serves its own generic,
+  unbranded 404 for any unmatched URL by default. Added `404.html` at
+  the repository root (where GitHub Pages looks for it), reusing the
+  existing `.login-shell`/`.wrap-narrow`/`.card` layout and copy tone
+  verbatim from `login.html` — no new CSS, no new JS, just a "Page Not
+  Found" message and a link back to `index.html` (which already handles
+  routing to Login or Home based on auth state).
+- **No visible version indicator** — the release version existed only
+  in the invisible `?v=` cache-busting query string, with no way for a
+  Clerk or Administrator to see which version they're running (useful
+  for support/troubleshooting). Added `&middot; v0.9.9` to the existing
+  footer text ("Created by Jordan Panganiban") on all 8 pages that
+  already have one — no new element, no layout change.
+
+**Flagged, not changed — needs a decision from whoever deploys this:**
+- **`https://unpkg.com/lucide@latest`** (used on 8 pages) is not
+  version-pinned, unlike `docx@8.0.4` on the pages that use it. This
+  works fine today, but means every page load fetches whatever Lucide's
+  *current* latest release happens to be at that moment — if a future
+  Lucide release ever renames/removes an icon this app uses (`scale`,
+  `gavel`, `archive`, `hard-drive`, etc.) or changes its script's global
+  API, every page using icons could break with zero code change on this
+  project's side, at an unpredictable time. **Recommended fix:** pin to
+  a specific version, e.g. `https://unpkg.com/lucide@<version>`, the
+  same way `docx@8.0.4` already is. Not changed in this pass because
+  this environment has no outbound network access to confirm which
+  version number is actually current and that it resolves correctly —
+  pinning to an unverified version number risks trading a low-probability
+  future break for a guaranteed one today. Whoever deploys next should
+  pin this to whatever Lucide version they've actually tested against.
+- **`CNAME` contains `ourmoment.cc`** — this doesn't read as a
+  court-related domain name, and doesn't match anything else in this
+  project (branding, contact info, etc.). This may be a leftover from
+  an unrelated template/starting point rather than a domain actually
+  intended for this deployment. **Not changed** — only whoever owns the
+  actual deployment can confirm whether this is correct, a placeholder,
+  or a mistake; guessing wrong here (removing a legitimately-owned
+  domain, or leaving a wrong one in place) is worse than leaving it for
+  a human decision.
+
+**Reviewed, already implemented — explicitly acknowledged, not
+re-fixed:** loading indicators, empty states, confirmation dialogs
+(Archive/Restore), success/error feedback (form-error regions, backup
+status/validation panels), accessibility labels (from v0.9.5/v0.9.6),
+keyboard accessibility, hover/focus states, browser tab titles (all 11
+pages have distinct, correctly-formatted titles), internal navigation,
+cache-busting consistency, and Firestore index documentation (README's
+Firestore Rules section already notes the single-field index
+sufficiency) were all reviewed and found already in place — see the
+project's production-readiness report for the itemized checklist.
+
 ## [0.9.8] — Final UI/CSS Polish Pass
 
 CSS-only pass across all 9 pages. No JavaScript logic changed, no

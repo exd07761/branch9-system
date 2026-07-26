@@ -1335,6 +1335,15 @@ Run through this every time a new version is deployed to GitHub Pages
 
 - [ ] `js/firebase-config.js` points at the intended Firebase project
       (not a dev/test project)
+- [ ] `CNAME` contains the domain you actually intend to serve this from
+      (or delete the file if you're using the default
+      `<username>.github.io` address) — flagged in v0.9.9's review
+      because its current value doesn't obviously match this project
+- [ ] `https://unpkg.com/lucide@latest` (in every page that loads icons)
+      should be pinned to a specific version you've tested against
+      before a first stable release — e.g. `lucide@<version>`, the same
+      way `docx@8.0.4` already is — see v0.9.9's CHANGELOG entry for why
+      this wasn't pinned automatically
 - [ ] Firestore Security Rules in the Firebase Console match
       "Firestore Security Rules for RBAC" below exactly — copy-paste the
       whole block, don't hand-edit around it
@@ -1629,3 +1638,29 @@ coverage, and responsive spacing for the two newest pages. Confirmed via
 direct comparison, not assumed.
 
 This was the last planned milestone before v1.0.0.
+---
+
+# Milestone 18: Final Production Readiness Review
+
+A pre-v1.0.0 production-polish review. No new features, no Firestore/
+RBAC/schema changes, no redesign. Full findings in CHANGELOG.md's
+v0.9.9 entry; summary here.
+
+**Fixed:** a missing favicon (added as an inline SVG, on-brand, no new
+asset file), a missing custom 404 page (`404.html`, reusing the
+existing Login page's layout verbatim), and a missing visible version
+indicator (added to the existing footer on all 8 pages that have one).
+
+**Flagged for a deployment decision, not changed:** `lucide@latest` is
+unpinned (unlike `docx@8.0.4`) — recommended to pin before a first
+stable release, but not done here since this environment can't verify
+a specific version number resolves correctly. `CNAME`'s current value
+doesn't obviously match this project and should be confirmed or
+corrected before the first public deploy. Both are now checklist items
+in the Deployment Checklist above.
+
+**Reviewed and confirmed already in place:** loading indicators, empty
+states, confirmation dialogs, success/error feedback, accessibility
+labels, keyboard accessibility, hover/focus states, page titles,
+internal navigation, cache-busting consistency, and Firestore index
+documentation.
