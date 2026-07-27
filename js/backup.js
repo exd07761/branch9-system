@@ -9,11 +9,11 @@
 // this app (hearings.js/hearings-data.js, users.js/users-data.js, etc.).
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.9";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.9";
-import { PERMISSIONS } from "./permissions.js?v=0.9.9";
-import { exportBackup, validateBackupFile, restoreFromBackup } from "./backup-data.js?v=0.9.9";
-import { logActivity } from "./activity-data.js?v=0.9.9";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
+import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
+import { PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { exportBackup, validateBackupFile, restoreFromBackup } from "./backup-data.js?v=1.0.0";
+import { logActivity } from "./activity-data.js?v=1.0.0";
 
 const SYSTEM_VERSION = "0.9.4";
 

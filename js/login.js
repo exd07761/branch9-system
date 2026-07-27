@@ -11,9 +11,9 @@ import {
   setPersistence,
   browserLocalPersistence,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { auth } from "./firebase-init.js?v=0.9.9";
-import { redirectIfAuthenticated } from "./auth-guard.js?v=0.9.9";
-import { logActivity } from "./activity-data.js?v=0.9.9";
+import { auth } from "./firebase-init.js?v=1.0.0";
+import { redirectIfAuthenticated } from "./auth-guard.js?v=1.0.0";
+import { logActivity } from "./activity-data.js?v=1.0.0";
 
 const form = document.getElementById("loginForm");
 const emailInput = document.getElementById("email");

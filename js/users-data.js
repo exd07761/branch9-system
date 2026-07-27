@@ -26,8 +26,8 @@ import {
   orderBy,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db } from "./firebase-init.js?v=0.9.9";
-import { DEFAULT_ROLE } from "./permissions.js?v=0.9.9";
+import { db } from "./firebase-init.js?v=1.0.0";
+import { DEFAULT_ROLE } from "./permissions.js?v=1.0.0";
 
 const usersCol = collection(db, "users");
 

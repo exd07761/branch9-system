@@ -19,9 +19,9 @@
 // ---------------------------------------------------------------------------
 
 import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { auth } from "./firebase-init.js?v=0.9.9";
-import { logActivity } from "./activity-data.js?v=0.9.9";
-import { can } from "./permissions.js?v=0.9.9";
+import { auth } from "./firebase-init.js?v=1.0.0";
+import { logActivity } from "./activity-data.js?v=1.0.0";
+import { can } from "./permissions.js?v=1.0.0";
 
 // v0.9.2 (RBAC): nav links a role can't use are hidden here, in the one
 // place every page already calls to wire its nav — this is the reusable

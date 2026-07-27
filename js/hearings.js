@@ -8,19 +8,19 @@
 // nothing in this file calls Firestore directly.
 // ---------------------------------------------------------------------------
 
-import { requireAuth } from "./auth-guard.js?v=0.9.9";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.9";
-import { SECTIONS } from "./constants.js?v=0.9.9";
-import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=0.9.9";
+import { requireAuth } from "./auth-guard.js?v=1.0.0";
+import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
+import { SECTIONS } from "./constants.js?v=1.0.0";
+import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=1.0.0";
 import {
   subscribeToHearings,
   subscribeToCases,
   saveHearing,
   archiveHearing,
   isDuplicateCaseNumber,
-} from "./hearings-data.js?v=0.9.9";
-import { logActivity } from "./activity-data.js?v=0.9.9";
-import { can, PERMISSIONS } from "./permissions.js?v=0.9.9";
+} from "./hearings-data.js?v=1.0.0";
+import { logActivity } from "./activity-data.js?v=1.0.0";
+import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
 
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"

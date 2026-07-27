@@ -19,11 +19,11 @@
 // excludes them by default), so there is nothing there to reuse.
 // ---------------------------------------------------------------------------
 
-import { requireAuth, requirePermission } from "./auth-guard.js?v=0.9.9";
-import { wireNavAuth } from "./nav-auth.js?v=0.9.9";
-import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from "./hearings-data.js?v=0.9.9";
-import { logActivity } from "./activity-data.js?v=0.9.9";
-import { can, PERMISSIONS } from "./permissions.js?v=0.9.9";
+import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
+import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
+import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from "./hearings-data.js?v=1.0.0";
+import { logActivity } from "./activity-data.js?v=1.0.0";
+import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
 
 let hearings = [];
 let cases = [];

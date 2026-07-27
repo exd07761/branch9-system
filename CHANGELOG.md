@@ -4,6 +4,76 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [1.0.0] — Stable Release
+
+The first stable release of Branch9 Docket Management System. This is a
+packaging release only — every feature, fix, and polish pass below was
+already completed and shipped incrementally across v0.1.0–v0.9.9; v1.0.0
+bumps the version, consolidates the release notes, and confirms nothing
+was missed on the way to a first public stable build. No business logic,
+Firestore schema, or UI behavior changed in this release.
+
+**Completed feature set, by area (see each version's own entry above
+for full detail):**
+- **Authentication** — Firebase Auth email/password sign-in, session
+  persistence, auth-state routing (v0.2.0)
+- **Hearings** — create/edit hearings with one-or-more case numbers per
+  hearing, duplicate case-number detection, soft delete (v0.3.0–v0.3.3)
+- **Calendar** — Month/Week/Day views, read-only, deep-links into
+  Hearings for editing (v0.4.0)
+- **Dashboard** — stat cards, Today's Hearings Timeline with live
+  Now/Next highlighting, Quick Actions (v0.7.0–v0.8.2)
+- **Global Search** — live client-side search across case number,
+  parties, charge, date, and status (v0.7.0)
+- **Word (DOCX) Export** — Court Calendar export in 4 modes (This
+  Hearing/Date/Week/Month), matching the branch's real reference
+  document (v0.6.0–v0.6.3)
+- **Reports & CSV Export** — date-scoped reports, Status and Hearing
+  Type breakdowns, CSV export (v0.9.1, with v0.9.4 adding the "Include
+  Archived" option)
+- **Activity Log** — an audit trail of every significant action, with
+  category filtering (v0.9.0)
+- **Role-Based Access Control** — four built-in roles (Administrator,
+  Branch Clerk, Encoder, Read Only), enforced in both the UI and
+  Firestore Security Rules (v0.9.2)
+- **Archive & Case Lifecycle Management** — a restorable soft-archive
+  state, fully separate from delete, excluded from active views by
+  default (v0.9.3)
+- **Backup & Restore** — full-system JSON export/import for disaster
+  recovery and cross-project migration, Administrator-only (v0.9.4)
+- **Hardening & QA** — a full regression audit, Firestore listener/
+  security review, performance pass, and code cleanup (v0.9.5)
+- **UI Polish & Accessibility** — visual consistency pass across every
+  page, keyboard navigation, focus-visible states, dialog semantics,
+  cache-busting (v0.9.6, v0.9.8)
+- **Final Acceptance Testing** — two real defects found and fixed
+  during release-readiness QA: a Backup & Restore file-picker race
+  condition, and a restore-progress-bar miscalculation (v0.9.7)
+- **Production Readiness Review** — favicon, custom 404 page, visible
+  version indicator, and flagged (unresolved) deployment items: pinning
+  `lucide@latest` and confirming the `CNAME` domain (v0.9.9)
+
+**This release**
+- `VERSION` → `1.0.0`
+- Visible version indicator in the footer (8 pages) updated to `v1.0.0`
+- Cache-busting `?v=` query strings (all 11 HTML pages, `404.html`, all
+  23 files under `js/`) updated to `1.0.0`
+- README.md's introduction, feature list, deployment notes, and roadmap
+  updated to reflect a production-ready v1.0.0 (see README for detail)
+- New `RELEASE_v1.0.0.md` — the formal release document (introduction,
+  highlights, major features, technology stack, architecture summary,
+  roadmap, acknowledgements)
+
+**Carried over from v0.9.9, still unresolved — see README's Deployment
+Checklist:**
+- `https://unpkg.com/lucide@latest` is not version-pinned. Recommended
+  before wide production use; not pinned automatically since this
+  environment has no outbound network access to confirm a specific
+  version number resolves correctly.
+- `CNAME` contains a domain (`ourmoment.cc`) that doesn't obviously
+  match this project. Needs confirmation from whoever controls the
+  actual deployment before the first public DNS cutover.
+
 ## [0.9.9] — Final Production Readiness Review (pre-v1.0.0)
 
 A production-polish review pass: no new features, no Firestore/RBAC/

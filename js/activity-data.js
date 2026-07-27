@@ -26,7 +26,7 @@ import {
   limit,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { db, auth } from "./firebase-init.js?v=0.9.9";
+import { db, auth } from "./firebase-init.js?v=1.0.0";
 
 const activityLogsCol = collection(db, "activityLogs");
 

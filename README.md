@@ -1,4 +1,66 @@
-# Docket Management System — Milestone 1: Project Setup
+# Branch9 Docket Management System
+
+**Version 1.0.0 — Stable Release**
+
+A web-based docket management system built for the Branch Clerk of
+Court of a Philippine Regional Trial Court (RTC) branch — scheduling
+and tracking hearings and their attached criminal cases, with a
+calendar, reports, an audit trail, role-based access control, and
+backup/restore. Built with the Firebase Modular SDK (Authentication +
+Cloud Firestore) and plain HTML/CSS/vanilla JavaScript, deployed on
+GitHub Pages — no build step, no framework, no backend server beyond
+Firebase itself.
+
+For the formal release document (highlights, architecture summary,
+technology stack, and roadmap), see **[RELEASE_v1.0.0.md](RELEASE_v1.0.0.md)**.
+For the full version-by-version history, see **[CHANGELOG.md](CHANGELOG.md)**.
+Everything below this section is this project's complete incremental
+development log, kept in full and in order (Milestone 1 through the
+final pre-release QA and polish passes) as the detailed technical record
+behind this release — nothing has been removed or rewritten, only this
+introduction has been added on top of it.
+
+## Feature List
+
+- **Authentication** — Firebase Auth email/password sign-in with session
+  persistence
+- **Dashboard** — at-a-glance stat cards and a live Today's Hearings
+  Timeline with Now/Next highlighting
+- **Hearings** — create/edit hearings with one or more case numbers
+  each, duplicate case-number detection, soft delete
+- **Calendar** — read-only Month/Week/Day views, linking into Hearings
+  for edits
+- **Global Search** — live, client-side search across case number,
+  parties, charge, date, and status
+- **Reports** — date-scoped reports with Status and Hearing Type
+  breakdowns, plus CSV export
+- **Word (DOCX) Export** — Court Calendar export in four modes (This
+  Hearing / Date / Week / Month), matching the branch's official
+  reference document format
+- **Activity Log** — an audit trail of every significant action in the
+  system
+- **Archive & Case Lifecycle Management** — a restorable soft-archive
+  state for hearings, separate from delete, excluded from active views
+  by default
+- **Backup & Restore** — full-system JSON export/import for manual
+  backups, disaster recovery, and migration between Firebase projects
+- **Role-Based Access Control** — four built-in roles (Administrator,
+  Branch Clerk, Encoder, Read Only), enforced in both the UI and
+  Firestore Security Rules
+- Responsive layout (desktop/tablet/phone) and keyboard/screen-reader
+  accessibility throughout
+
+## Roadmap
+
+See **RELEASE_v1.0.0.md** for the full roadmap. In brief: v1.0.x is
+reserved for bug fixes only; v1.1.0 is where any new, additive features
+would be considered; v2.0.0 is reserved for anything that would require
+revisiting the current architecture (e.g. a data volume large enough to
+need pagination, or a move off GitHub Pages).
+
+---
+
+## Docket Management System — Milestone 1: Project Setup
 
 This milestone only proves the foundation works: Firebase connects, Firestore
 accepts reads/writes, and the site deploys on GitHub Pages. No login, no
