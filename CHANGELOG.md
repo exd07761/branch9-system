@@ -4,6 +4,379 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — IM-6B: Status Derivation
+
+First implementation milestone after Phase 0's full architecture freeze
+(all 19 decisions Accepted/Accepted Risk, none Deferred). Implements the
+behavior Decisions 008 and 016 describe, now that both are resolved.
+Additive only — no migration code, no UI changes, no changes to any
+accepted ADR.
+
+**Added**
+- `js/hearings-data.js`: `getCaseStatusHistory(caseId)` — derives a
+  Case's status history by reading its linked Hearings (via the
+  existing `getHearingCaseRowsForCase()`, then each row's parent
+  Hearing document), sorted chronologically by `hearingDateTime`. This
+  IS Decision 008's Option (b) — no separate history log exists
+  anywhere; this function computes history fresh from the Hearing
+  records each time it's called. Excludes soft-deleted Hearings,
+  includes archived ones (archiving is a view-layer state, not data
+  removal — an archived Hearing is still real history). Read-only; does
+  not write to `cases`, `hearings`, or `hearingCases`.
+- `js/cases-data.js`: `applyDerivedCurrentStatus(caseId, currentStatus, currentStatusDate)`
+  — writes an already-derived status onto a Case. No-op (no write at
+  all, not even audit fields) if the status hasn't actually changed,
+  mirroring `saveCase()`'s existing Decision 007 rule. Deliberately
+  dates the change to the source Hearing's own `hearingDateTime` rather
+  than `serverTimestamp()` — a derived status change is dated to when
+  the procedure actually happened, not to whenever this function
+  happened to run. This is a different (and, for this write path,
+  correct) meaning for the same field than `saveCase()`'s manual-edit
+  path uses, which has no hearing date to attach to and keeps using
+  `serverTimestamp()`.
+- `js/case-status-derivation.js` (new file) — the orchestration layer
+  tying the two together, so neither data file has to import the
+  other in both directions:
+  - `deriveCurrentStatusFromHistory(history)` — pure, no Firestore
+    access: the chronologically last entry in a status history is the
+    derived current status/date, per Decision 016 (a Hearing's status
+    represents the procedure being conducted at that hearing, advancing
+    only on a genuine stage change — resolved via Clerk interview).
+    Tested against synthetic data before delivery (empty history, single
+    entry, multi-entry ordering) — see conversation for output.
+  - `refreshCaseStatusFromHearings(caseId)` — orchestrates history →
+    derive → apply. A Case with no linked Hearings yet is left
+    completely untouched (no write, nothing cleared) — "no history yet"
+    is not treated as "no status."
+
+**Verified (not assumed) before delivery**
+- The filter/sort logic inside `getCaseStatusHistory()` was tested in
+  isolation against synthetic hearing records: soft-deleted entries are
+  excluded entirely, chronological ordering is correct, and an entry
+  with no usable date sorts last rather than breaking the ordering or
+  silently disappearing.
+- `deriveCurrentStatusFromHistory()` was tested against an empty
+  history, a single-entry history, and a multi-entry history — all
+  behaved as documented.
+
+**Known limitation, named rather than silently handled:** if two
+Hearings linked to the same Case share the exact same
+`hearingDateTime` — observed in real production data during IM-5 (case
+7009) — which one is treated as "later" depends on query result order,
+which Firestore does not guarantee stable. No business rule exists to
+break such a tie, so none is invented here.
+
+**Not implemented (by design — see `DECISIONS_v1.1.md`)**
+- No caller anywhere invokes `refreshCaseStatusFromHearings()` yet —
+  same posture as IM-6's `setHearingCaseLink()`, which also shipped
+  with zero callers. Wiring this into an actual trigger point (a
+  Hearing save, a migration run, a manual recompute action) is future
+  work.
+- No migration code — IM-7's scope, not this milestone's.
+- No UI changes anywhere.
+- No status-transition validation (never-backwards/never-skips/plea-
+  bargaining-once) — that remains separate future work, not part of
+  status *derivation*.
+
+**Not changed:** every existing Hearing/hearingCases/activityLogs/users/
+systemStatus/cases document, every Firestore Security Rule, every ADR in
+`DECISIONS_v1.1.md`, and every other existing file.
+
+**Files confirmed byte-identical:** every existing file except
+`js/hearings-data.js` and `js/cases-data.js` (both additive), plus one
+new file, `js/case-status-derivation.js`.
+
+## [Unreleased] — IM-6: Hearing↔Case Structural Linkage
+
+Sixth milestone of Phase 1 implementation (IM-5 was an evidence-review/
+ADR milestone with no code, so has no entry here). Approved narrowly,
+per explicit scope from review: establish Hearing↔Case references,
+introduce linkage fields, preserve referential integrity, prepare the
+schema for migration — and nothing more. Explicitly out of scope and
+not present anywhere in this milestone: deriving or modifying
+`currentStatus`, any workflow-transition logic, any inference from
+`status`/`hearingType`/`section`, and no implicit resolution of
+Decisions 016/017/018 (all three remain Deferred, untouched by this
+milestone).
+
+**Added**
+- `js/hearings-data.js`: `caseId` (optional) on `hearingCases` rows —
+  absent on every row that existed before this milestone, and stays
+  absent until explicitly set. Three new functions, and nothing else
+  changed in this file:
+  - `setHearingCaseLink(hearingCaseId, caseId)` — writes the reference,
+    after confirming (referential integrity) that the target Case
+    actually exists via `cases-data.js`'s new `caseExists()`. Throws
+    rather than writing a dangling reference if it doesn't.
+  - `clearHearingCaseLink(hearingCaseId)` — clears a reference back to
+    `null`.
+  - `getHearingCaseRowsForCase(caseId)` — one-shot (not live) lookup of
+    every `hearingCases` row currently linked to a Case.
+  None of the three read, derive, or write `currentStatus` or
+  `currentStatusDate`, and none read `status`, `hearingType`, or
+  `section`.
+- `js/cases-data.js`: `caseExists(caseId)` — a small existence check,
+  added so `hearings-data.js` never has to read the `cases` collection
+  directly, preserving the one-file-per-collection convention. Also
+  corrected one now-stale comment (previously cited Decision 015 as a
+  reason a field was withheld; Decision 015 was resolved Accepted in
+  IM-5, so the note was updated to cite Decision 016 alone, which is
+  what actually still applies).
+
+**Verified (not assumed) before delivery**
+- The existing `hearingCases` Firestore Security Rule already gates by
+  action (`create`/`update`/`delete` via `canEditHearings()`), not by
+  specific field names — so the new `caseId` field needed **no**
+  Firestore rule change. Confirmed by reading the current rule, not
+  assumed.
+- `backup-data.js` already backs up and restores `hearingCases`
+  documents generically (whole-document, field-agnostic) — so `caseId`
+  is automatically included in future backups with **no** change to
+  that file either.
+
+**Not implemented (by design — see `DECISIONS_v1.1.md`)**
+- No UI anywhere for setting or viewing a link — this milestone is
+  data-access-layer only, same discipline IM-1 used (data layer first,
+  UI deferred). Nothing currently calls `setHearingCaseLink()`.
+- No cascading behavior if a linked Case is later archived or
+  soft-deleted — the reference is left exactly as it is; Cases are
+  never hard-deleted, so nothing can dangle as a result.
+- No automatic linking during Hearing save — linking is only ever
+  explicit, via a direct call to `setHearingCaseLink()`.
+
+**Not changed:** every IM-1/IM-2/IM-3/IM-4 file and document not listed
+above, every existing Hearing/hearingCases/activityLogs/users/
+systemStatus/cases document, and every Firestore Security Rule.
+
+**Files confirmed byte-identical:** every existing file except
+`js/hearings-data.js` and `js/cases-data.js`, both additive changes
+described above (full diffs available on request).
+
+## [Unreleased] — IM-4: Migration Design & Non-Destructive Dry Run
+
+Fourth milestone of Phase 1 implementation (Decision 005). Does not touch
+IM-1/IM-2/IM-3 files at all. No Firestore access of any kind — this
+milestone never connects to the database, reads only a local file the
+user selects themselves.
+
+**A scoping note, not a scope change:** the roadmap describes this
+milestone as running the dry run "once" and producing "a written
+report." Since this app's data is real court records, a one-time report
+generated by running it against a copy of production data isn't the
+right shape — instead, this milestone delivers the reusable tool itself.
+The Clerk/developer runs it, as many times as useful, against whichever
+Backup & Restore export is current, entirely inside their own browser
+tab. Nothing is uploaded anywhere as part of building or reviewing this
+tool.
+
+**Added**
+- `migration-dryrun.html` + `js/migration-dryrun.js` — standalone
+  developer tool, same standing as `diagnostics.html` (not linked from
+  anywhere in the Clerk-facing app, no `requireAuth()`, not part of the
+  nav). Carries an explicit on-page notice, added before freeze at
+  review request: analysis-only, no migration, no Firestore calls of
+  any kind, sole purpose is generating evidence for the IM-5 Business
+  Validation Checkpoint (Decisions 009/015/016/017/018 — the original
+  notice omitted Decision 009 by mistake, now corrected). Reads a
+  Backup & Restore export file (`backup.html`) and reports:
+  - How many candidate Cases reconstruct cleanly vs. need a human look
+    (inconsistent charge/dateFiled across a case's hearings, missing
+    hearingDateTime, empty status), per Decision 005's migration
+    strategy.
+  - Direct evidence for Decision 015 (Hearing-to-Case cardinality): how
+    many hearings have more than one case row attached, with examples.
+  - Direct evidence for Decision 009's still-pending validation: real
+    frequency tables of the `status`/`hearingType`/`section` values
+    actually in use.
+  - Targeted evidence for Decisions 017/018 (Plea Bargaining /
+    Provisionally Dismissed placement): every hearing whose `status` or
+    `hearingType` mentions plea bargaining, provisional status, or
+    dismissal, for manual inspection.
+  - A downloadable full JSON report for archiving alongside whatever
+    IM-5 discussion it informs.
+  - Tested against synthetic sample data (not real records) to confirm
+    the grouping/reconstruction logic behaves as intended before
+    delivery — multi-hearing case grouping, inconsistent-field
+    detection, orphaned-row and missing-case-number exclusion, and
+    keyword detection all verified.
+
+**Not implemented (by design)**
+- No "run migration" button anywhere on this page — it never writes to
+  Firestore, staging or production. That's IM-7, after IM-5 closes.
+- Does not resolve Decisions 015/016/017/018 itself — it produces
+  evidence toward the IM-5 Business Validation Checkpoint, not a
+  decision.
+
+**Not changed:** every IM-1/IM-2/IM-3 file, every existing Hearing/
+hearingCases/activityLogs/users/systemStatus/cases document, page, and
+Firestore rule.
+
+**Files confirmed byte-identical:** every existing file except the two
+new files added above.
+
+## [Unreleased] — IM-3: Backup & Restore Versioning
+
+Third milestone of Phase 1 implementation (Decision 011). Does not touch
+IM-1's or IM-2's files at all. No existing Hearing/hearingCases document,
+page, or Firestore rule changed.
+
+**A finding that shaped this milestone's actual scope:** the version
+marker Decision 011 called for already existed in v0.9.4
+(`backupVersion`/`systemVersion`, both stamped on export, validated on
+restore, and already displayed to the user before they confirm a
+restore) — so there was nothing to invent there. What was actually
+missing: `cases` (added in IM-1) wasn't in `backup-data.js`'s collection
+list yet, so a backup taken today would have silently excluded all Case
+data. That's the real gap this milestone closes.
+
+**Added**
+- `js/backup-data.js`: `cases` added to `ALL_COLLECTIONS` (now backed up
+  and restored, `"upsert"` policy — same as `hearings`/`hearingCases`/
+  `users`) and `BACKUP_VERSION` bumped `"1.0"` → `"1.1"` to mark that the
+  backup schema changed. `ALL_COLLECTIONS` is now exported (was
+  file-local) so `validateBackupFile()` can compute a new
+  `summary.missingCollections` — any collection this app currently
+  tracks that a loaded file doesn't have (e.g. `cases`, in any backup
+  from before this milestone). Verified (not assumed): the existing
+  Timestamp (de)serialization is field-name-agnostic — it already
+  handles `currentStatusDate` correctly with no code change, since it
+  detects Timestamps structurally, not by field name.
+- `js/backup.js`: renders `missingCollections` in both the
+  file-validation summary and the restore confirmation dialog — e.g.
+  "This backup does not include: cases (created before this backup
+  format tracked it)." A 1.0 backup remains fully valid and restorable;
+  this only makes explicit what it won't bring back, per
+  `DECISIONS_v1.1.md` Decision 011's "clear, honest messaging"
+  requirement. No new CSS — reuses the existing `.muted` class rather
+  than adding a new one.
+
+**Not changed:** every IM-1/IM-2 file (`js/cases-data.js`,
+`js/permissions.js`, `README.md`, `cases.html`, `js/cases.js`, and the
+Cases nav link on all 9 pages), every existing Hearing/hearingCases/
+activityLogs/users/systemStatus document, page, and Firestore rule.
+
+**Flagged, not fixed (out of this milestone's scope):**
+`js/backup.js`'s `SYSTEM_VERSION` constant is still hardcoded to
+`"0.9.4"`, even though the app's actual `VERSION` file now reads
+`"1.0.0"` — a pre-existing discrepancy from before Phase 1, unrelated to
+the version-marker mechanism this milestone addresses. Left as-is rather
+than silently fixed while this file was already open; worth a
+one-line fix in a future milestone if confirmed as a genuine defect.
+
+**Files confirmed byte-identical:** every existing file except
+`js/backup-data.js` and `js/backup.js`, both additive-only changes
+described above.
+
+## [Unreleased] — IM-2: Case Management UI
+
+Second milestone of Phase 1 implementation. Adds a standalone Case
+Management page (add/edit/list/archive). Does not touch IM-1's
+`cases-data.js`, `permissions.js`, or `README.md` — those remain exactly
+as reviewed and frozen. No existing Hearing/hearingCases document, page
+logic, or Firestore rule changed.
+
+**Added**
+- `cases.html` + `js/cases.js` — new page, mirroring `hearings.html`/
+  `hearings.js`'s shell, form, table, and permission-gating conventions.
+  Add/Edit/Archive Case, required-field validation (Case No., Current
+  Status), duplicate-case-number warning (same UX as Hearings' — a
+  `confirm()` prompt, not a hard block), status dropdown limited to the
+  confirmed workflow sequence only (Case Filed through Decided — Plea
+  Bargaining and Provisionally Dismissed intentionally excluded; their
+  placement is Decision 017/018, still Deferred).
+- A "Cases" nav link (`data-permission="cases.view"`), added to every
+  existing page's nav bar (`home.html`, `hearings.html`, `calendar.html`,
+  `activity.html`, `reports.html`, `users.html`, `archived.html`,
+  `backup.html`) and to `cases.html` itself — one line inserted per file,
+  confirmed by diff against the prior release to be the only change to
+  each of those 8 files.
+
+**Not implemented (by design — see `DECISIONS_v1.1.md`)**
+- No Hearing linkage, no status-transition validation, no migration —
+  same exclusions as IM-1, still scheduled for IM-6/IM-7.
+- No search bar, no Quick View modal, no Export — narrower than
+  `hearings.html` on purpose; nothing here prevents adding them later.
+- No "Archived Cases" page (would mirror `archived.html`) — Archive is
+  one-way from this page's list for now; `restoreCase()` already exists
+  in `cases-data.js` (IM-1) for whenever that page is built.
+- The duplicate-case-number check is implemented inside `cases.js`
+  itself (scanning the already-loaded in-memory list) rather than as a
+  new `cases-data.js` export — deliberately, to avoid any diff to the
+  frozen IM-1 file.
+
+**Not changed:** `js/cases-data.js`, `js/permissions.js`, `README.md`
+(IM-1's files — no diff to any of them in this milestone), every
+existing Hearing/hearingCases/activityLogs/users/systemStatus document
+and Firestore rule.
+
+**Files confirmed byte-identical:** every existing file except the 8
+listed above (one inserted nav line each, confirmed by diff).
+
+## [Unreleased] — IM-1: Case Collection Foundation
+
+First milestone of Phase 1 implementation under the v1.1 architecture
+redesign (see `DECISIONS_v1.1.md`, `IMPLEMENTATION_ROADMAP.md`). Adds
+only the Case collection's data-access foundation. Not a redesign, not
+a migration, no existing collection's schema changed, no existing page
+or Hearing document touched. **Versioning note:** left under
+`[Unreleased]` rather than assigned a version number — IM-1 ships no
+page and nothing yet imports `cases-data.js`, so there's no version
+string anywhere that needs to reference it yet, and whether each
+Phase 1 milestone gets its own version bump (as v0.9.0–v0.9.9 each did)
+or the whole phase is versioned once at the end is an open question,
+not decided here.
+
+**Added**
+- New Firestore collection: `cases` (only new collection — `hearings`,
+  `hearingCases`, `activityLogs`, `users`, and `systemStatus` are
+  untouched, no migration, no schema changes to any of them). This is
+  the new Case aggregate root from the v1.1 redesign (Decision 001) —
+  a separate concept from a `hearingCases` row; see `cases-data.js`'s
+  header comment for the full distinction.
+- `js/cases-data.js` — the only file that reads or writes `cases`.
+  Exports `subscribeToCaseRecords()`, `subscribeToArchivedCaseRecords()`,
+  `saveCase()`, `deleteCase()`, `archiveCase()`, `restoreCase()`, and
+  `isActiveCase()`, matching `hearings-data.js`'s naming and
+  `writeBatch` pattern exactly — except the two live-listener functions,
+  which are named `...CaseRecords()` rather than `...Cases()` to stay
+  clearly distinct from `hearings-data.js`'s existing `subscribeToCases()`
+  (a different concept — a `hearingCases` row, not the new Case
+  aggregate root). No UI code in this file.
+- `js/permissions.js` — added `CASES_VIEW`/`CASES_CREATE`/
+  `CASES_EDIT`/`CASES_DELETE` permissions, mapped into the existing
+  role matrix with the same role sets as the equivalent `HEARINGS_*`
+  permissions. Archiving a Case reuses the existing `ARCHIVE_MANAGE`
+  permission rather than adding a new one. No page checks these
+  permissions yet.
+- `README.md` — added the `cases` collection's Firestore Security Rule,
+  and `canEditCases()`/`canDeleteCases()` helper functions (same role
+  sets as their Hearings equivalents). Reuses the existing
+  `isSoftDelete()`/`isArchiveChange()`/`canArchiveHearings()` helpers
+  as-is.
+
+**Not implemented (by design — see `DECISIONS_v1.1.md`)**
+- Case status history / transition log (Decision 008 is Deferred)
+- Any reference between a Case and a Hearing document (Decision 002/015
+  is still Deferred)
+- Migration or backfill from existing `hearingCases` documents
+  (scheduled for IM-4/IM-7)
+- Status-transition validation — never-backwards/never-skips/plea-
+  bargaining-once (scheduled for IM-6, once Decisions 015–018 resolve)
+- Any Case Management UI or page (scheduled for IM-2)
+- Activity logging calls — there is no page controller yet to call
+  `logActivity()` from; `cases-data.js` itself never calls it, matching
+  the existing convention that data-access files never log activity
+  themselves
+
+**Not changed:** every existing collection's schema, every existing
+page, every existing Security Rule (`hearings`, `hearingCases`,
+`activityLogs`, `users`, `systemStatus` rules are byte-identical to
+v1.0.0).
+
+**Files confirmed byte-identical:** every existing file in the
+repository except `js/permissions.js` and `README.md`, both of which
+received additive-only changes described above.
+
 ## [1.0.0] — Stable Release
 
 The first stable release of Branch9 Docket Management System. This is a
