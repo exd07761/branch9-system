@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docket Management System — v1.1 Migration Dry Run</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2316233A%22/%3E%3Cline%20x1%3D%2232%22%20y1%3D%2212%22%20x2%3D%2232%22%20y2%3D%2248%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Cline%20x1%3D%2215%22%20y1%3D%2220%22%20x2%3D%2249%22%20y2%3D%2220%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Ccircle%20cx%3D%2249%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Cline%20x1%3D%2221%22%20y1%3D%2250%22%20x2%3D%2243%22%20y2%3D%2250%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/styles.css?v=1.0.0">
+</head>
+<body>
+
+  <main class="wrap wrap-wide">
+    <header class="header">
+      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
+      <h1>v1.1 Migration Dry Run</h1>
+      <p class="sub">
+        IM-4 (IMPLEMENTATION_ROADMAP.md) — reads a Backup &amp; Restore export
+        file and reports how existing Hearings/Cases would reconstruct into
+        the new Case entity, without writing anything anywhere. Not part of
+        the Clerk-facing application and not linked from anywhere in it — same
+        kind of standalone developer tool as <code>diagnostics.html</code>.
+      </p>
+      <p class="form-error" role="alert" style="color: var(--ink); font-weight: 600;">
+        This is an analysis-only tool. It performs no migration of any
+        kind, makes no Firestore calls of any kind (not a single read),
+        and exists solely to generate evidence for the IM-5 Business
+        Validation Checkpoint. There is nothing on this page that writes,
+        migrates, or modifies anything, anywhere.
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>What this does — and does not — do</h2>
+      <ul>
+        <li>Reads a <code>.json</code> file you choose from your own computer,
+          entirely in this browser tab. Nothing is uploaded anywhere.</li>
+        <li>Never connects to Firestore. Never writes anything, anywhere —
+          not to production, not to a staging project, not to this file.
+          There is no "run migration" button on this page, on purpose.</li>
+        <li>Produces evidence to help resolve the still-Pending Business
+          Validation Checkpoint (IM-5) — Decisions 009, 015, 016, 017, and
+          018 in <code>IMPLEMENTATION_READY.md</code> — with real data from
+          your own records, and to surface anything that won't reconstruct
+          cleanly before any real migration (IM-7) is designed. That is the
+          sole purpose of this page.</li>
+        <li>Use a real Backup &amp; Restore export (<code>backup.html</code>)
+          as the input file — it already contains <code>hearings</code> and
+          <code>hearingCases</code> in the shape this tool expects.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>1. Choose a backup file</h2>
+      <input type="file" id="fileInput" accept="application/json,.json">
+      <p class="form-error" id="fileError" role="alert"></p>
+    </section>
+
+    <div id="reportRoot"></div>
+
+    <footer class="app-footer">Created by Jordan Panganiban</footer>
+  </main>
+
+  <script type="module" src="js/migration-dryrun.js?v=1.0.0"></script>
+
+</body>
+</html>
