@@ -4,6 +4,27 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — Bug fix: `migration-dryrun.js` crashed when imported by `migration-execute.js`
+
+Found during IM-7A's first real execution. `migration-dryrun.js`'s
+file-input wiring ran unconditionally at module-import time, assuming
+`#fileInput` (and `#downloadBtn`, inside `renderReport()`) always exist.
+`migration-execute.js` imports this file's `buildAnalysis()` but has
+neither element on its own page (`migration-execute.html`), so opening
+it threw `TypeError: Cannot read properties of null (reading
+'addEventListener')` before anything else could run.
+
+**Fixed:** both `addEventListener` call sites are now guarded behind an
+element-existence check. Confirmed the original code reproduces the
+exact reported error in a minimal DOM stub, and that the fixed code
+does not, before and after this change. `buildAnalysis()`'s own
+behavior is unchanged — re-verified against the same sample data used
+in earlier testing, with identical output.
+
+**Changed:** `js/migration-dryrun.js` only. No other file touched; no
+change to any analysis or migration logic, `DECISIONS_v1.1.md`, or
+`IMPLEMENTATION_READY.md`.
+
 ## [Unreleased] — IM-7A: Pilot Migration Tool
 
 **Reviewed and frozen.** Final implementation review confirmed every core
