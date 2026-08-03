@@ -4,6 +4,115 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — IM-7A: Pilot Migration Tool
+
+**Reviewed and frozen.** Final implementation review confirmed every core
+production-safety requirement — explicit operator action, no automatic
+execution, no destructive writes, the idempotency guard, manifest
+generation, and pilot-mode support — is implemented and verified working.
+Two non-blocking gaps were found against `IM7_PLANNING.md` and are tracked
+as follow-up, not reopened here: (1) `buildAnalysis()`'s
+`caseNoUnderMultipleTypes` signal (same-case-number-under-different-
+case-type) is computed but not yet surfaced to the operator, the way
+ambiguous groups already are — recommended before the first *full*
+(non-pilot) run; (2) the current `cases` collection count isn't displayed
+during analysis, though the idempotency guard already covers the
+underlying safety goal that check was meant to protect. No production
+files outside this milestone's stated scope were modified; no
+architecture decisions were revisited.
+
+First implementation milestone after `IM7_PLANNING.md` was reviewed and
+approved. Implements only the pilot migration tool — no full production
+migration was run, no rollback tooling exists yet, and no ADR was
+changed. Reuses existing, already-tested functions wherever possible
+rather than re-implementing their logic.
+
+**Added**
+- `migration-execute.html` + `js/migration-execute.js` — standalone,
+  write-capable migration tool. Requires sign-in and the
+  Administrator-only `BACKUP_MANAGE` permission (the same one
+  `backup.html` already gates behind — no new permission invented).
+  Not linked from the Clerk-facing app or its nav. Opening the page
+  does nothing by itself: analysis and migration both require an
+  explicit button click, and migration additionally requires confirming
+  a dialog before any write occurs.
+  - **Analysis (read-only):** reads all `hearings`/`hearingCases` live
+    and reuses `migration-dryrun.js`'s `buildAnalysis()` (see below) to
+    group them into candidate Cases, exactly as the read-only dry-run
+    tool already does — against live data instead of a backup file.
+  - **Idempotency guard:** before migrating a candidate group, every
+    member row is checked for an already-set `caseId`. If any member
+    already has one, the whole group is skipped as "already migrated" —
+    including a partially-linked group, deliberately, since silently
+    finishing a partial group risks creating a second Case for a
+    real-world case already linked to a different one. This also makes
+    a re-run after an interrupted run safe: only not-yet-migrated groups get
+    processed.
+  - **Ambiguous groups are skipped, not auto-created** with a best
+    guess — recorded in the manifest for manual creation via
+    `cases.html` instead.
+  - **Pilot limit:** an optional cap (a plain number input, blank =
+    unlimited) on how many groups get migrated in one run.
+  - **Migration sequence per eligible group:** `createCaseShell()` →
+    `setHearingCaseLink()` for each linkable member row →
+    `refreshCaseStatusFromHearings()` → `logActivity()` → recorded in
+    the in-memory manifest. One group's failure (caught per-group) does
+    not stop the rest of the run — recorded under "errors" instead.
+  - **Downloadable migration-run manifest** (JSON): every created
+    Case's id/identity/linked rows/derived status, every skipped group
+    (already-migrated, ambiguous, or not-reached-this-run under a
+    pilot limit) with its reason, and every error.
+  - **Post-run summary** on-page: cases created, hearing links created,
+    groups skipped (broken out by reason), errors encountered — exactly
+    the categories requested.
+- `js/hearings-data.js`: two new one-shot, read-only bulk fetches —
+  `getAllHearings()` and `getAllHearingCaseRows()` — used only to build
+  `buildAnalysis()`'s input from live data. Neither filters or writes
+  anything.
+- `js/cases-data.js`: `createCaseShell(caseData)` — creates a Case with
+  identity fields only; `currentStatus`/`currentStatusDate` are
+  deliberately left unset rather than given a placeholder, so the
+  immediately-following `refreshCaseStatusFromHearings()` call is what
+  actually determines them, from the Case's real Hearing history.
+- `js/migration-dryrun.js`: **one-line change** — `buildAnalysis()` is
+  now `export`ed. Nothing else in this file changed; it still only ever
+  reads a local file and never touches Firestore. This lets
+  `migration-execute.js` reuse the exact same, already-tested
+  grouping/ambiguity logic against live reads instead of duplicating it.
+
+**Verified (not assumed) before delivery**
+- The live-data adapter (converting a Firestore Timestamp into the
+  tagged shape `buildAnalysis()` expects from a backup file) was tested
+  end-to-end against synthetic data standing in for a live read: a
+  clean 2-hearing group, a group whose only hearing was soft-deleted
+  (correctly flagged ambiguous by `buildAnalysis()` AND correctly
+  excluded from linkable rows), and a group with a pre-existing `caseId`
+  (correctly detected as already migrated) — all categorized correctly.
+- The deterministic sort order and pilot-limit slicing were tested in
+  isolation against synthetic candidates — correct in both cases.
+
+**Not implemented (by design — see `IM7_PLANNING.md`)**
+- No rollback tooling — that's explicitly out of this milestone's scope.
+  The pre-migration backup this tool repeatedly asks the operator to
+  confirm is the only safety net right now.
+- No full production migration was run as part of building this.
+- No staging/test Firebase project was stood up — `IM7_PLANNING.md`'s
+  §7 finding about this gap still stands, unaddressed.
+- The `cases.js` status-fallback wrinkle (`IM7_PLANNING.md` §2/§9) is
+  still unresolved — the post-run report explicitly calls out any
+  created case with no derived status, since that's exactly the case
+  that would hit it, but nothing here fixes the underlying UI default.
+
+**Not changed:** every existing Hearing/hearingCases/activityLogs/users/
+systemStatus/cases document, every Firestore Security Rule, every ADR in
+`DECISIONS_v1.1.md`, `IMPLEMENTATION_READY.md`, and every other existing
+file (including `migration-dryrun.html`, unchanged).
+
+**Files confirmed byte-identical:** every existing file except
+`js/hearings-data.js`, `js/cases-data.js`, and `js/migration-dryrun.js`
+(all additive/minimal), plus two new files,
+`migration-execute.html` and `js/migration-execute.js`.
+
 ## [Unreleased] — IM-6B: Status Derivation
 
 First implementation milestone after Phase 0's full architecture freeze

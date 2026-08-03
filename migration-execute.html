@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docket Management System — v1.1 Migration (Pilot)</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2316233A%22/%3E%3Cline%20x1%3D%2232%22%20y1%3D%2212%22%20x2%3D%2232%22%20y2%3D%2248%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Cline%20x1%3D%2215%22%20y1%3D%2220%22%20x2%3D%2249%22%20y2%3D%2220%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Ccircle%20cx%3D%2249%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Cline%20x1%3D%2221%22%20y1%3D%2250%22%20x2%3D%2243%22%20y2%3D%2250%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/styles.css?v=1.0.0">
+</head>
+<body>
+
+  <main class="wrap wrap-wide">
+    <header class="header">
+      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
+      <h1>v1.1 Migration — Pilot Tool</h1>
+      <p class="sub">
+        IM-7A (IM7_PLANNING.md) — creates real Case documents and links
+        existing Hearing case rows to them. Not part of the Clerk-facing
+        application, not linked from anywhere in it, and requires
+        Administrator sign-in. Unlike <code>migration-dryrun.html</code>,
+        this tool DOES write to Firestore — read every notice below
+        before using it.
+      </p>
+      <p class="form-error" role="alert" style="color: var(--ink); font-weight: 600;">
+        This tool performs real writes once you explicitly confirm a run.
+        Opening this page does nothing by itself — no analysis and no
+        migration happen automatically. Take a fresh backup
+        (<code>backup.html</code>) before running anything here. No
+        rollback tooling exists yet (that's a separate, later milestone) —
+        the only way back right now is that backup.
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>Before you start</h2>
+      <ul>
+        <li>Take a fresh backup via <code>backup.html</code> first. This
+          tool cannot verify that you did — it will ask you to confirm it
+          before the first write, and that confirmation is the only
+          check that exists.</li>
+        <li>This creates <code>cases</code> documents and sets
+          <code>caseId</code> on existing <code>hearingCases</code> rows.
+          It never modifies or deletes any <code>hearings</code> or
+          existing <code>hearingCases</code> field other than adding that
+          one reference.</li>
+        <li>Safe to re-run: anything already migrated in a prior run is
+          detected and skipped automatically, rather than duplicated.</li>
+        <li>Use the pilot limit below to migrate a small number of cases
+          first, review the results, then run again for the rest.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>1. Analyze current data</h2>
+      <p class="muted">Read-only. No writes happen in this step.</p>
+      <button type="button" class="btn-secondary" id="analyzeBtn">Analyze Current Data</button>
+      <div id="analysisSummary"></div>
+    </section>
+
+    <section class="card" id="runSection" hidden>
+      <h2>2. Run migration</h2>
+      <div class="field">
+        <label>Pilot limit (leave blank to migrate everything eligible)</label>
+        <input type="number" id="limitInput" min="1" step="1" placeholder="e.g. 5">
+      </div>
+      <button type="button" class="btn-primary" id="runBtn">Run Migration</button>
+      <p class="form-error" id="runError" role="alert"></p>
+    </section>
+
+    <div id="reportRoot"></div>
+
+    <footer class="app-footer">Created by Jordan Panganiban</footer>
+  </main>
+
+  <script type="module" src="js/migration-execute.js?v=1.0.0"></script>
+
+</body>
+</html>
