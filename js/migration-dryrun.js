@@ -320,38 +320,54 @@ function renderReport(analysis) {
     </section>
   `;
 
-  document.getElementById("downloadBtn").addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(analysis, null, 2)], { type: "application/json" });
-    downloadBlob(blob, `migration-dryrun-report-${new Date().toISOString().slice(0, 10)}.json`);
-  });
+  const downloadBtn = document.getElementById("downloadBtn");
+  if (downloadBtn) {
+    downloadBtn.addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(analysis, null, 2)], { type: "application/json" });
+      downloadBlob(blob, `migration-dryrun-report-${new Date().toISOString().slice(0, 10)}.json`);
+    });
+  }
 }
 
 // --- File input --------------------------------------------------------
+//
+// Bug fix (IM-7A first execution): this file is now also imported by
+// migration-execute.js (for its exported buildAnalysis()), which has no
+// #fileInput element on its own page — the code below used to run
+// unconditionally at import time and threw
+// "Cannot read properties of null (reading 'addEventListener')" as a
+// result. Guarded the same way below: this file-input wiring only runs
+// on a page that actually has a #fileInput element (i.e.
+// migration-dryrun.html itself). No change to buildAnalysis() or any
+// analysis/migration logic — this is the only change in this file.
 
-document.getElementById("fileInput").addEventListener("change", (e) => {
-  const file = e.target.files && e.target.files[0];
-  const errorEl = document.getElementById("fileError");
-  document.getElementById("reportRoot").innerHTML = "";
-  errorEl.textContent = "";
-  if (!file) return;
+const fileInput = document.getElementById("fileInput");
+if (fileInput) {
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    const errorEl = document.getElementById("fileError");
+    document.getElementById("reportRoot").innerHTML = "";
+    errorEl.textContent = "";
+    if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    let parsed;
-    try {
-      parsed = JSON.parse(reader.result);
-    } catch (err) {
-      errorEl.textContent = `File is not valid JSON (${err.message}).`;
-      return;
-    }
-    if (!parsed || typeof parsed !== "object" || !parsed.collections) {
-      errorEl.textContent = 'This doesn\'t look like a Backup & Restore export — expected a "collections" object.';
-      return;
-    }
-    renderReport(buildAnalysis(parsed));
-  };
-  reader.onerror = () => {
-    errorEl.textContent = "Could not read the selected file.";
-  };
-  reader.readAsText(file);
-});
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(reader.result);
+      } catch (err) {
+        errorEl.textContent = `File is not valid JSON (${err.message}).`;
+        return;
+      }
+      if (!parsed || typeof parsed !== "object" || !parsed.collections) {
+        errorEl.textContent = 'This doesn\'t look like a Backup & Restore export — expected a "collections" object.';
+        return;
+      }
+      renderReport(buildAnalysis(parsed));
+    };
+    reader.onerror = () => {
+      errorEl.textContent = "Could not read the selected file.";
+    };
+    reader.readAsText(file);
+  });
+}
