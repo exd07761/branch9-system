@@ -512,3 +512,37 @@ export async function getCaseStatusHistory(caseId) {
 
   return history;
 }
+
+// --- IM-7A: Pilot Migration support (read-only bulk fetches) --------------
+//
+// The two functions below exist solely so js/migration-execute.js can
+// build the same { collections: { hearings, hearingCases } } shape that
+// migration-dryrun.js's buildAnalysis() already expects, from LIVE
+// Firestore reads instead of a backup file. Both are one-shot reads
+// (not subscribeToX live listeners) — a migration run reads a snapshot
+// of the data once, deliberately, rather than reacting to further
+// changes mid-run. Neither filters anything out (no active/archived/
+// deleted distinction here) — that filtering is buildAnalysis()'s job
+// (via its existing, unchanged logic) and getCaseStatusHistory()'s job
+// (above) for the actual status derivation. Both are read-only; neither
+// writes anything.
+
+/**
+ * Every hearingCases document, unfiltered. Used by migration-execute.js
+ * both to build buildAnalysis()'s input and to check each row's own
+ * `caseId` field directly for the idempotency guard (has this row
+ * already been migrated?).
+ */
+export async function getAllHearingCaseRows() {
+  const snapshot = await getDocs(hearingCasesCol);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+/**
+ * Every hearing document, unfiltered. Used by migration-execute.js to
+ * build buildAnalysis()'s input.
+ */
+export async function getAllHearings() {
+  const snapshot = await getDocs(hearingsCol);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+}

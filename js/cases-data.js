@@ -361,3 +361,51 @@ export async function applyDerivedCurrentStatus(caseId, currentStatus, currentSt
   await batch.commit();
   return true;
 }
+
+// --- IM-7A: Pilot Migration support ----------------------------------------
+
+/**
+ * Creates a new Case document with identity fields ONLY —
+ * `currentStatus`/`currentStatusDate` are deliberately left unset,
+ * rather than given a placeholder value. This exists specifically for
+ * migration: js/migration-execute.js calls this to create the shell,
+ * then immediately calls case-status-derivation.js's
+ * refreshCaseStatusFromHearings() (after linking hearings via
+ * setHearingCaseLink()) to derive the real status from the Case's
+ * actual Hearing history. Deliberately different from saveCase() (IM-1),
+ * which always requires and writes a currentStatus for a new Case —
+ * that's correct for a human filling out a form (they pick one), but
+ * wrong here: a migrated Case's real status should come from its
+ * Hearings, never from a placeholder that might not match reality.
+ *
+ * If a Case created this way is never successfully linked to any
+ * Hearing (or its Hearings yield nothing derivable), its `currentStatus`
+ * stays genuinely absent rather than defaulting to something that could
+ * be read as confidently correct. cases.js's edit form currently
+ * defaults an absent currentStatus to "Case Filed" when the dropdown
+ * renders — that is a pre-existing, separate, not-yet-resolved
+ * consideration (see IM7_PLANNING.md §2/§9), not something this
+ * function works around.
+ *
+ * @param {{caseType: string, caseNo: string, charge: string, dateFiled: string}} caseData
+ * @returns {Promise<string>} the new Case document's id
+ */
+export async function createCaseShell(caseData) {
+  const userEmail = currentUserEmail();
+  const caseRef = doc(casesCol);
+  const batch = writeBatch(db);
+  batch.set(caseRef, {
+    caseType: caseData.caseType || "",
+    caseNo: caseData.caseNo || "",
+    charge: caseData.charge || "",
+    dateFiled: caseData.dateFiled || "",
+    isDeleted: false,
+    isArchived: false,
+    createdAt: serverTimestamp(),
+    createdBy: userEmail,
+    updatedAt: serverTimestamp(),
+    updatedBy: userEmail,
+  });
+  await batch.commit();
+  return caseRef.id;
+}
