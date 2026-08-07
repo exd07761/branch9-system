@@ -40,9 +40,12 @@
 //   caseType, caseNo, charge, dateFiled  — identity fields, same names/
 //     shape as the existing hearingCases row fields (see hearings-data.js)
 //     so this stays recognizable rather than inventing new vocabulary
-//   currentStatus, currentStatusDate     — Decision 007; currentStatusDate
-//     only changes when currentStatus actually changes (see saveCase()
-//     below) — it is NOT "last saved," it's "last status change"
+//   currentStatus, currentStatusDate     — Decision 007. Originally a
+//     manually-set field written by saveCase() (IM-1/IM-2); superseded by
+//     Decision 016 (IM-6B) — as of the approved post-IM-8 product
+//     decision below, this pair is derived-only, written exclusively by
+//     applyDerivedCurrentStatus(), and saveCase() never touches it. It is
+//     NOT "last saved," it's "last (derived) status change."
 //   isDeleted, deletedAt, deletedBy      — soft delete, identical pattern
 //     to hearings-data.js
 //   isArchived, archivedAt, archivedBy, archiveReason — archive, identical
@@ -159,16 +162,18 @@ export function subscribeToArchivedCaseRecords(onChange) {
 /**
  * Create or update a Case document.
  *
- * currentStatusDate is intentionally NOT recomputed on every save the way
- * hearingDateTime is in hearings-data.js. It only changes when
- * currentStatus itself actually changes value — otherwise a routine edit
- * to, say, the charge text would incorrectly reset "when did this case's
- * status last change." On create, currentStatusDate is always set (the
- * case's first recorded status). On update, this reads the existing
- * document first to compare old vs. new currentStatus before deciding.
+ * Approved product decision (post-IM-8): currentStatus/currentStatusDate
+ * are a derived field pair, maintained exclusively by
+ * applyDerivedCurrentStatus() below (called from
+ * case-status-derivation.js's refreshCaseStatusFromHearings(), itself
+ * called from hearings.js after every Hearing save — IM-8). This
+ * function — the manual create/edit path from cases.js — never reads or
+ * writes either field, the same way createCaseShell() below already
+ * doesn't. A brand-new Case genuinely has no status until a Hearing is
+ * linked to it; that's an expected, valid state, not an omission.
  *
  * @param {string|null} caseId - null to create a new Case
- * @param {object} caseData - { caseType, caseNo, charge, dateFiled, currentStatus }
+ * @param {object} caseData - { caseType, caseNo, charge, dateFiled }
  * @returns {Promise<string>} the Case document's id
  */
 export async function saveCase(caseId, caseData) {
@@ -176,26 +181,14 @@ export async function saveCase(caseId, caseData) {
   const isNew = !caseId;
   const caseRef = isNew ? doc(casesCol) : doc(db, "cases", caseId);
 
-  let statusChanged = isNew;
-  if (!isNew) {
-    const existingSnap = await getDoc(caseRef);
-    const existingStatus = existingSnap.exists() ? existingSnap.data().currentStatus : undefined;
-    statusChanged = existingStatus !== caseData.currentStatus;
-  }
-
   const caseWrite = {
     caseType: caseData.caseType,
     caseNo: caseData.caseNo,
     charge: caseData.charge,
     dateFiled: caseData.dateFiled || "",
-    currentStatus: caseData.currentStatus,
     updatedAt: serverTimestamp(),
     updatedBy: userEmail,
   };
-
-  if (statusChanged) {
-    caseWrite.currentStatusDate = serverTimestamp();
-  }
 
   const batch = writeBatch(db);
 
@@ -372,20 +365,19 @@ export async function applyDerivedCurrentStatus(caseId, currentStatus, currentSt
  * then immediately calls case-status-derivation.js's
  * refreshCaseStatusFromHearings() (after linking hearings via
  * setHearingCaseLink()) to derive the real status from the Case's
- * actual Hearing history. Deliberately different from saveCase() (IM-1),
- * which always requires and writes a currentStatus for a new Case —
- * that's correct for a human filling out a form (they pick one), but
- * wrong here: a migrated Case's real status should come from its
- * Hearings, never from a placeholder that might not match reality.
+ * actual Hearing history. Originally written to be deliberately
+ * different from saveCase() (IM-1/IM-2), which at the time always
+ * required and wrote a manually-picked currentStatus for a new Case.
+ * The post-IM-8 product decision below (currentStatus/currentStatusDate
+ * are derived-only, never set by a human) means saveCase() now behaves
+ * the same way this function always has — both leave the pair unset on
+ * create, and only applyDerivedCurrentStatus() ever writes it.
  *
- * If a Case created this way is never successfully linked to any
- * Hearing (or its Hearings yield nothing derivable), its `currentStatus`
- * stays genuinely absent rather than defaulting to something that could
- * be read as confidently correct. cases.js's edit form currently
- * defaults an absent currentStatus to "Case Filed" when the dropdown
- * renders — that is a pre-existing, separate, not-yet-resolved
- * consideration (see IM7_PLANNING.md §2/§9), not something this
- * function works around.
+ * If a Case created this way (or via saveCase()) is never successfully
+ * linked to any Hearing (or its Hearings yield nothing derivable), its
+ * `currentStatus` stays genuinely absent rather than defaulting to
+ * something that could be read as confidently correct — cases.js
+ * displays that as blank/"Not yet set" rather than guessing a value.
  *
  * @param {{caseType: string, caseNo: string, charge: string, dateFiled: string}} caseData
  * @returns {Promise<string>} the new Case document's id

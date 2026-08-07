@@ -949,6 +949,10 @@ service cloud.firestore {
     function canDeleteHearings()  { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
     function canArchiveHearings() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
     function canViewActivityLog() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+    // IM-1/IM-2: Case Management — same role sets as their Hearings
+    // equivalents above.
+    function canEditCases()       { return signedIn() && myRole() in ['administrator', 'branch_clerk', 'encoder']; }
+    function canDeleteCases()     { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
 
     // Distinguishes deleteHearing()'s soft-delete update (isDeleted
     // false -> true) from a routine field edit — see the note above.
@@ -986,6 +990,25 @@ service cloud.firestore {
       // though Encoder can't soft-delete the hearing above. Follows
       // canEditHearings(), not canDeleteHearings() — see the note above.
       allow create, update, delete: if canEditHearings();
+    }
+
+    // IM-1/IM-2: the "cases" collection — the v1.1 Case aggregate root
+    // (see cases-data.js's header comment for how this differs from
+    // "hearingCases" above). Same shape as the "hearings" rule: soft
+    // delete only, reusing isSoftDelete()/isArchiveChange() and
+    // canArchiveHearings() as-is since Case archiving shares Hearings'
+    // role set. currentStatus/currentStatusDate get no special rule of
+    // their own — cases.js (post-IM-8 product decision) never writes
+    // them at all; only applyDerivedCurrentStatus() (cases-data.js) does,
+    // under the same canEditCases() gate as any other field on this
+    // document.
+    match /cases/{caseId} {
+      allow read: if signedIn();
+      allow create: if canEditCases();
+      allow update: if canEditCases()
+                    && (!isSoftDelete() || canDeleteCases())
+                    && (!isArchiveChange() || canArchiveHearings());
+      allow delete: if false; // the app never issues a hard delete here
     }
 
     match /activityLogs/{logId} {

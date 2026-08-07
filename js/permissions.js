@@ -45,6 +45,15 @@ export const PERMISSIONS = {
   EXPORT: "export", // Word/CSV export actions, on both Hearings and Reports
   ACTIVITY_LOG_VIEW: "activityLog.view",
   USERS_MANAGE: "users.manage",
+  // IM-1/IM-2: Case Management. Same role sets as their HEARINGS_*
+  // equivalents. Archiving a Case reuses ARCHIVE_MANAGE below rather than
+  // a separate permission (matches Hearings' convention); CASES_DELETE is
+  // defined for symmetry with HEARINGS_DELETE but nothing calls it yet —
+  // cases.js only ever soft-archives, it never hard-deletes.
+  CASES_VIEW: "cases.view",
+  CASES_CREATE: "cases.create",
+  CASES_EDIT: "cases.edit",
+  CASES_DELETE: "cases.delete",
   // v0.9.3: wired to Archive & Case Lifecycle Management — gates the
   // Archive/Restore row actions on Hearings/Archived Hearings and the
   // whole Archived Hearings page.
@@ -64,6 +73,10 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.HEARINGS_CREATE,
     PERMISSIONS.HEARINGS_EDIT,
     PERMISSIONS.HEARINGS_DELETE,
+    PERMISSIONS.CASES_VIEW,
+    PERMISSIONS.CASES_CREATE,
+    PERMISSIONS.CASES_EDIT,
+    PERMISSIONS.CASES_DELETE,
     PERMISSIONS.CALENDAR_VIEW,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.EXPORT,
@@ -78,6 +91,10 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.HEARINGS_CREATE,
     PERMISSIONS.HEARINGS_EDIT,
     PERMISSIONS.HEARINGS_DELETE,
+    PERMISSIONS.CASES_VIEW,
+    PERMISSIONS.CASES_CREATE,
+    PERMISSIONS.CASES_EDIT,
+    PERMISSIONS.CASES_DELETE,
     PERMISSIONS.CALENDAR_VIEW,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.EXPORT,
@@ -89,11 +106,15 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.HEARINGS_VIEW,
     PERMISSIONS.HEARINGS_CREATE,
     PERMISSIONS.HEARINGS_EDIT,
+    PERMISSIONS.CASES_VIEW,
+    PERMISSIONS.CASES_CREATE,
+    PERMISSIONS.CASES_EDIT,
     PERMISSIONS.CALENDAR_VIEW,
   ],
   [ROLES.READ_ONLY]: [
     PERMISSIONS.DASHBOARD_VIEW,
     PERMISSIONS.HEARINGS_VIEW,
+    PERMISSIONS.CASES_VIEW,
     PERMISSIONS.CALENDAR_VIEW,
     PERMISSIONS.REPORTS_VIEW,
   ],
