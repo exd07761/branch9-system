@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Users — Docket Management System</title>
+<title>Cases — Docket Management System</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2316233A%22/%3E%3Cline%20x1%3D%2232%22%20y1%3D%2212%22%20x2%3D%2232%22%20y2%3D%2248%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Cline%20x1%3D%2215%22%20y1%3D%2220%22%20x2%3D%2249%22%20y2%3D%2220%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Ccircle%20cx%3D%2249%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Cline%20x1%3D%2221%22%20y1%3D%2250%22%20x2%3D%2243%22%20y2%3D%2250%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,11 +20,11 @@
     <div class="app-nav-links">
       <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
       <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
-      <a class="app-nav-link" href="cases.html" data-permission="cases.view"><i data-lucide="folder-open" aria-hidden="true"></i>Cases</a>
+      <a class="app-nav-link active" href="cases.html" data-permission="cases.view"><i data-lucide="folder-open" aria-hidden="true"></i>Cases</a>
       <a class="app-nav-link" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
       <a class="app-nav-link" href="activity.html" data-permission="activityLog.view"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
       <a class="app-nav-link" href="reports.html" data-permission="reports.view"><i data-lucide="bar-chart-3" aria-hidden="true"></i>Reports</a>
-      <a class="app-nav-link active" href="users.html" data-permission="users.manage"><i data-lucide="users" aria-hidden="true"></i>Users</a>
+      <a class="app-nav-link" href="users.html" data-permission="users.manage"><i data-lucide="users" aria-hidden="true"></i>Users</a>
       <a class="app-nav-link" href="archived.html" data-permission="archive.manage"><i data-lucide="archive" aria-hidden="true"></i>Archived</a>
       <a class="app-nav-link" href="backup.html" data-permission="backup.manage"><i data-lucide="hard-drive" aria-hidden="true"></i>Backup</a>
     </div>
@@ -40,29 +40,34 @@
   <main class="wrap wrap-wide">
     <header class="header">
       <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Users</h1>
-      <p class="sub">Accounts that have signed in, and the role each one has.</p>
+      <h1>Cases</h1>
+      <p class="sub">Create, edit, and track cases and their current status.</p>
     </header>
 
     <div class="toolbar">
-      <button type="button" class="btn-primary btn-inline" disabled title="Not available yet — accounts are created by signing in for the first time">
-        <i data-lucide="user-plus" aria-hidden="true"></i>
-        <span>Add User (coming soon)</span>
+      <button type="button" class="btn-primary btn-inline" id="addCaseBtn">
+        <i data-lucide="plus" aria-hidden="true"></i>
+        <span>Add Case</span>
       </button>
     </div>
-    <p class="form-error" id="usersStatus" role="alert"></p>
+
+    <div id="formPanel"></div>
 
     <section class="card card-flush" id="listCard">
-      <table class="data-table" id="usersTable">
+      <table class="data-table" id="casesTable">
         <thead>
           <tr>
-            <th>Email</th>
-            <th>Role</th>
+            <th>Case Type</th>
+            <th>Case No.</th>
+            <th>Charge</th>
+            <th>Date Filed</th>
+            <th>Current Status</th>
+            <th>Status Since</th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="usersTableBody">
-          <tr><td colspan="3" class="empty-row">Loading&hellip;</td></tr>
+        <tbody id="casesTableBody">
+          <tr><td colspan="7" class="empty-row">Loading&hellip;</td></tr>
         </tbody>
       </table>
     </section>
@@ -70,7 +75,7 @@
     <footer class="app-footer">Created by Jordan Panganiban &middot; v1.0.0</footer>
   </main>
 
-  <script type="module" src="js/users.js?v=1.0.0"></script>
+  <script type="module" src="js/cases.js?v=1.0.0"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 
