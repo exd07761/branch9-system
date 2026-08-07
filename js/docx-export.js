@@ -177,7 +177,7 @@ function buildDataRow(rowNumber, hearing, cases) {
     detailsParas.push(new docx.Paragraph({ children: [run(caseLabel, { bold: true, size: 20 })], spacing: { after: 60 } }));
   });
   detailsParas.push(
-    new docx.Paragraph({ children: [run(hearing.hearingType, { italics: true, size: 20 })], spacing: { after: 60 } })
+    new docx.Paragraph({ children: [run(hearing.status || "Hearing", { italics: true, size: 20 })], spacing: { after: 60 } })
   );
   const datesFiled = [...new Set((cases || []).map((c) => c.dateFiled).filter(Boolean))];
   if (datesFiled.length) {
@@ -324,7 +324,7 @@ function buildDocumentShell(bodyChildren) {
         properties: {
           page: {
             size: { width: 12240, height: 20160 }, // 8.5in x 14in (legal), in twips
-            margin: { top: 1440, right: 1080, bottom: 1440, left: 1080 }, // 1in / .75in / 1in / .75in
+            margin: { top: 1440, right: 1080, bottom: 1440, left: 709 }, // 1in / .75in / 1in / .492in
           },
         },
         children: bodyChildren,
