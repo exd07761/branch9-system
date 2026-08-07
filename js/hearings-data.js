@@ -218,12 +218,25 @@ export function isDuplicateCaseNumber(allCases, caseType, caseNo, excludeHearing
 /**
  * Create or update a hearing along with its case rows, as one atomic batch.
  *
+ * IM-8 note: `caseRows[].caseId` (this function's own, pre-v1.1 meaning —
+ * "this row's own hearingCases document id, so we know whether to update
+ * or create it") is renamed to `hearingCaseRowId` here, to stop colliding
+ * with the unrelated, real `caseId` field IM-6 added directly to
+ * hearingCases documents (the row's link to a v1.1 Case). This function
+ * still never touches that link field — linking is still exclusively
+ * hearings-data.js's setHearingCaseLink()'s job (IM-6), called separately
+ * by the caller after this resolves. This function now also returns each
+ * row's resulting id (parallel to the input `caseRows` array) so the
+ * caller can do that linking — previously there was no way for a caller
+ * to learn a newly-created row's id at all.
+ *
  * @param {string|null} hearingId - null to create a new hearing
  * @param {object} hearingData - fields for the hearings collection
- * @param {Array} caseRows - each row: { caseId: string|null, caseType, caseNo, charge, dateFiled }
- * @param {Array} existingCaseIds - case doc IDs currently attached to this hearing (for edit; rows not present here get deleted)
+ * @param {Array} caseRows - each row: { hearingCaseRowId: string|null, caseType, caseNo, charge, dateFiled }
+ * @param {Array} existingRowIds - hearingCases doc IDs currently attached to this hearing (for edit; rows not present here get deleted)
+ * @returns {Promise<{hearingId: string, rowIds: string[]}>} rowIds is parallel to the input caseRows array
  */
-export async function saveHearing(hearingId, hearingData, caseRows, existingCaseIds = []) {
+export async function saveHearing(hearingId, hearingData, caseRows, existingRowIds = []) {
   const batch = writeBatch(db);
   const isNew = !hearingId;
   const userEmail = currentUserEmail();
@@ -250,9 +263,8 @@ export async function saveHearing(hearingId, hearingData, caseRows, existingCase
     batch.set(hearingRef, hearingWrite, { merge: true });
   }
 
-  const keptCaseIds = new Set();
-
-  caseRows.forEach((row) => {
+  const keptRowIds = new Set();
+  const rowIds = caseRows.map((row) => {
     const caseWrite = {
       hearingId: finalHearingId,
       caseType: row.caseType,
@@ -263,9 +275,10 @@ export async function saveHearing(hearingId, hearingData, caseRows, existingCase
       updatedBy: userEmail,
     };
 
-    if (row.caseId) {
-      keptCaseIds.add(row.caseId);
-      batch.set(doc(db, "hearingCases", row.caseId), caseWrite, { merge: true });
+    if (row.hearingCaseRowId) {
+      keptRowIds.add(row.hearingCaseRowId);
+      batch.set(doc(db, "hearingCases", row.hearingCaseRowId), caseWrite, { merge: true });
+      return row.hearingCaseRowId;
     } else {
       const newCaseRef = doc(hearingCasesCol);
       batch.set(newCaseRef, {
@@ -273,6 +286,7 @@ export async function saveHearing(hearingId, hearingData, caseRows, existingCase
         createdAt: serverTimestamp(),
         createdBy: userEmail,
       });
+      return newCaseRef.id;
     }
   });
 
@@ -280,14 +294,14 @@ export async function saveHearing(hearingId, hearingData, caseRows, existingCase
   // anymore, was removed by the Clerk in the form — this is a routine
   // edit correction, so it's a real delete (unlike deleting a whole
   // hearing, which is a soft delete below).
-  existingCaseIds.forEach((caseId) => {
-    if (!keptCaseIds.has(caseId)) {
-      batch.delete(doc(db, "hearingCases", caseId));
+  existingRowIds.forEach((rowId) => {
+    if (!keptRowIds.has(rowId)) {
+      batch.delete(doc(db, "hearingCases", rowId));
     }
   });
 
   await batch.commit();
-  return finalHearingId;
+  return { hearingId: finalHearingId, rowIds };
 }
 
 /**

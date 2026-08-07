@@ -2,10 +2,32 @@
 // Hearings page controller.
 //
 // Responsibilities: require login, render the live hearings list, open/close
-// the add/edit form, manage dynamic case-number rows within that form,
-// validate before saving (required fields + duplicate case number), and
-// wire up delete. All Firestore access goes through hearings-data.js —
+// the add/edit form, manage dynamic case rows within that form (each now
+// linked to an existing Case rather than free-typed — see IM-8), validate
+// before saving required fields, and wire up delete. All Firestore access
+// goes through hearings-data.js/cases-data.js/case-status-derivation.js —
 // nothing in this file calls Firestore directly.
+//
+// IM-8 (Hearing Workflow Refactor, HEARING_WORKFLOW_REFACTOR_PLAN.md,
+// approved product decision): the free-text "Hearing type / purpose" field
+// is removed from this form for new/edited hearings. The pre-existing
+// "Notes" field (already in this file before this milestone, already
+// excluded from search/reporting/derivation — verified before this change)
+// is the approved replacement for anything hearingType captured that
+// status/section didn't; nothing needed to be added for that, since Notes
+// already existed and already behaved correctly. Historical hearingType
+// values on existing Hearing documents are untouched (Decision 003/005) —
+// this only stops the field from being written going forward.
+//
+// Case rows in this form are now selected from existing Cases (via the
+// new Case picker below) rather than free-typed — reusing cases-data.js's
+// subscribeToCaseRecords() (IM-1) and hearings-data.js's
+// setHearingCaseLink() (IM-6) unchanged. After a successful save, this
+// file also calls case-status-derivation.js's refreshCaseStatusFromHearings()
+// for each linked Case — the one piece of wiring IM-6B/IM-7A never added
+// anywhere in the live app (both shipped with zero callers) — so a Case's
+// currentStatus now stays accurate as new hearings are added day to day,
+// not only at migration time.
 // ---------------------------------------------------------------------------
 
 import { requireAuth } from "./auth-guard.js?v=1.0.0";
@@ -17,8 +39,10 @@ import {
   subscribeToCases,
   saveHearing,
   archiveHearing,
-  isDuplicateCaseNumber,
+  setHearingCaseLink,
 } from "./hearings-data.js?v=1.0.0";
+import { subscribeToCaseRecords } from "./cases-data.js?v=1.0.0";
+import { refreshCaseStatusFromHearings } from "./case-status-derivation.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
 
@@ -34,12 +58,10 @@ const STATUSES = [
   "Cross Examination of Prosecution's Witness",
 ];
 
-const CASE_TYPES = [
-  "FC Criminal Cases No",
-  "FC Civil Case No",
-  "FC CICL Case No",
-  "FC Special Proceeding Case No",
-];
+// IM-8: CASE_TYPES removed — case rows now link to an existing Case
+// (which owns its own caseType) via the picker in caseRowHtml(), rather
+// than free-typing a case type here. cases.js still has its own copy for
+// the Case entity's own form, which is unaffected by this file.
 
 const HEARING_TIMES = [
   "8:30 in the Morning",
@@ -50,6 +72,7 @@ const HEARING_TIMES = [
 
 let hearings = [];
 let cases = [];
+let caseRecords = []; // IM-8: live Cases (cases-data.js), for the Case picker in the form — separate from `cases` above, which is the OLD hearingCases rows array (see this file's header comment on naming)
 let editingHearingId = null;
 let formCaseRows = [];
 let formOpen = false;
@@ -244,7 +267,7 @@ function renderPreview() {
       <div class="preview-card" role="dialog" aria-modal="true" aria-label="Hearing details">
         <button type="button" class="preview-close" id="previewCloseBtn" aria-label="Close">&times;</button>
         <p class="eyebrow">${esc(h.section)}</p>
-        <h2 class="preview-title">${esc(h.hearingType) || "Hearing"}</h2>
+        <h2 class="preview-title">${esc(h.hearingType) || esc(h.status) || "Hearing"}</h2>
 
         <div class="preview-grid">
           ${previewField("Status", h.status)}
@@ -311,31 +334,37 @@ function optionsHtml(list, selected) {
   return list.map((opt) => `<option value="${esc(opt)}" ${opt === selected ? "selected" : ""}>${esc(opt)}</option>`).join("");
 }
 
+// IM-8: each row now links to an existing Case (cases-data.js) rather than
+// free-typing its identity fields. caseType/caseNo/charge/dateFiled are no
+// longer entered here at all — they display read-only, sourced from
+// whichever Case is selected, purely for the Clerk's confirmation. Editing
+// those fields, if ever needed, is cases.html's job now (Case is the
+// master record) — not this form's.
 function caseRowHtml(row, idx) {
+  const linked = row.linkedCaseId ? caseRecords.find((c) => c.id === row.linkedCaseId) : null;
   return `
     <div class="case-row" data-idx="${idx}">
       <div class="case-row-header">
         <span class="case-row-label">Case ${idx + 1}</span>
         <button type="button" class="btn-small btn-danger" data-remove-case="${idx}">Remove</button>
       </div>
-      <div class="form-grid form-grid-3">
-        <div class="field">
-          <label>Case type</label>
-          <select class="case-caseType">${optionsHtml(CASE_TYPES, row.caseType)}</select>
-        </div>
-        <div class="field">
-          <label>Case no.</label>
-          <input type="text" class="case-caseNo" value="${esc(row.caseNo)}" placeholder="e.g. 4123">
-        </div>
-        <div class="field">
-          <label>Date filed</label>
-          <input type="date" class="case-dateFiled" value="${row.dateFiled || ""}">
-        </div>
-      </div>
       <div class="field">
-        <label>Charge</label>
-        <input type="text" class="case-charge" value="${esc(row.charge)}" placeholder="Specific charge for this case number">
+        <label>Select case <span class="required">*</span></label>
+        <select class="case-picker">
+          <option value="">-- Select a case --</option>
+          ${caseRecords
+            .map(
+              (c) =>
+                `<option value="${esc(c.id)}" ${c.id === row.linkedCaseId ? "selected" : ""}>${esc(c.caseType)}. ${esc(c.caseNo)}</option>`
+            )
+            .join("")}
+        </select>
       </div>
+      ${
+        linked
+          ? `<p class="muted">${esc(linked.charge) || "No charge on file"} &middot; Filed: ${linked.dateFiled ? esc(linked.dateFiled) : "not set"}</p>`
+          : `<p class="muted">No case selected yet. Not in the list? Create it first via Cases, then come back to link it here.</p>`
+      }
     </div>
   `;
 }
@@ -344,10 +373,7 @@ function syncCaseRowsFromDom() {
   document.querySelectorAll(".case-row").forEach((rowEl) => {
     const idx = parseInt(rowEl.dataset.idx, 10);
     if (!formCaseRows[idx]) return;
-    formCaseRows[idx].caseType = rowEl.querySelector(".case-caseType").value;
-    formCaseRows[idx].caseNo = rowEl.querySelector(".case-caseNo").value.trim();
-    formCaseRows[idx].charge = rowEl.querySelector(".case-charge").value.trim();
-    formCaseRows[idx].dateFiled = rowEl.querySelector(".case-dateFiled").value;
+    formCaseRows[idx].linkedCaseId = rowEl.querySelector(".case-picker").value || null;
   });
 }
 
@@ -362,6 +388,12 @@ function renderCaseRows() {
         return;
       }
       formCaseRows.splice(parseInt(btn.dataset.removeCase, 10), 1);
+      renderCaseRows();
+    });
+  });
+  mount.querySelectorAll(".case-row").forEach((rowEl) => {
+    rowEl.querySelector(".case-picker").addEventListener("change", () => {
+      syncCaseRowsFromDom();
       renderCaseRows();
     });
   });
@@ -394,10 +426,6 @@ function renderForm() {
         <div class="field">
           <label>Status <span class="required">*</span></label>
           <select id="f_status">${optionsHtml(STATUSES, h.status)}</select>
-        </div>
-        <div class="field field-full">
-          <label>Hearing type / purpose <span class="required">*</span></label>
-          <input type="text" id="f_hearingType" value="${esc(h.hearingType)}" placeholder="e.g. Cross Examination of Prosecution's Witness AAA">
         </div>
         <div class="field">
           <label>Plaintiff</label>
@@ -435,15 +463,15 @@ function renderForm() {
           </select>
         </div>
         <div class="field field-full">
-          <label>Notes</label>
-          <textarea id="f_notes">${esc(h.notes)}</textarea>
+          <label>Notes / Remarks</label>
+          <textarea id="f_notes" placeholder="Optional — for human reference only; not used in status, reports, or search">${esc(h.notes)}</textarea>
         </div>
       </div>
 
       <div class="case-rows-section">
         <h3>Cases in this hearing <span class="required">*</span></h3>
         <div id="caseRowsMount"></div>
-        <button type="button" class="btn-small" id="addCaseRowBtn">+ Add another case number</button>
+        <button type="button" class="btn-small" id="addCaseRowBtn">+ Link another case</button>
       </div>
 
       <p class="form-error" id="formMessage" role="alert"></p>
@@ -466,7 +494,7 @@ function renderForm() {
 
   document.getElementById("addCaseRowBtn").addEventListener("click", () => {
     syncCaseRowsFromDom();
-    formCaseRows.push({ caseId: null, caseType: CASE_TYPES[0], caseNo: "", charge: "", dateFiled: "" });
+    formCaseRows.push({ hearingCaseRowId: null, linkedCaseId: null });
     renderCaseRows();
   });
 
@@ -479,7 +507,7 @@ function renderForm() {
 function openAddForm() {
   if (!can(currentRole, PERMISSIONS.HEARINGS_CREATE)) return;
   editingHearingId = null;
-  formCaseRows = [{ caseId: null, caseType: CASE_TYPES[0], caseNo: "", charge: "", dateFiled: "" }];
+  formCaseRows = [{ hearingCaseRowId: null, linkedCaseId: null }];
   formOpen = true;
   renderForm();
   document.getElementById("formPanel").scrollIntoView({ behavior: "smooth" });
@@ -489,9 +517,15 @@ function openEditForm(hearingId) {
   if (!can(currentRole, PERMISSIONS.HEARINGS_EDIT)) return;
   const existing = casesForHearing(hearingId);
   editingHearingId = hearingId;
+  // hearingCaseRowId = this hearingCases row's own document id (pre-v1.1
+  // bookkeeping, so save() knows which row to update vs. create).
+  // linkedCaseId = the row's real IM-6 `caseId` field — the actual Case
+  // this row is linked to. Previously these were both called `caseId`,
+  // which meant two unrelated things in this file (see the header
+  // comment) — renamed here as part of IM-8, no behavior change.
   formCaseRows = existing.length
-    ? existing.map((c) => ({ caseId: c.id, caseType: c.caseType || CASE_TYPES[0], caseNo: c.caseNo || "", charge: c.charge || "", dateFiled: c.dateFiled || "" }))
-    : [{ caseId: null, caseType: CASE_TYPES[0], caseNo: "", charge: "", dateFiled: "" }];
+    ? existing.map((c) => ({ hearingCaseRowId: c.id, linkedCaseId: c.caseId || null }))
+    : [{ hearingCaseRowId: null, linkedCaseId: null }];
   formOpen = true;
   renderForm();
   document.getElementById("formPanel").scrollIntoView({ behavior: "smooth" });
@@ -516,7 +550,6 @@ async function handleSave() {
   const hearingData = {
     section: document.getElementById("f_section").value,
     status: document.getElementById("f_status").value,
-    hearingType: document.getElementById("f_hearingType").value.trim(),
     plaintiff: document.getElementById("f_plaintiff").value.trim(),
     accused: document.getElementById("f_accused").value.split(",").map((s) => s.trim()).filter(Boolean),
     victims: document.getElementById("f_victims").value.split(",").map((s) => s.trim()).filter(Boolean),
@@ -529,32 +562,45 @@ async function handleSave() {
   };
 
   // --- Required field validation ---
+  // IM-8: "Hearing type / purpose" removed entirely (approved product
+  // decision — see HEARING_WORKFLOW_REFACTOR_PLAN.md). A row now counts
+  // as valid if a Case has actually been selected in its picker, not by
+  // a free-typed case number (that field no longer exists here).
   const missing = [];
-  if (!hearingData.hearingType) missing.push("Hearing type / purpose");
   if (!hearingData.accused.length) missing.push("Accused");
   if (!hearingData.hearingDate) missing.push("Hearing date");
-  const validCaseRows = formCaseRows.filter((r) => r.caseNo);
-  if (!validCaseRows.length) missing.push("At least one case number");
+  const validCaseRows = formCaseRows.filter((r) => r.linkedCaseId);
+  if (!validCaseRows.length) missing.push("At least one linked case");
 
   if (missing.length) {
     showFormMessage(`Please fill in: ${missing.join(", ")}.`);
     return;
   }
 
-  // --- Duplicate case number warning ---
-  // hearings[] only ever contains active hearings (subscribeToHearings
-  // filters isDeleted and, as of v0.9.3, isArchived out by default), so
-  // this Set naturally excludes soft-deleted/archived hearings' case
-  // numbers from the duplicate check.
-  const activeHearingIds = new Set(hearings.map((h) => h.id));
-  for (const row of validCaseRows) {
-    if (isDuplicateCaseNumber(cases, row.caseType, row.caseNo, editingHearingId, activeHearingIds)) {
-      const confirmed = confirm(
-        `"${row.caseType}. ${row.caseNo}" already exists on another hearing. Save anyway?`
-      );
-      if (!confirmed) return;
-    }
-  }
+  // IM-8: the old free-text duplicate-case-number check is removed —
+  // it existed to catch typos creating look-alike case numbers, a
+  // problem the Case picker prevents structurally (you're linking to
+  // one canonical, already-existing Case, never typing a number that
+  // might coincidentally collide with another).
+
+  // Denormalize each linked Case's identity fields onto its row, same
+  // fields hearingCases rows have always carried (reports/exports/
+  // search all read caseType/caseNo/charge/dateFiled directly off the
+  // row — see HEARING_WORKFLOW_REFACTOR_PLAN.md §7) — just sourced from
+  // the selected Case now instead of free-typed. hearingCaseRowId (not
+  // linkedCaseId) is what saveHearing() uses to know which row to
+  // update vs. create; linkedCaseId is used afterward, below, to call
+  // setHearingCaseLink() — saveHearing() itself never touches the link.
+  const caseRowsForSave = validCaseRows.map((r) => {
+    const linked = caseRecords.find((c) => c.id === r.linkedCaseId);
+    return {
+      hearingCaseRowId: r.hearingCaseRowId,
+      caseType: linked ? linked.caseType : "",
+      caseNo: linked ? linked.caseNo : "",
+      charge: linked ? linked.charge : "",
+      dateFiled: linked ? linked.dateFiled : "",
+    };
+  });
 
   const saveBtn = document.getElementById("saveFormBtn");
   saveBtn.disabled = true;
@@ -562,10 +608,30 @@ async function handleSave() {
 
   try {
     const isNew = !editingHearingId;
-    const existingCaseIds = editingHearingId
+    const existingRowIds = editingHearingId
       ? casesForHearing(editingHearingId).map((c) => c.id)
       : [];
-    const savedHearingId = await saveHearing(editingHearingId, hearingData, validCaseRows, existingCaseIds);
+    const { hearingId: savedHearingId, rowIds } = await saveHearing(editingHearingId, hearingData, caseRowsForSave, existingRowIds);
+
+    // Link each row to its selected Case (setHearingCaseLink() does its
+    // own referential-integrity check — see hearings-data.js/IM-6) and
+    // then refresh each linked Case's derived currentStatus (IM-6B) —
+    // the one piece of wiring that never existed anywhere in the live
+    // app until this milestone (IM-6B and IM-7A both only ever called
+    // it from an offline tool, not from the Clerk-facing workflow).
+    const linkedCaseIds = new Set();
+    for (let i = 0; i < validCaseRows.length; i++) {
+      const rowId = rowIds[i];
+      const linkedCaseId = validCaseRows[i].linkedCaseId;
+      if (rowId && linkedCaseId) {
+        await setHearingCaseLink(rowId, linkedCaseId);
+        linkedCaseIds.add(linkedCaseId);
+      }
+    }
+    for (const caseId of linkedCaseIds) {
+      await refreshCaseStatusFromHearings(caseId);
+    }
+
     // Not awaited: logging must never delay closeForm() or block the UI.
     logActivity({
       action: isNew ? "Create Hearing" : "Edit Hearing",
@@ -874,6 +940,15 @@ async function init() {
     casesLoaded = true;
     renderList();
     maybeAutoOpenFromUrl();
+  });
+
+  // IM-8: powers the Case picker in the add/edit form (caseRowHtml()).
+  // Not gated into hearingsLoaded/casesLoaded/maybeAutoOpenFromUrl — the
+  // picker simply shows "-- Select a case --" with no options until this
+  // first fires, same as any other not-yet-loaded list in this app.
+  subscribeToCaseRecords((data) => {
+    caseRecords = data;
+    if (formOpen) renderCaseRows();
   });
 }
 

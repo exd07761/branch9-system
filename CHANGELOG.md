@@ -4,6 +4,102 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — IM-8: Hearing Workflow Refactor (Case-Centric)
+
+Reviewed and approved via `HEARING_WORKFLOW_REFACTOR_PLAN.md` before any
+code was written. Reorganizes the Add/Edit Hearing form around the Case
+architecture — the free-text "Hearing type / purpose" field is retired
+for new entries, and case rows are now linked to existing Cases instead
+of free-typed. No changes to the Case schema, no migration logic
+touched, no ADR revisited.
+
+**Removed**
+- The "Hearing type / purpose" field — input, required-field validation,
+  and data collection all removed from `js/hearings.js`. Approved
+  product decision, evidence-based (see the plan): the existing `status`
+  dropdown already carries the granularity the field was informally
+  trying to add (one of `STATUSES`' real values is literally
+  "Continuation of the Direct Examination of Prosecution's Witness," the
+  same phrase used to explain the workflow back in Decision 016's Clerk
+  interview). Historical `hearingType` values on existing Hearing
+  documents are untouched — this only stops the field being written
+  going forward.
+- The free-text duplicate-case-number check and its `confirm()` prompt —
+  it existed to catch typos creating look-alike case numbers, a problem
+  the Case picker (below) prevents structurally.
+- `CASE_TYPES` constant — no longer used now that a case's type comes
+  from the selected Case, not a free-typed dropdown.
+
+**Added**
+- **Case picker**: each case row in the Hearing form now selects from
+  existing Cases (`cases-data.js`'s `subscribeToCaseRecords()`, IM-1,
+  reused unchanged) instead of free-typing `caseType`/`caseNo`/`charge`/
+  `dateFiled`. Selected Case's details display read-only for
+  confirmation. On save, each row is linked via `setHearingCaseLink()`
+  (IM-6, reused unchanged) — the identity fields are still denormalized
+  onto the `hearingCases` row as before (unchanged for every existing
+  reader of that data — reports, exports, search all keep working
+  unmodified), just sourced from the selected Case now instead of typed.
+- **Live status wiring**: after a successful save, `refreshCaseStatusFromHearings()`
+  (IM-6B) is called for each linked Case. This is the one genuinely new
+  piece of logic in this milestone — everything else is existing,
+  already-tested functions used from a new place. Previously this
+  function had zero callers anywhere in the live app (IM-6B and IM-7A
+  both only ever called it from the offline migration tool) — a Case's
+  `currentStatus` now stays accurate as new hearings are added day to
+  day, not only at migration time.
+- The pre-existing "Notes" field (already in this file before this
+  milestone) is the approved home for anything `hearingType` used to
+  capture that `status`/`section` don't — verified, not assumed, that it
+  was already excluded from search (`hearingMatchesSearch`), reporting
+  (`reports-data.js`), and derivation (`case-status-derivation.js`)
+  before this milestone touched anything. Relabeled "Notes / Remarks"
+  with a clarifying placeholder; no behavioral change.
+
+**Fixed (naming, not behavior)**
+- `formCaseRows[i].caseId` — a pre-existing, pre-v1.1 field meaning "this
+  `hearingCases` row's own document id" — collided with IM-6's unrelated
+  `hearingCases.caseId` field ("the Case this row is linked to"). Same
+  name, two unrelated meanings, in a file no Phase 1 milestone had
+  touched until now. Renamed to `hearingCaseRowId`; the real Case link
+  is now the separate, correctly-named `linkedCaseId`.
+- `hearings-data.js`'s `saveHearing()` — parameter renamed to match, and
+  it now returns `{ hearingId, rowIds }` instead of a bare hearing id
+  string, so its one caller can learn each row's resulting id (including
+  newly-created ones) and link them afterward. Confirmed via search that
+  `hearings.js` is this function's only caller anywhere in the app, so
+  this return-shape change is safe.
+- Quick View's preview title: falls back to `status` instead of a bare
+  "Hearing" when `hearingType` is absent (every new hearing, going
+  forward) — otherwise every new hearing's preview would show a
+  generic, uninformative title.
+
+**Verified before delivery**
+- Full syntax check on both modified files.
+- Traced every caller of `saveHearing()` in the codebase (one — this
+  file) before changing its return shape.
+- Simulated the row-id/linked-Case pairing logic (existing rows keep
+  their id, new rows get a fresh one, order preserved end to end)
+  against a synthetic mixed scenario — correct.
+- Swept for stale references to every removed identifier (`hearingType`,
+  `CASE_TYPES`, the old free-text case-row field classes, the old
+  colliding `caseId` meaning) — none remain outside intentional,
+  historical-compatibility code paths and documentation comments.
+- Confirmed `docx-export.js` and `reports-data.js` (both out of scope,
+  not modified) already handle an empty `hearingType` safely — the
+  Hearing Order export will show a blank line where the type used to
+  print for new hearings; not fixed here, flagged as a possible future
+  cosmetic follow-up, not a defect.
+- Confirmed the new `.case-picker` `<select>` needs no new CSS — the
+  existing generic `.field select` rule already styles it.
+
+**Not changed:** `js/cases-data.js`, `js/case-status-derivation.js`,
+`hearings.html` (the form is entirely rendered dynamically from
+`hearings.js` — no static markup to change), `cases.html`, `cases.js`,
+`migration-execute.js`, `migration-dryrun.js`, `DECISIONS_v1.1.md`,
+`IMPLEMENTATION_READY.md`, and every other existing file — all confirmed
+byte-identical by diff.
+
 ## [Unreleased] — Bug fix: `migration-dryrun.js` crashed when imported by `migration-execute.js`
 
 Found during IM-7A's first real execution. `migration-dryrun.js`'s
