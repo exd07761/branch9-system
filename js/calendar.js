@@ -254,7 +254,7 @@ function dayHearingCardHtml(h) {
       <div class="cal-day-card-main">
         <div class="cal-day-card-time">${esc(h.hearingTime || "No time set")}</div>
         <div class="cal-day-card-body">
-          <p class="cal-day-card-title">${esc(h.hearingType)}</p>
+          <p class="cal-day-card-title">${esc(h.hearingType || h.status || "Hearing")}</p>
           <p class="cal-day-card-meta">${esc(h.section)} &middot; ${esc(h.status)}</p>
           <p class="cal-day-card-meta">${esc((h.accused || []).join(", "))}</p>
         </div>

@@ -57,7 +57,7 @@ export const BACKUP_VERSION = "1.0";
 // Every collection this backup format knows about, in the order they're
 // exported/restored. Order matters a little for readability of the
 // resulting JSON and the progress display, not for correctness.
-const ALL_COLLECTIONS = ["hearings", "hearingCases", "activityLogs", "users", "systemStatus"];
+const ALL_COLLECTIONS = ["hearings", "hearingCases", "cases", "activityLogs", "users", "systemStatus"];
 
 // "upsert"        -> set(doc, data, {merge:true}) regardless of whether
 //                    the doc already exists (update-or-create).
@@ -67,6 +67,7 @@ const ALL_COLLECTIONS = ["hearings", "hearingCases", "activityLogs", "users", "s
 const RESTORE_POLICY = {
   hearings: "upsert",
   hearingCases: "upsert",
+  cases: "upsert",
   users: "upsert",
   activityLogs: "create-missing",
   systemStatus: "skip",
