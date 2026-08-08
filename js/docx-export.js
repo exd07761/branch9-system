@@ -255,6 +255,7 @@ function buildSectionTable(items) {
 
   return new docx.Table({
     width: { size: 10080, type: docx.WidthType.DXA },
+    alignment: docx.AlignmentType.CENTER,
     borders: {
       top: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
       bottom: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
