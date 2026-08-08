@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Case Details — Docket Management System</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%2316233A%22/%3E%3Cline%20x1%3D%2232%22%20y1%3D%2212%22%20x2%3D%2232%22%20y2%3D%2248%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Cline%20x1%3D%2215%22%20y1%3D%2220%22%20x2%3D%2249%22%20y2%3D%2220%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3Ccircle%20cx%3D%2215%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Ccircle%20cx%3D%2249%22%20cy%3D%2228%22%20r%3D%226%22%20fill%3D%22none%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%223%22/%3E%3Cline%20x1%3D%2221%22%20y1%3D%2250%22%20x2%3D%2243%22%20y2%3D%2250%22%20stroke%3D%22%23A9802E%22%20stroke-width%3D%224%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=1.0.0">
+</head>
+<body>
+
+  <nav class="app-nav">
+    <span class="app-nav-brand">
+      <i data-lucide="scale" aria-hidden="true"></i>
+      Docket Management System
+    </span>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
+      <a class="app-nav-link" href="hearings.html"><i data-lucide="gavel" aria-hidden="true"></i>Hearings</a>
+      <a class="app-nav-link active" href="cases.html" data-permission="cases.view"><i data-lucide="folder-open" aria-hidden="true"></i>Cases</a>
+      <a class="app-nav-link" href="calendar.html"><i data-lucide="calendar-days" aria-hidden="true"></i>Calendar</a>
+      <a class="app-nav-link" href="activity.html" data-permission="activityLog.view"><i data-lucide="history" aria-hidden="true"></i>Activity Log</a>
+      <a class="app-nav-link" href="reports.html" data-permission="reports.view"><i data-lucide="bar-chart-3" aria-hidden="true"></i>Reports</a>
+      <a class="app-nav-link" href="users.html" data-permission="users.manage"><i data-lucide="users" aria-hidden="true"></i>Users</a>
+      <a class="app-nav-link" href="archived.html" data-permission="archive.manage"><i data-lucide="archive" aria-hidden="true"></i>Archived</a>
+      <a class="app-nav-link" href="backup.html" data-permission="backup.manage"><i data-lucide="hard-drive" aria-hidden="true"></i>Backup</a>
+    </div>
+    <div class="app-nav-user">
+      <span class="app-nav-email" id="userEmail">&hellip;</span>
+      <button type="button" class="app-nav-logout" id="logoutBtn">
+        <i data-lucide="log-out" aria-hidden="true"></i>
+        <span>Log out</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="wrap wrap-wide">
+    <header class="header">
+      <p class="eyebrow"><a href="cases.html">&larr; Back to Cases</a></p>
+      <h1 id="caseTitle">Case Details</h1>
+      <p class="sub" id="caseSub">&nbsp;</p>
+    </header>
+
+    <div id="caseNotFound" hidden>
+      <section class="card">
+        <p class="muted">This case could not be found. It may have been deleted, or the link may be incorrect.</p>
+      </section>
+    </div>
+
+    <div id="caseContent" hidden>
+      <section class="card form-card" id="caseInfoCard">
+        <div id="caseInfoBody">Loading&hellip;</div>
+      </section>
+
+      <section class="card" id="activityCard">
+        <p class="timeline-header">Case Activity</p>
+        <div id="activityBody">Loading&hellip;</div>
+      </section>
+    </div>
+
+    <footer class="app-footer">Created by Jordan Panganiban &middot; v1.0.0</footer>
+  </main>
+
+  <script type="module" src="js/case-detail.js?v=1.0.0"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>if (window.lucide) { lucide.createIcons(); }</script>
+
+</body>
+</html>

@@ -4,6 +4,55 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — IM-10: Case Activity & History
+
+New, read-only Case Detail page giving the Clerk a single chronological
+view of "what has happened with this case." No new Firestore collection,
+no schema changes, no migration, no writes anywhere in this milestone —
+everything shown is derived/read from data the app already had.
+
+**Added**
+- `case-detail.html` + `js/case-detail.js` — a new page (`case-detail.html?id=<caseId>`)
+  showing a Case's identity fields plus an Activity & History timeline,
+  reusing the existing `.timeline-*` CSS already used by Home's dashboard
+  timeline and the existing `.card`/`.field` layout classes — no new CSS.
+  Linked from a new "View" action per row on `cases.html`.
+- `js/cases-data.js`: `getCase(caseId)` — one-shot fetch of a single Case
+  document (no existing export returned a single full record).
+- `js/activity-data.js`: `getActivityForEntities(entityType, entityIds)` —
+  one-shot, entity-scoped query against the existing `activityLogs`
+  collection (chunks `entityIds` into groups of 10 for Firestore's `in`
+  operator limit). No changes to `activityLogs`' schema or to any
+  existing export in this file.
+
+**How the timeline is built** — three existing sources, merged and
+sorted newest-first, nothing new stored:
+1. Case-level `activityLogs` entries (Create/Edit/Archived Case).
+2. Derived case status history (`hearings-data.js`'s existing
+   `getCaseStatusHistory()`, IM-6B/Decision 008) — a Case's status
+   changes, computed fresh from its linked Hearings.
+3. Activity-log entries for every Hearing linked to the Case (via the
+   existing `hearingCases.caseId` link, IM-6) — per the approved IM-10
+   scope, hearing-generated activity is part of a case's history, not
+   just edits to the Case document itself.
+
+Deliberately **not** included: "Hearing rescheduled"/"Hearing cancelled"
+event types — the data model has no such concept (only a workflow
+`status`), so per IM-10's no-fabrication rule these are left out rather
+than guessed at.
+
+**Permissions**: items 1 and 3 above (raw `activityLogs` entries) are
+only fetched/shown when the signed-in role has `activityLog.view` — the
+same permission already gating the standalone Activity Log page — so
+this page doesn't expose audit-log data to a role (Encoder, Read Only)
+that can't already see it elsewhere. Item 2 (derived status history) is
+domain data, not an audit log, and is always shown to anyone with
+`cases.view`.
+
+No changes to `hearings.js`, `hearings-data.js`, `case-status-derivation.js`,
+`permissions.js`, `css/styles.css`, or any other existing page — confirmed
+via diff against the prior milestone.
+
 ## [Unreleased] — IM-8: Hearing Workflow Refactor (Case-Centric)
 
 Reviewed and approved via `HEARING_WORKFLOW_REFACTOR_PLAN.md` before any

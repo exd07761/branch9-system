@@ -20,8 +20,10 @@
 import {
   collection,
   addDoc,
+  getDocs,
   onSnapshot,
   query,
+  where,
   orderBy,
   limit,
   serverTimestamp,
@@ -93,4 +95,54 @@ export function subscribeToActivityLogs(onChange, { max = DEFAULT_LIVE_LIMIT } =
     const entries = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
     onChange(entries);
   });
+}
+
+// --- IM-10: Case Activity & History (read-only) ----------------------------
+//
+// Firestore's `in` operator accepts at most 10 values per query, so a
+// larger entityIds list is split into chunks and the results merged —
+// existing behavior/schema of this collection is otherwise untouched by
+// this addition. One-shot (not a live listener), matching how case-detail.js
+// (IM-10) uses it: a page load, not a real-time view, same posture as
+// hearings-data.js's getCaseStatusHistory().
+
+const WHERE_IN_CHUNK_SIZE = 10;
+
+function chunk(list, size) {
+  const out = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
+
+/**
+ * One-shot fetch of every activityLogs entry for a given entityType whose
+ * entityId is in `entityIds`. Used by case-detail.js (IM-10) to pull a
+ * Case's own activity (entityType "case", a single-id array) and its
+ * linked Hearings' activity (entityType "hearing", one or more hearing
+ * ids) — both already-logged by existing callers (cases.js, hearings.js),
+ * nothing new is written here. Returns [] immediately for an empty
+ * entityIds array (avoids an invalid empty `in` query).
+ *
+ * @param {string} entityType - e.g. "case" or "hearing"
+ * @param {string[]} entityIds
+ * @returns {Promise<Array<object>>} unsorted; caller merges/sorts alongside
+ *   other timeline sources.
+ */
+export async function getActivityForEntities(entityType, entityIds) {
+  const ids = [...new Set((entityIds || []).filter(Boolean))];
+  if (!ids.length) return [];
+
+  const chunks = chunk(ids, WHERE_IN_CHUNK_SIZE);
+  const results = await Promise.all(
+    chunks.map((idChunk) => {
+      const q = query(
+        activityLogsCol,
+        where("entityType", "==", entityType),
+        where("entityId", "in", idChunk)
+      );
+      return getDocs(q);
+    })
+  );
+
+  return results.flatMap((snapshot) => snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
 }

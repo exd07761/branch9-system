@@ -293,6 +293,23 @@ export async function caseExists(caseId) {
   return snap.exists();
 }
 
+// --- IM-10: Case Activity & History (read-only) ----------------------------
+
+/**
+ * One-shot fetch of a single Case document, or null if it doesn't exist.
+ * Added for case-detail.js (IM-10) — no existing export returns a single
+ * full Case record (subscribeToCaseRecords()/subscribeToArchivedCaseRecords()
+ * are live lists, caseExists() only returns a boolean). Deliberately does
+ * NOT filter on isDeleted/isArchived — a detail page should still be able
+ * to show an archived Case; whether to also expose deleted ones is left to
+ * the caller.
+ */
+export async function getCase(caseId) {
+  if (!caseId) return null;
+  const snap = await getDoc(doc(db, "cases", caseId));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
 // --- IM-6B: Status Derivation (Decisions 008/016) -------------------------
 
 /**

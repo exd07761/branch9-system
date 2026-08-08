@@ -104,6 +104,11 @@ function renderList() {
 
   tbody.innerHTML = caseRecords
     .map((c) => {
+      // IM-10: links to the new read-only Case Detail page (Activity &
+      // History). Always shown to anyone who can see this list at all —
+      // no separate permission, matches cases.view already gating this
+      // whole page.
+      const viewLink = `<a class="btn-small" href="case-detail.html?id=${encodeURIComponent(c.id)}">View</a>`;
       const editBtn = can(currentRole, PERMISSIONS.CASES_EDIT)
         ? `<button type="button" class="btn-small" data-action="edit" data-id="${c.id}">Edit</button>`
         : "";
@@ -119,6 +124,7 @@ function renderList() {
           <td>${c.currentStatus ? esc(c.currentStatus) : '<span class="muted">Not yet set</span>'}</td>
           <td>${c.currentStatusDate ? esc(fmtTimestamp(c.currentStatusDate)) : '<span class="muted">&mdash;</span>'}</td>
           <td class="row-actions">
+            ${viewLink}
             ${editBtn}
             ${archiveBtn}
           </td>
