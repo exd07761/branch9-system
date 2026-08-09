@@ -101,45 +101,54 @@
 < a { color: var(--brass-dark); }
 ---
 > a { color: var(--accent-dark); }
-125a134,138
-> /* Dashboard-only: every other page still uses .wrap-wide (1080px). This
->    page gets more room specifically because its 3-stat-card + 2-column
->    layout was cramped at 1080px on wide desktop screens, leaving a large
->    unused margin — see PROJECT feedback. Not applied anywhere else. */
-> .wrap-dashboard { max-width: 1440px; }
-150c163
+125c133,144
+< .wrap-wide { max-width: 1080px; }
+---
+> /* Was 1080px — far too narrow on desktop, leaving a large unused margin
+>    on the right of every page except the dashboard (which had its own,
+>    separate .wrap-dashboard override at 1440px). Consolidated: one class,
+>    one value, used by every page including the dashboard now — home.html
+>    no longer needs its own width override (see home.html's <main> class,
+>    changed from "wrap wrap-dashboard" to "wrap wrap-wide" to match).
+>    1600px still leaves ~90-100px of breathing room on a 1920px display
+>    rather than going fully edge-to-edge, while comfortably filling
+>    smaller desktop/laptop widths since this is a max-width cap, not a
+>    fixed width — .wrap has no fixed width, so it still shrinks naturally
+>    on narrower viewports and phones exactly as before. */
+> .wrap-wide { max-width: 1600px; }
+150c169
 < .header .sub a { color: var(--brass-dark); font-weight: 500; text-decoration: none; }
 ---
 > .header .sub a { color: var(--accent-dark); font-weight: 500; text-decoration: none; }
-161c174
+161c180
 <    4. Top navigation
 ---
 >    4. Navigation
-162a176,180
+162a182,186
 > /* Base rules below are shared by both tiers. Desktop (>1024px) lays these
 >    out as a fixed left sidebar (see the "Left sidebar" block further down,
 >    which sits right before the existing ≤1024px responsive rules). Tablet/
 >    phone (≤1024px) keep the original wrapping top-bar layout entirely
 >    unchanged — same rules, same breakpoints, same behavior as before. */
-175c193
+175c199
 < /* Signature detail: a slender navy-to-brass hairline under the nav bar */
 ---
 > /* Signature detail: a slender navy-to-blue-to-maroon hairline under the nav bar */
-181c199
+181c205
 <   background: linear-gradient(90deg, var(--nav-bg) 0%, var(--brass) 55%, var(--maroon) 100%);
 ---
 >   background: linear-gradient(90deg, var(--nav-bg) 0%, var(--nav-accent) 55%, var(--maroon) 100%);
-187c205
+187c211
 <   gap: var(--space-2);
 ---
 >   gap: var(--space-3);
-189,191d206
+189,191d212
 <   font-family: var(--font-display);
 <   font-weight: 600;
 <   font-size: var(--text-md);
-192a208
+192a214
 >   min-width: 0;
-196c212,249
+196c218,255
 < .app-nav-brand svg { width: 18px; height: 18px; color: var(--brass); flex-shrink: 0; }
 ---
 > .app-nav-brand-icon {
@@ -180,15 +189,15 @@
 >   overflow: hidden;
 >   text-overflow: ellipsis;
 > }
-224c277
+224c283
 <   outline: 2px solid var(--brass);
 ---
 >   outline: 2px solid var(--nav-accent);
-229c282
+229c288
 <   background: rgba(169, 128, 46, 0.18);
 ---
 >   background: rgba(123, 170, 224, 0.18);
-263a317,443
+263a323,449
 > /* ---------------------------------------------------------------------- */
 > /* Left sidebar (desktop, >1024px)                                        */
 > /*                                                                          */
@@ -316,41 +325,41 @@
 >   }
 > }
 > 
-301c481
+301c487
 <   outline: 2px solid var(--brass-dark);
 ---
 >   outline: 2px solid var(--accent-dark);
-309,310c489,490
+309,310c495,496
 <   background: var(--brass);
 <   color: #1A1508;
 ---
 >   background: var(--accent);
 >   color: #fff;
-314c494
+314c500
 < .btn-primary:hover { background: var(--brass-dark); }
 ---
 > .btn-primary:hover { background: var(--accent-dark); }
-382c562
+382c568
 <   border-color: var(--brass);
 ---
 >   border-color: var(--accent);
-461c641
+461c647
 <   outline: 2px solid var(--brass-dark);
 ---
 >   outline: 2px solid var(--accent-dark);
-671c851
+671c857
 < .cal-month-cell-today .cal-month-daynum { background: var(--brass); color: #1A1508; border-radius: 50%; } /* JS-DEPENDENT */
 ---
 > .cal-month-cell-today .cal-month-daynum { background: var(--accent); color: #fff; border-radius: 50%; } /* JS-DEPENDENT */
-682c862
+682c868
 < .cal-week-colhead-today { color: var(--brass-dark); }             /* JS-DEPENDENT */
 ---
 > .cal-week-colhead-today { color: var(--accent-dark); }             /* JS-DEPENDENT */
-899c1079
+899c1085
 <   background-color: #1A1508;
 ---
 >   background-color: #fff;
-909a1090,1269
+909a1096,1275
 > /* Dashboard greeting header (home.html only) — new, additive classes.     */
 > /* Does not touch .header, which every other page still uses as-is.        */
 > /* ---------------------------------------------------------------------- */
@@ -531,18 +540,18 @@
 > .dashboard-user-logout svg { width: 15px; height: 15px; color: var(--ink-3); flex-shrink: 0; }
 > 
 > /* ---------------------------------------------------------------------- */
-916c1276
+916c1282
 <   grid-template-columns: repeat(4, 1fr);
 ---
 >   grid-template-columns: repeat(3, 1fr);
-922c1282,1285
+922c1288,1291
 <   text-align: center;
 ---
 >   display: flex;
 >   align-items: center;
 >   gap: var(--space-4);
 >   text-align: left;
-924a1288,1303
+924a1294,1309
 > .dashboard-stat-icon {
 >   display: flex;
 >   align-items: center;
@@ -559,13 +568,13 @@
 > .dashboard-stat-icon--green  { background: var(--green-bg);  color: var(--green); }
 > .dashboard-stat-icon--purple { background: var(--purple-bg); color: var(--purple); }
 > 
-930,931c1309,1310
+930,931c1315,1316
 <   margin: 0 0 var(--space-1);
 <   line-height: 1;
 ---
 >   margin: 0;
 >   line-height: 1.15;
-939c1318,1324
+939c1324,1330
 <   margin: 0;
 ---
 >   margin: 0 0 var(--space-1);
@@ -575,15 +584,15 @@
 >   font-size: var(--text-xs);
 >   color: var(--ink-3);
 >   margin: 2px 0 0;
-953c1338
+953c1344
 <   color: var(--brass-dark);
 ---
 >   color: var(--accent-dark);
-969c1354
+969c1360
 <   grid-template-columns: 2fr 1fr;
 ---
 >   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-982c1367,1372
+982c1373,1378
 <   gap: var(--space-4);
 ---
 >   gap: var(--space-3);
@@ -592,23 +601,23 @@
 > 
 > .dashboard-side-col .card {
 >   padding: var(--space-5);
-1054c1444
+1054c1450
 <   color: var(--brass-dark);
 ---
 >   color: var(--accent-dark);
-1153c1543
+1153c1549
 <   outline: 2px solid var(--brass-dark);
 ---
 >   outline: 2px solid var(--accent-dark);
-1262c1652
+1262c1658
 <   padding: var(--space-8) var(--space-4);
 ---
 >   padding: var(--space-6) var(--space-4);
-1353,1355d1742
+1353,1355d1748
 <     overflow: hidden;
 <     text-overflow: ellipsis;
 <     white-space: nowrap;
-1409,1411c1796,1799
+1409,1411c1802,1805
 <   .app-nav-brand {
 <     font-size: var(--text-sm);
 <   }
@@ -617,11 +626,11 @@
 >   .app-nav-brand-icon svg { width: 16px; height: 16px; }
 >   .app-nav-brand-title { font-size: var(--text-sm); }
 >   .app-nav-brand-subtitle { display: none; }
-1440c1828
+1440c1834
 <   /* Dashboard: 4 columns is too cramped on a phone; 2x2 reads cleanly. */
 ---
 >   /* Dashboard: 3 cards side-by-side is too cramped on a phone; stack them. */
-1442c1830,1840
+1442c1836,1846
 <     grid-template-columns: repeat(2, 1fr);
 ---
 >     grid-template-columns: 1fr;
@@ -635,11 +644,11 @@
 >   .dashboard-header-right {
 >     width: 100%;
 >     justify-content: space-between;
-1561c1959
+1561c1965
 <   accent-color: var(--brass);
 ---
 >   accent-color: var(--accent);
-1650c2048
+1650c2054
 <   background: var(--brass);
 ---
 >   background: var(--accent);

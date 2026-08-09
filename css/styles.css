@@ -130,12 +130,18 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 .wrap-narrow { max-width: 440px; }
-.wrap-wide { max-width: 1080px; }
-/* Dashboard-only: every other page still uses .wrap-wide (1080px). This
-   page gets more room specifically because its 3-stat-card + 2-column
-   layout was cramped at 1080px on wide desktop screens, leaving a large
-   unused margin — see PROJECT feedback. Not applied anywhere else. */
-.wrap-dashboard { max-width: 1440px; }
+/* Was 1080px — far too narrow on desktop, leaving a large unused margin
+   on the right of every page except the dashboard (which had its own,
+   separate .wrap-dashboard override at 1440px). Consolidated: one class,
+   one value, used by every page including the dashboard now — home.html
+   no longer needs its own width override (see home.html's <main> class,
+   changed from "wrap wrap-dashboard" to "wrap wrap-wide" to match).
+   1600px still leaves ~90-100px of breathing room on a 1920px display
+   rather than going fully edge-to-edge, while comfortably filling
+   smaller desktop/laptop widths since this is a max-width cap, not a
+   fixed width — .wrap has no fixed width, so it still shrinks naturally
+   on narrower viewports and phones exactly as before. */
+.wrap-wide { max-width: 1600px; }
 
 .header { margin-bottom: var(--space-6); }
 
