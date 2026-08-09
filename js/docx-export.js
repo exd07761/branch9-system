@@ -64,30 +64,13 @@ import {
   getHearingsForMonth,
   prepareExportDataset,
 } from "./export-data.js?v=1.0.0";
+import { COURT_PERSONNEL, fmtLongDate, safeFilenamePart } from "./calendar-format.js?v=1.0.0";
 
 const FONT = "Century Schoolbook";
 const BLACK = "000000";
 
-// Institutional details, hardcoded from the real reference document —
-// this system's Firestore schema has no field for any of it.
-const COURT_PERSONNEL = [
-  ["PROS. ANDREA JASTINE A. GUTIERREZ-CARLOS", "Public Prosecutor (OPP)"],
-  ["PROS. SHIERMA F. OCAMPO-PATAWARAN", "Public Prosecutor (OCP)"],
-  ["ATTY. JOSHUA ASHLEY D. PANLILIO", "PAO Lawyer"],
-  ["ATTY. MARIA ANGELICA A. CABUNGAN", "Clerk of Court V"],
-  ["ROWENA M. SABADO", "Court Interpreter III"],
-  ["MARIA LUISA G. GARCIA", "Court Stenographer III"],
-  ["MARGIE M. SERRANO", "Court Stenographer III"],
-];
-
 function esc(s) {
   return (s || "").toString();
-}
-
-function fmtLongDate(iso) {
-  if (!iso) return "";
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
 function run(text, opts = {}) {
@@ -343,10 +326,6 @@ function downloadBlob(blob, filename) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-function safeFilenamePart(s) {
-  return (s || "").toString().replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
 /**

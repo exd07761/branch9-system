@@ -34,6 +34,7 @@ import { requireAuth } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { SECTIONS } from "./constants.js?v=1.0.0";
 import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=1.0.0";
+import { exportHearingOrderToPdf, exportCourtCalendarForDatePdf, exportCourtCalendarForWeekPdf, exportCourtCalendarForMonthPdf } from "./pdf-export.js?v=1.0.0";
 import {
   subscribeToHearings,
   subscribeToCases,
@@ -478,6 +479,7 @@ function renderForm() {
 
       <div class="form-actions">
         ${editingHearingId && can(currentRole, PERMISSIONS.EXPORT) ? `<button type="button" class="btn-secondary" id="exportWordBtn"><i data-lucide="file-down" aria-hidden="true"></i><span>Export to Word</span></button>` : ""}
+        ${editingHearingId && can(currentRole, PERMISSIONS.EXPORT) ? `<button type="button" class="btn-secondary" id="exportPdfBtn"><i data-lucide="file-down" aria-hidden="true"></i><span>Export to PDF</span></button>` : ""}
         <button type="button" class="btn-secondary" id="cancelFormBtn">Cancel</button>
         <button type="button" class="btn-primary" id="saveFormBtn">Save Hearing</button>
       </div>
@@ -490,6 +492,7 @@ function renderForm() {
 
   if (editingHearingId && can(currentRole, PERMISSIONS.EXPORT)) {
     document.getElementById("exportWordBtn").addEventListener("click", handleExportWord);
+    document.getElementById("exportPdfBtn").addEventListener("click", handleExportPdf);
   }
 
   document.getElementById("addCaseRowBtn").addEventListener("click", () => {
@@ -685,11 +688,50 @@ async function handleExportWord() {
   }
 }
 
+async function handleExportPdf() {
+  if (!can(currentRole, PERMISSIONS.EXPORT)) return;
+  if (!window.pdfMake) {
+    showFormMessage("Could not export: the PDF export library failed to load. Check your internet connection and try again.");
+    return;
+  }
+
+  // Same already-loaded state as handleExportWord above — no new Firestore
+  // read happens for this export either.
+  const hearing = hearings.find((h) => h.id === editingHearingId);
+  if (!hearing) return;
+  const hearingCasesList = casesForHearing(editingHearingId);
+
+  const exportBtn = document.getElementById("exportPdfBtn");
+  const originalLabel = exportBtn.innerHTML;
+  exportBtn.disabled = true;
+  exportBtn.textContent = "Exporting\u2026";
+
+  try {
+    await exportHearingOrderToPdf(hearing, hearingCasesList);
+    logActivity({
+      action: "Export Hearing Order (PDF)",
+      module: "Hearings",
+      entityId: hearing.id,
+      entityType: "hearing",
+      description: `Exported hearing order (PDF) for ${hearingLabel(hearing)} on ${hearing.hearingDate}`,
+    });
+  } catch (err) {
+    showFormMessage(`Could not export: ${err.message}`);
+  } finally {
+    exportBtn.disabled = false;
+    exportBtn.innerHTML = originalLabel;
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
 // --- Page-level Court Calendar export modes ---------------------------
-// All three reuse the same already-loaded `hearings`/`cases` state as
-// handleExportWord above — no new Firestore reads for any of them — and
-// all three call into the exact same shared document builder in
-// docx-export.js that handleExportWord uses.
+// All modes reuse the same already-loaded `hearings`/`cases` state as
+// handleExportWord/handleExportPdf above — no new Firestore reads for any
+// of them — and each calls into the exact same shared document builder
+// (docx-export.js or pdf-export.js) that its single-hearing counterpart
+// uses. Both renderers consume the same prepareExportDataset() output from
+// export-data.js, so no calendar-generation logic is duplicated between
+// DOCX and PDF.
 
 function closeExportDropdown() {
   const menu = document.getElementById("exportDropdownMenu");
@@ -730,9 +772,13 @@ function setToolbarExportStatus(text) {
   if (el) el.textContent = text || "";
 }
 
-async function withExportButton(buttonId, task, onSuccess) {
+async function withExportButton(buttonId, format, task, onSuccess) {
   if (!can(currentRole, PERMISSIONS.EXPORT)) return;
-  if (!window.docx) {
+  if (format === "pdf" && !window.pdfMake) {
+    setToolbarExportStatus("Could not export: the PDF export library failed to load. Check your internet connection and try again.");
+    return;
+  }
+  if (format === "docx" && !window.docx) {
     setToolbarExportStatus("Could not export: the Word export library failed to load. Check your internet connection and try again.");
     return;
   }
@@ -759,51 +805,57 @@ async function withExportButton(buttonId, task, onSuccess) {
   }
 }
 
-async function handleExportSelectedDate() {
+async function handleExportSelectedDate(format) {
   const dateStr = document.getElementById("exportDateInput").value;
   if (!dateStr) {
     setToolbarExportStatus("Pick a date first.");
     return;
   }
+  const exporter = format === "pdf" ? exportCourtCalendarForDatePdf : exportCourtCalendarForDate;
   await withExportButton(
-    "exportDateBtn",
-    () => exportCourtCalendarForDate(hearings, cases, dateStr),
+    format === "pdf" ? "exportDatePdfBtn" : "exportDateDocxBtn",
+    format,
+    () => exporter(hearings, cases, dateStr),
     () => ({
-      action: "Export Selected Date's Calendar",
+      action: `Export Selected Date's Calendar (${format.toUpperCase()})`,
       module: "Hearings",
       entityId: dateStr,
       entityType: "calendarExport",
-      description: `Exported calendar for ${dateStr}`,
+      description: `Exported calendar (${format.toUpperCase()}) for ${dateStr}`,
     })
   );
 }
 
-async function handleExportCurrentWeek() {
+async function handleExportCurrentWeek(format) {
   const anchorDate = new Date();
+  const exporter = format === "pdf" ? exportCourtCalendarForWeekPdf : exportCourtCalendarForWeek;
   await withExportButton(
-    "exportWeekBtn",
-    () => exportCourtCalendarForWeek(hearings, cases, anchorDate),
+    format === "pdf" ? "exportWeekPdfBtn" : "exportWeekDocxBtn",
+    format,
+    () => exporter(hearings, cases, anchorDate),
     () => ({
-      action: "Export Weekly Calendar",
+      action: `Export Weekly Calendar (${format.toUpperCase()})`,
       module: "Hearings",
       entityId: isoDateStr(anchorDate),
       entityType: "calendarExport",
-      description: `Exported calendar for the week of ${isoDateStr(anchorDate)}`,
+      description: `Exported calendar (${format.toUpperCase()}) for the week of ${isoDateStr(anchorDate)}`,
     })
   );
 }
 
-async function handleExportCurrentMonth() {
+async function handleExportCurrentMonth(format) {
   const anchorDate = new Date();
+  const exporter = format === "pdf" ? exportCourtCalendarForMonthPdf : exportCourtCalendarForMonth;
   await withExportButton(
-    "exportMonthBtn",
-    () => exportCourtCalendarForMonth(hearings, cases, anchorDate),
+    format === "pdf" ? "exportMonthPdfBtn" : "exportMonthDocxBtn",
+    format,
+    () => exporter(hearings, cases, anchorDate),
     () => ({
-      action: "Export Monthly Calendar",
+      action: `Export Monthly Calendar (${format.toUpperCase()})`,
       module: "Hearings",
       entityId: isoDateStr(anchorDate),
       entityType: "calendarExport",
-      description: `Exported calendar for the month of ${anchorDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`,
+      description: `Exported calendar (${format.toUpperCase()}) for the month of ${anchorDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`,
     })
   );
 }
@@ -920,9 +972,12 @@ async function init() {
   // permission (see permissions.js) — hidden entirely rather than left
   // clickable and silently doing nothing.
   if (can(currentRole, PERMISSIONS.EXPORT)) {
-    document.getElementById("exportDateBtn").addEventListener("click", handleExportSelectedDate);
-    document.getElementById("exportWeekBtn").addEventListener("click", handleExportCurrentWeek);
-    document.getElementById("exportMonthBtn").addEventListener("click", handleExportCurrentMonth);
+    document.getElementById("exportDateDocxBtn").addEventListener("click", () => handleExportSelectedDate("docx"));
+    document.getElementById("exportDatePdfBtn").addEventListener("click", () => handleExportSelectedDate("pdf"));
+    document.getElementById("exportWeekDocxBtn").addEventListener("click", () => handleExportCurrentWeek("docx"));
+    document.getElementById("exportWeekPdfBtn").addEventListener("click", () => handleExportCurrentWeek("pdf"));
+    document.getElementById("exportMonthDocxBtn").addEventListener("click", () => handleExportCurrentMonth("docx"));
+    document.getElementById("exportMonthPdfBtn").addEventListener("click", () => handleExportCurrentMonth("pdf"));
     wireExportDropdown();
   } else {
     document.getElementById("exportDropdown").hidden = true;

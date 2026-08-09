@@ -4,6 +4,48 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — IM-9 Extension: PDF Export + Dashboard Export
+
+Extends the existing IM-9 Court Calendar exporter with a PDF export option,
+alongside the existing DOCX export, and brings the same Export Calendar
+functionality to the Dashboard. The existing DOCX export is unchanged —
+this only adds a sibling renderer and new entry points that call into it.
+
+**Added**
+- `js/pdf-export.js` — new PDF renderer for the Court Calendar (via the
+  `pdfmake` library, CDN-loaded like `docx` already is), consuming the
+  exact same `export-data.js` `prepareExportDataset()`/`getHearingsForDate`/
+  `getHearingsForWeek`/`getHearingsForMonth` output that `docx-export.js`
+  already uses. Same letterhead, court personnel list, section grouping,
+  and six-column table layout as the DOCX version, on the same Legal-size
+  page. Renders in Roboto (pdfmake's bundled font) rather than Century
+  Schoolbook, since that font isn't available without shipping a licensed
+  font file — documented as a deliberate deviation in the file header.
+- `js/calendar-format.js` — small shared module holding `COURT_PERSONNEL`,
+  `fmtLongDate()`, and `safeFilenamePart()`, factored out of
+  `docx-export.js` (values unchanged) so `pdf-export.js` doesn't need its
+  own copy.
+- Hearings page: the Export Calendar dropdown's Selected Date/Current
+  Week/Current Month rows now each offer "Export as DOCX" and "Export as
+  PDF"; the single-hearing form's "Export to Word" button gained an
+  "Export to PDF" sibling.
+- Dashboard: the old single-purpose "Export Today's Calendar" quick action
+  is replaced with a full "Export Calendar" dropdown (date picker plus
+  Current Week/Current Month, each with DOCX/PDF), matching the Hearings
+  page's dropdown. Wired in `js/home.js`, calling the same shared
+  `exportCourtCalendarForDate/Week/Month()` (DOCX) and
+  `exportCourtCalendarForDatePdf/WeekPdf/MonthPdf()` (PDF) functions the
+  Hearings page uses — no calendar dataset preparation or rendering logic
+  duplicated for the Dashboard.
+
+**Unchanged**
+- `js/export-data.js` (the shared IM-9 data-preparation layer) — untouched.
+- `js/docx-export.js`'s document-generation logic and output — untouched;
+  only its three formatting constants moved to `calendar-format.js`.
+- `js/reports.js`'s existing DOCX export calls — untouched, same function
+  signatures.
+- No Firestore documents modified, no migrations.
+
 ## [Unreleased] — IM-10: Case Activity & History
 
 New, read-only Case Detail page giving the Clerk a single chronological

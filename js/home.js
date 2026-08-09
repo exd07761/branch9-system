@@ -40,7 +40,8 @@ import {
   minutesUntil,
   annotateTimelineStatuses,
 } from "./dashboard-live.js?v=1.0.0";
-import { exportCourtCalendarForDate } from "./docx-export.js?v=1.0.0";
+import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=1.0.0";
+import { exportCourtCalendarForDatePdf, exportCourtCalendarForWeekPdf, exportCourtCalendarForMonthPdf } from "./pdf-export.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS, ROLE_LABELS } from "./permissions.js?v=1.0.0";
 
@@ -314,30 +315,64 @@ function setQuickActionsStatus(text) {
   if (el) el.textContent = text || "";
 }
 
-async function handleExportTodayQuickAction() {
+// --- Export Calendar dropdown ------------------------------------------
+// Same dropdown/format-choice UI as the Hearings page's Export Calendar
+// button (export-dropdown/export-dropdown-menu CSS, DOCX + PDF per scope),
+// wired independently here since this is a different page/DOM, but every
+// button below calls the exact same shared exportCourtCalendarForX() /
+// exportCourtCalendarForXPdf() functions the Hearings page uses — neither
+// the calendar dataset preparation (export-data.js) nor either renderer
+// (docx-export.js / pdf-export.js) is duplicated for the Dashboard.
+
+function closeDashExportDropdown() {
+  const menu = document.getElementById("dashExportDropdownMenu");
+  const toggle = document.getElementById("dashExportDropdownToggle");
+  menu.hidden = true;
+  toggle.setAttribute("aria-expanded", "false");
+}
+
+function wireDashExportDropdown() {
+  const toggle = document.getElementById("dashExportDropdownToggle");
+  const menu = document.getElementById("dashExportDropdownMenu");
+  const dropdown = document.getElementById("dashExportDropdown");
+
+  toggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = !menu.hidden;
+    menu.hidden = isOpen;
+    toggle.setAttribute("aria-expanded", String(!isOpen));
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!menu.hidden && !dropdown.contains(e.target)) closeDashExportDropdown();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !menu.hidden) closeDashExportDropdown();
+  });
+
+  menu.addEventListener("click", (e) => e.stopPropagation());
+}
+
+async function withDashExportButton(buttonId, format, task, onSuccess) {
   if (!can(currentRole, PERMISSIONS.EXPORT)) return;
-  if (!window.docx) {
+  if (format === "pdf" && !window.pdfMake) {
+    setQuickActionsStatus("Could not export: the PDF export library failed to load. Check your internet connection and try again.");
+    return;
+  }
+  if (format === "docx" && !window.docx) {
     setQuickActionsStatus("Could not export: the Word export library failed to load. Check your internet connection and try again.");
     return;
   }
-
-  // Reuses the exact same exportCourtCalendarForDate() every export mode
-  // on the Hearings page already calls — no export logic is duplicated.
-  const btn = document.getElementById("qaExportTodayBtn");
+  const btn = document.getElementById(buttonId);
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
   btn.textContent = "Exporting\u2026";
   setQuickActionsStatus("");
   try {
-    await exportCourtCalendarForDate(hearings, cases, todayDateStr());
-    // Not awaited: logging must never block the UI.
-    logActivity({
-      action: "Export Today's Calendar",
-      module: "Dashboard",
-      entityId: todayDateStr(),
-      entityType: "calendarExport",
-      description: `Exported calendar for ${todayDateStr()}`,
-    });
+    await task();
+    if (onSuccess) logActivity(onSuccess());
+    closeDashExportDropdown();
   } catch (err) {
     setQuickActionsStatus(`Could not export: ${err.message}`);
   } finally {
@@ -345,6 +380,61 @@ async function handleExportTodayQuickAction() {
     btn.innerHTML = originalHtml;
     if (window.lucide) lucide.createIcons();
   }
+}
+
+async function handleDashExportSelectedDate(format) {
+  const dateStr = document.getElementById("dashExportDateInput").value;
+  if (!dateStr) {
+    setQuickActionsStatus("Pick a date first.");
+    return;
+  }
+  const exporter = format === "pdf" ? exportCourtCalendarForDatePdf : exportCourtCalendarForDate;
+  await withDashExportButton(
+    format === "pdf" ? "dashExportDatePdfBtn" : "dashExportDateDocxBtn",
+    format,
+    () => exporter(hearings, cases, dateStr),
+    () => ({
+      action: `Export Selected Date's Calendar (${format.toUpperCase()})`,
+      module: "Dashboard",
+      entityId: dateStr,
+      entityType: "calendarExport",
+      description: `Exported calendar (${format.toUpperCase()}) for ${dateStr}`,
+    })
+  );
+}
+
+async function handleDashExportCurrentWeek(format) {
+  const anchorDate = new Date();
+  const exporter = format === "pdf" ? exportCourtCalendarForWeekPdf : exportCourtCalendarForWeek;
+  await withDashExportButton(
+    format === "pdf" ? "dashExportWeekPdfBtn" : "dashExportWeekDocxBtn",
+    format,
+    () => exporter(hearings, cases, anchorDate),
+    () => ({
+      action: `Export Weekly Calendar (${format.toUpperCase()})`,
+      module: "Dashboard",
+      entityId: todayDateStr(anchorDate),
+      entityType: "calendarExport",
+      description: `Exported calendar (${format.toUpperCase()}) for the week of ${todayDateStr(anchorDate)}`,
+    })
+  );
+}
+
+async function handleDashExportCurrentMonth(format) {
+  const anchorDate = new Date();
+  const exporter = format === "pdf" ? exportCourtCalendarForMonthPdf : exportCourtCalendarForMonth;
+  await withDashExportButton(
+    format === "pdf" ? "dashExportMonthPdfBtn" : "dashExportMonthDocxBtn",
+    format,
+    () => exporter(hearings, cases, anchorDate),
+    () => ({
+      action: `Export Monthly Calendar (${format.toUpperCase()})`,
+      module: "Dashboard",
+      entityId: todayDateStr(anchorDate),
+      entityType: "calendarExport",
+      description: `Exported calendar (${format.toUpperCase()}) for the month of ${anchorDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`,
+    })
+  );
 }
 
 function wireQuickActions() {
@@ -364,11 +454,16 @@ function wireQuickActions() {
     window.location.href = "calendar.html";
   });
 
-  const exportBtn = document.getElementById("qaExportTodayBtn");
   if (can(currentRole, PERMISSIONS.EXPORT)) {
-    exportBtn.addEventListener("click", handleExportTodayQuickAction);
+    document.getElementById("dashExportDateDocxBtn").addEventListener("click", () => handleDashExportSelectedDate("docx"));
+    document.getElementById("dashExportDatePdfBtn").addEventListener("click", () => handleDashExportSelectedDate("pdf"));
+    document.getElementById("dashExportWeekDocxBtn").addEventListener("click", () => handleDashExportCurrentWeek("docx"));
+    document.getElementById("dashExportWeekPdfBtn").addEventListener("click", () => handleDashExportCurrentWeek("pdf"));
+    document.getElementById("dashExportMonthDocxBtn").addEventListener("click", () => handleDashExportCurrentMonth("docx"));
+    document.getElementById("dashExportMonthPdfBtn").addEventListener("click", () => handleDashExportCurrentMonth("pdf"));
+    wireDashExportDropdown();
   } else {
-    exportBtn.hidden = true;
+    document.getElementById("dashExportDropdown").hidden = true;
   }
 
   updateQuickActionsLayout();
@@ -387,7 +482,7 @@ function updateQuickActionsLayout() {
   const buttons = [
     document.getElementById("qaAddHearingBtn"),
     document.getElementById("qaOpenCalendarBtn"),
-    document.getElementById("qaExportTodayBtn"),
+    document.getElementById("dashExportDropdown"),
   ];
   buttons.forEach((b) => b.classList.remove("quick-action-last-visible"));
   const visible = buttons.filter((b) => !b.hidden);

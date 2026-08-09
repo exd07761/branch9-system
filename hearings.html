@@ -62,17 +62,23 @@
         <div class="export-dropdown-menu" id="exportDropdownMenu" hidden>
           <div class="export-dropdown-date-row">
             <input type="date" id="exportDateInput" aria-label="Date to export">
-            <button type="button" class="btn-small" id="exportDateBtn">Export</button>
+          </div>
+          <div class="export-dropdown-format-row">
+            <button type="button" class="btn-small" id="exportDateDocxBtn">Export as DOCX</button>
+            <button type="button" class="btn-small" id="exportDatePdfBtn">Export as PDF</button>
           </div>
           <div class="export-dropdown-divider"></div>
-          <button type="button" class="export-dropdown-item" id="exportWeekBtn">
-            <i data-lucide="file-down" aria-hidden="true"></i>
-            <span>Export Current Week</span>
-          </button>
-          <button type="button" class="export-dropdown-item" id="exportMonthBtn">
-            <i data-lucide="file-down" aria-hidden="true"></i>
-            <span>Export Current Month</span>
-          </button>
+          <p class="export-dropdown-label">Current Week</p>
+          <div class="export-dropdown-format-row">
+            <button type="button" class="btn-small" id="exportWeekDocxBtn">Export as DOCX</button>
+            <button type="button" class="btn-small" id="exportWeekPdfBtn">Export as PDF</button>
+          </div>
+          <div class="export-dropdown-divider"></div>
+          <p class="export-dropdown-label">Current Month</p>
+          <div class="export-dropdown-format-row">
+            <button type="button" class="btn-small" id="exportMonthDocxBtn">Export as DOCX</button>
+            <button type="button" class="btn-small" id="exportMonthPdfBtn">Export as PDF</button>
+          </div>
         </div>
       </div>
     </div>
@@ -111,6 +117,8 @@
 
   <script type="module" src="js/hearings.js?v=1.0.0"></script>
   <script src="https://unpkg.com/docx@8.0.4/build/index.js" defer></script>
+  <script src="https://unpkg.com/pdfmake@0.2.20/build/pdfmake.min.js" defer></script>
+  <script src="https://unpkg.com/pdfmake@0.2.20/build/vfs_fonts.js" defer></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 
