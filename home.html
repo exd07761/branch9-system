@@ -10,12 +10,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css?v=1.0.0">
 </head>
-<body>
+<body class="page-home">
 
   <nav class="app-nav">
     <span class="app-nav-brand">
-      <i data-lucide="scale" aria-hidden="true"></i>
-      Docket Management System
+      <span class="app-nav-brand-icon"><i data-lucide="scale" aria-hidden="true"></i></span>
+      <span class="app-nav-brand-text">
+        <span class="app-nav-brand-title">Branch 9</span>
+        <span class="app-nav-brand-subtitle">Docket Management System</span>
+      </span>
     </span>
     <div class="app-nav-links">
       <a class="app-nav-link active" href="home.html"><i data-lucide="house" aria-hidden="true"></i>Home</a>
@@ -37,29 +40,68 @@
     </div>
   </nav>
 
-  <main class="wrap wrap-wide">
-    <header class="header">
-      <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Welcome</h1>
-      <p class="sub">Use the navigation above to schedule hearings or view the calendar.</p>
-    </header>
+  <main class="wrap wrap-dashboard">
+    <div class="dashboard-greeting-row">
+      <div class="dashboard-greeting-left">
+        <button type="button" class="dashboard-sidebar-toggle" id="sidebarToggleBtn" aria-label="Collapse sidebar" aria-pressed="false">
+          <i data-lucide="panel-left" aria-hidden="true"></i>
+        </button>
+        <div class="dashboard-greeting">
+          <h1 id="dashboardGreeting">Good day.</h1>
+          <p class="sub" id="dashboardGreetingSub">Here's what's happening in Branch 9 today.</p>
+        </div>
+      </div>
+      <div class="dashboard-header-right">
+        <div class="dashboard-date-badge">
+          <i data-lucide="calendar" aria-hidden="true"></i>
+          <div>
+            <p class="dashboard-date-badge-day" id="dashboardDateDay">&hellip;</p>
+            <p class="dashboard-date-badge-tz">Philippine Standard Time (PST)</p>
+          </div>
+        </div>
+        <div class="dashboard-user-chip">
+          <button type="button" class="dashboard-user-chip-trigger" id="dashboardUserMenuBtn" aria-haspopup="true" aria-expanded="false">
+            <span class="dashboard-user-avatar" id="dashboardUserAvatar">&hellip;</span>
+            <span class="dashboard-user-chip-text">
+              <span class="dashboard-user-chip-name" id="dashboardUserName">&hellip;</span>
+              <span class="dashboard-user-chip-role" id="dashboardUserRole">&hellip;</span>
+            </span>
+            <i data-lucide="chevron-down" aria-hidden="true"></i>
+          </button>
+          <div class="dashboard-user-menu" id="dashboardUserMenu" hidden>
+            <button type="button" class="dashboard-user-logout" data-logout-trigger>
+              <i data-lucide="log-out" aria-hidden="true"></i>
+              <span>Log out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <section class="dashboard-stats-grid" aria-label="Docket summary">
       <div class="card dashboard-stat-card">
-        <p class="dashboard-stat-value" id="statActiveCases">&hellip;</p>
-        <p class="dashboard-stat-label">Active Cases</p>
+        <div class="dashboard-stat-icon dashboard-stat-icon--blue"><i data-lucide="folder" aria-hidden="true"></i></div>
+        <div>
+          <p class="dashboard-stat-label">Total Cases</p>
+          <p class="dashboard-stat-value" id="statTotalCases">&hellip;</p>
+          <p class="dashboard-stat-sub">All time</p>
+        </div>
       </div>
       <div class="card dashboard-stat-card">
-        <p class="dashboard-stat-value" id="statHearingsToday">&hellip;</p>
-        <p class="dashboard-stat-label">Hearings Today</p>
+        <div class="dashboard-stat-icon dashboard-stat-icon--green"><i data-lucide="file-check-2" aria-hidden="true"></i></div>
+        <div>
+          <p class="dashboard-stat-label">Active Cases</p>
+          <p class="dashboard-stat-value" id="statActiveCases">&hellip;</p>
+          <p class="dashboard-stat-sub">Currently ongoing</p>
+        </div>
       </div>
       <div class="card dashboard-stat-card">
-        <p class="dashboard-stat-value" id="statHearingsNext7">&hellip;</p>
-        <p class="dashboard-stat-label">Hearings in Next 7 Days</p>
-      </div>
-      <div class="card dashboard-stat-card">
-        <p class="dashboard-stat-value" id="statHearingsNext30">&hellip;</p>
-        <p class="dashboard-stat-label">Hearings in Next 30 Days</p>
+        <div class="dashboard-stat-icon dashboard-stat-icon--purple"><i data-lucide="calendar-days" aria-hidden="true"></i></div>
+        <div>
+          <p class="dashboard-stat-label">Today's Hearings</p>
+          <p class="dashboard-stat-value" id="statHearingsToday">&hellip;</p>
+          <p class="dashboard-stat-sub">Scheduled today</p>
+        </div>
       </div>
     </section>
 

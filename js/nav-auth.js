@@ -44,19 +44,29 @@ export function wireNavAuth(user, { loginPage = "login.html" } = {}) {
 
   if (user) applyNavPermissions(user.role);
 
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) {
-    logoutBtn.addEventListener("click", async () => {
-      // Logged before signOut() — auth.currentUser is cleared once
-      // signOut() resolves, and logActivity() falls back to "unknown"
-      // without it. Not awaited: never delay the redirect over logging.
-      logActivity({
-        action: "Logout",
-        module: "Authentication",
-        description: `${user.email} logged out`,
-      });
-      await signOut(auth);
-      window.location.replace(loginPage);
+  const doLogout = async () => {
+    // Logged before signOut() — auth.currentUser is cleared once
+    // signOut() resolves, and logActivity() falls back to "unknown"
+    // without it. Not awaited: never delay the redirect over logging.
+    logActivity({
+      action: "Logout",
+      module: "Authentication",
+      description: `${user.email} logged out`,
     });
-  }
+    await signOut(auth);
+    window.location.replace(loginPage);
+  };
+
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) logoutBtn.addEventListener("click", doLogout);
+
+  // Additive, opt-in: any element carrying data-logout-trigger gets the
+  // exact same sign-out behavior as the main #logoutBtn above, so a page
+  // can offer a second logout entry point (e.g. the dashboard's header
+  // user menu) without duplicating the signOut()/logActivity() logic.
+  // No page had any such elements before this, so this is a no-op
+  // everywhere except where one is deliberately added.
+  document.querySelectorAll("[data-logout-trigger]").forEach((el) => {
+    el.addEventListener("click", doLogout);
+  });
 }

@@ -15,6 +15,9 @@
 // "Export Today's Calendar" quick action has case data to include —
 // no new Firestore access code was written for this, it's the exact
 // same reusable subscription helper hearings-data.js already exports.
+// The dashboard redesign further adds one subscribeToCaseRecords() call
+// (cases-data.js) for the Total Cases / Active Cases stat cards — again
+// reusing an existing IM-1 function, not new Firestore logic.
 //
 // Computation: dashboard-stats.js (stat cards, today's-hearings
 // filter+sort) and dashboard-live.js (current/next hearing, today's
@@ -28,6 +31,7 @@
 import { requireAuth } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToHearings, subscribeToCases } from "./hearings-data.js?v=1.0.0";
+import { subscribeToCaseRecords, isActiveCase } from "./cases-data.js?v=1.0.0";
 import { computeDashboardStats, getTodaysHearingsSorted } from "./dashboard-stats.js?v=1.0.0";
 import {
   getCurrentHearing,
@@ -38,7 +42,7 @@ import {
 } from "./dashboard-live.js?v=1.0.0";
 import { exportCourtCalendarForDate } from "./docx-export.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
-import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { can, PERMISSIONS, ROLE_LABELS } from "./permissions.js?v=1.0.0";
 
 const STATUS_LABEL = { now: "Now", next: "Next", completed: "Completed", upcoming: "Upcoming" };
 
@@ -52,10 +56,92 @@ function esc(s) {
 
 function renderStats(hearingsArray) {
   const stats = computeDashboardStats(hearingsArray);
-  document.getElementById("statActiveCases").textContent = stats.activeCases;
   document.getElementById("statHearingsToday").textContent = stats.hearingsToday;
-  document.getElementById("statHearingsNext7").textContent = stats.hearingsNext7;
-  document.getElementById("statHearingsNext30").textContent = stats.hearingsNext30;
+}
+
+// v2 dashboard redesign: Total Cases / Active Cases now come from the real
+// `cases` collection (cases-data.js, built in the v1.1 Case redesign) via
+// its existing subscribeToCaseRecords()/isActiveCase() — not new logic,
+// just a new consumer of functions cases.js already uses. This replaces
+// the old "Active Cases" number on this dashboard, which was actually a
+// sum of each hearing's own caseCount field (see dashboard-stats.js) —
+// a pre-v1.1 proxy metric, not an actual count of Case documents. Total
+// Cases intentionally includes archived (but non-deleted) Cases — "all
+// time" — while Active Cases excludes them, matching isActiveCase().
+function renderCaseStats(allCases) {
+  document.getElementById("statTotalCases").textContent = allCases.length;
+  document.getElementById("statActiveCases").textContent = allCases.filter(isActiveCase).length;
+}
+
+// Greeting + current date — both computed client-side from real data
+// (the signed-in user's email, the browser's clock), never hardcoded.
+// There's no display-name field anywhere in this app's data model (only
+// email + role — see nav-auth.js), so the greeting uses the email's
+// local part as a stand-in for a name. Shared by both the greeting and
+// the header user chip below, so the derivation lives in one place.
+function deriveNameFromEmail(email) {
+  const namePart = (email || "").split("@")[0];
+  return namePart ? namePart.charAt(0).toUpperCase() + namePart.slice(1) : "there";
+}
+
+function renderGreeting(user) {
+  const hour = new Date().getHours();
+  const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+  document.getElementById("dashboardGreeting").textContent = `Good ${timeOfDay}, ${deriveNameFromEmail(user.email)}.`;
+}
+
+function renderDateBadge() {
+  const el = document.getElementById("dashboardDateDay");
+  if (el) el.textContent = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+}
+
+// Header user chip: same real email/role this app already shows in the
+// sidebar (nav-auth.js's #userEmail), just surfaced a second time up
+// here to match the mockup's top-right identity area. The dropdown's
+// only action is Log out, wired via nav-auth.js's data-logout-trigger
+// support (added alongside this) — reuses the exact same signOut()
+// logic as the sidebar's own Logout button, not a second copy of it.
+function renderUserChip(user) {
+  const name = deriveNameFromEmail(user.email);
+  document.getElementById("dashboardUserAvatar").textContent = name.charAt(0).toUpperCase();
+  document.getElementById("dashboardUserName").textContent = name;
+  document.getElementById("dashboardUserRole").textContent = ROLE_LABELS[user.role] || ROLE_LABELS.branch_clerk;
+}
+
+function wireSidebarToggle() {
+  const btn = document.getElementById("sidebarToggleBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const collapsed = document.body.classList.toggle("sidebar-collapsed");
+    btn.setAttribute("aria-pressed", String(collapsed));
+    btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+  });
+}
+
+function wireUserMenu() {
+  const btn = document.getElementById("dashboardUserMenuBtn");
+  const menu = document.getElementById("dashboardUserMenu");
+  if (!btn || !menu) return;
+
+  const close = () => {
+    menu.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+  };
+  const open = () => {
+    menu.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (menu.hidden) open(); else close();
+  });
+  document.addEventListener("click", (e) => {
+    if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !menu.hidden) close();
+  });
 }
 
 function formatHearingTime(hearing) {
@@ -315,6 +401,11 @@ async function init() {
   currentRole = user.role;
   wireNavAuth(user);
   wireQuickActions();
+  renderGreeting(user);
+  renderDateBadge();
+  renderUserChip(user);
+  wireUserMenu();
+  wireSidebarToggle();
 
   // Single live hearings listener shared by the stat cards, the Session/
   // Summary cards, and the Timeline — updates automatically whenever
@@ -332,6 +423,15 @@ async function init() {
   subscribeToCases((data) => {
     cases = data;
   });
+
+  // Total Cases / Active Cases stat cards: reuses cases-data.js's
+  // existing subscribeToCaseRecords() (already used by cases.js),
+  // called with includeArchived so a single listener can answer both
+  // "all time" (Total) and "currently ongoing" (Active, filtered
+  // client-side with the same isActiveCase() cases.js already uses).
+  subscribeToCaseRecords((data) => {
+    renderCaseStats(data);
+  }, { includeArchived: true });
 
   // Keeps the Session card and Timeline ("Starts in N minutes", current/
   // next highlighting) accurate as real time passes, even between
