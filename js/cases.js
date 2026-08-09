@@ -24,13 +24,21 @@
 //     writes "hearings" or "hearingCases"; the Case<->Hearing link itself
 //     is entirely hearings.js's/hearings-data.js's responsibility (IM-6/
 //     IM-8), read-only from here via the derived currentStatus display.
-//   - No search bar, no Quick View modal, no export — narrower than
-//     hearings.js on purpose; can be added later without breaking anything
-//     built here.
+//   - No Quick View modal, no export — narrower than hearings.js on
+//     purpose; can be added later without breaking anything built here.
 //   - The duplicate-case-number check below is implemented entirely in
 //     this file, scanning the already-loaded caseRecords[] array, rather
 //     than adding a new export to cases-data.js. Keeps that file's own
 //     diff minimal.
+//
+// Search (added post-IM-2): a single free-text box, same client-side
+// substring-match pattern as hearings.js's hearingMatchesSearch()/
+// searchQuery — see caseMatchesSearch() below. Matches only fields that
+// actually exist on a Case document (caseNo, caseType, charge,
+// currentStatus); unlike hearings.js this does NOT search
+// plaintiff/accused, since those fields don't exist on Case at all. Pure
+// client-side filter over the already-loaded caseRecords[] — no new
+// Firestore query, no pagination, no schema change.
 // ---------------------------------------------------------------------------
 
 import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
@@ -54,6 +62,7 @@ let caseRecords = [];
 let editingCaseId = null;
 let formOpen = false;
 let currentRole = null;
+let searchQuery = "";
 
 function esc(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
@@ -92,17 +101,36 @@ function isDuplicateCaseNo(caseType, caseNo, excludeCaseId) {
   );
 }
 
+// --- Search --------------------------------------------------------------
+// Same matching pattern as hearings.js's hearingMatchesSearch(): a single
+// case-insensitive substring match against a concatenated haystack. Only
+// fields that exist on a Case document are included.
+
+function caseMatchesSearch(c, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+
+  const haystack = [c.caseNo, c.caseType, c.charge, c.currentStatus]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(q);
+}
+
 // --- List ------------------------------------------------------------------
 
 function renderList() {
   const tbody = document.getElementById("casesTableBody");
+  const visibleCases = caseRecords.filter((c) => caseMatchesSearch(c, searchQuery));
 
-  if (!caseRecords.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-row">No cases yet. Click "+ Add Case" to create one.</td></tr>`;
+  if (!visibleCases.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-row">${
+      caseRecords.length ? "No cases match your search." : 'No cases yet. Click "+ Add Case" to create one.'
+    }</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = caseRecords
+  tbody.innerHTML = visibleCases
     .map((c) => {
       // IM-10: links to the new read-only Case Detail page (Activity &
       // History). Always shown to anyone who can see this list at all —
@@ -346,6 +374,11 @@ async function init() {
   } else {
     addCaseBtn.hidden = true;
   }
+
+  document.getElementById("casesSearchInput").addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
+    renderList();
+  });
 
   subscribeToCaseRecords((data) => {
     caseRecords = data;
