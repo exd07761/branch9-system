@@ -1,0 +1,14 @@
+334a335,339
+> // ?action=add — opens the existing Add form (openAddForm()). Used by
+> // Home's "Add Case" quick action, mirroring hearings.js's identical
+> // ?action=add support for its own "Add Hearing" quick action.
+> const autoAddAction = new URLSearchParams(window.location.search).get("action") === "add";
+> 
+347a353,359
+>   }
+> 
+>   if (autoAddAction) {
+>     openAddForm(); // no-op if currentRole can't create — see openAddForm()
+>     const url = new URL(window.location.href);
+>     url.searchParams.delete("action");
+>     window.history.replaceState({}, "", url);

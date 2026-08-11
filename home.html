@@ -129,6 +129,10 @@
         <section class="card quick-actions-card">
           <h2 class="today-panel-title"><i data-lucide="zap" aria-hidden="true"></i>Quick Actions</h2>
           <div class="quick-actions-row">
+            <button type="button" class="btn-secondary" id="qaAddCaseBtn">
+              <i data-lucide="folder-plus" aria-hidden="true"></i>
+              <span>Add Case</span>
+            </button>
             <button type="button" class="btn-secondary" id="qaAddHearingBtn">
               <i data-lucide="plus" aria-hidden="true"></i>
               <span>Add Hearing</span>
@@ -137,34 +141,10 @@
               <i data-lucide="calendar-days" aria-hidden="true"></i>
               <span>Open Calendar</span>
             </button>
-            <div class="export-dropdown" id="dashExportDropdown">
-              <button type="button" class="btn-secondary" id="dashExportDropdownToggle" aria-haspopup="true" aria-expanded="false">
-                <i data-lucide="file-down" aria-hidden="true"></i>
-                <span>Export Calendar</span>
-                <i data-lucide="chevron-down" aria-hidden="true"></i>
-              </button>
-              <div class="export-dropdown-menu" id="dashExportDropdownMenu" hidden>
-                <div class="export-dropdown-date-row">
-                  <input type="date" id="dashExportDateInput" aria-label="Date to export">
-                </div>
-                <div class="export-dropdown-format-row">
-                  <button type="button" class="btn-small" id="dashExportDateDocxBtn">Export as DOCX</button>
-                  <button type="button" class="btn-small" id="dashExportDatePdfBtn">Export as PDF</button>
-                </div>
-                <div class="export-dropdown-divider"></div>
-                <p class="export-dropdown-label">Current Week</p>
-                <div class="export-dropdown-format-row">
-                  <button type="button" class="btn-small" id="dashExportWeekDocxBtn">Export as DOCX</button>
-                  <button type="button" class="btn-small" id="dashExportWeekPdfBtn">Export as PDF</button>
-                </div>
-                <div class="export-dropdown-divider"></div>
-                <p class="export-dropdown-label">Current Month</p>
-                <div class="export-dropdown-format-row">
-                  <button type="button" class="btn-small" id="dashExportMonthDocxBtn">Export as DOCX</button>
-                  <button type="button" class="btn-small" id="dashExportMonthPdfBtn">Export as PDF</button>
-                </div>
-              </div>
-            </div>
+            <button type="button" class="btn-secondary" id="qaExportTodayBtn">
+              <i data-lucide="file-down" aria-hidden="true"></i>
+              <span>Export Today's Calendar</span>
+            </button>
           </div>
           <p class="form-error" id="quickActionsStatus" role="alert"></p>
         </section>
@@ -182,8 +162,6 @@
 
   <script type="module" src="js/home.js?v=1.0.0"></script>
   <script src="https://unpkg.com/docx@8.0.4/build/index.js" defer></script>
-  <script src="https://unpkg.com/pdfmake@0.2.20/build/pdfmake.min.js" defer></script>
-  <script src="https://unpkg.com/pdfmake@0.2.20/build/vfs_fonts.js" defer></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 
