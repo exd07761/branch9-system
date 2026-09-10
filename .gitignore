@@ -1,0 +1,50 @@
+# ============================================================
+# Branch9 Docket Management System
+# ============================================================
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.vscode/
+.idea/
+
+# Node / dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Firebase local / emulator files
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Credentials — NEVER commit these
+serviceAccountKey.json
+firebase-adminsdk-*.json
+*-service-account.json
+
+# Build / cache
+dist/
+build/
+coverage/
+.cache/
+.tmp/
+temp/
+
+# Local backups
+backups/
+local-backups/
+*.bak
+*.tmp
+
+# Development archives / patch files
+*.zip
+*.diff
+*.patchn
