@@ -40,21 +40,31 @@ const hearingCasesCol = collection(db, "hearingCases");
  * single range + orderBy on the same field only needs Firestore's
  * automatic single-field index).
  *
+ * @param {function} onChange
+ * @param {function} [onError] - optional; called with the Firestore error
+ *   if the listener fails (e.g. permission-denied, offline). Same
+ *   additive-only contract as hearings-data.js's subscribeToHearings()/
+ *   subscribeToCases() — the sole existing caller (calendar.js) that
+ *   doesn't pass this keeps its previous behavior.
  * Returns an unsubscribe function.
  */
-export function subscribeToHearingsInRange(rangeStart, rangeEnd, onChange) {
+export function subscribeToHearingsInRange(rangeStart, rangeEnd, onChange, onError) {
   const q = query(
     hearingsCol,
     where("hearingDateTime", ">=", Timestamp.fromDate(rangeStart)),
     where("hearingDateTime", "<", Timestamp.fromDate(rangeEnd)),
     orderBy("hearingDateTime", "asc")
   );
-  return onSnapshot(q, (snapshot) => {
-    const hearings = snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter(isActiveHearing);
-    onChange(hearings);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const hearings = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter(isActiveHearing);
+      onChange(hearings);
+    },
+    typeof onError === "function" ? onError : undefined
+  );
 }
 
 /**

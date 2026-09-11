@@ -46,7 +46,7 @@ import { refreshCaseStatusFromHearings } from "./case-status-derivation.js?v=1.0
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
 import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
-import { showNotice } from "./notify.js?v=1.0.0";
+import { showNotice, clearNotice } from "./notify.js?v=1.0.0";
 
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
@@ -111,12 +111,17 @@ function hearingLabel(data) {
   return `${plaintiff} vs. ${accused}`;
 }
 
-// --- Global search -------------------------------------------------------
-// Filters the already-loaded `hearings` array in memory — no new
-// Firestore query runs per keystroke. Reuses casesForHearing() (already
-// defined above) rather than duplicating any case-lookup logic.
+// --- Global search / filter / sort ---------------------------------------
+// All operate on the already-loaded `hearings` array in memory — no new
+// Firestore query runs per keystroke or dropdown change, same approach as
+// cases.js's search/filter/sort. Reuses casesForHearing() (already defined
+// above) rather than duplicating any case-lookup logic.
 
 let searchQuery = "";
+let sectionFilter = "All";
+let statusFilter = "All";
+let whenFilter = "All";
+let sortMode = "date-asc";
 
 function hearingMatchesSearch(hearing, query) {
   if (!query) return true;
@@ -131,6 +136,7 @@ function hearingMatchesSearch(hearing, query) {
     hearing.hearingDate,
     fmtDate(hearing.hearingDate),
     hearing.status,
+    hearing.section,
   ]
     .join(" ")
     .toLowerCase();
@@ -138,20 +144,113 @@ function hearingMatchesSearch(hearing, query) {
   return haystack.includes(q);
 }
 
+// "YYYY-MM-DD" for today, local time — same shape as isoDateStr(d) above,
+// just anchored to `new Date()` — used only by the When filter below.
+function todayDateStr() {
+  return isoDateStr(new Date());
+}
+
+function hearingMatchesWhen(hearing) {
+  if (whenFilter === "All") return true;
+  if (!hearing.hearingDate) return false;
+  const today = todayDateStr();
+  if (whenFilter === "today") return hearing.hearingDate === today;
+  if (whenFilter === "upcoming") return hearing.hearingDate >= today;
+  if (whenFilter === "past") return hearing.hearingDate < today;
+  return true;
+}
+
+// createdAt is a Firestore Timestamp (see hearings-data.js); records with
+// no usable createdAt (shouldn't normally happen) sort last regardless of
+// direction — same convention as cases.js's createdAtMillis().
+function createdAtMillis(h) {
+  return h.createdAt && typeof h.createdAt.toMillis === "function" ? h.createdAt.toMillis() : null;
+}
+
+function sortHearings(list) {
+  const sorted = [...list];
+  switch (sortMode) {
+    case "date-desc":
+      sorted.sort((a, b) => (b.hearingDate || "").localeCompare(a.hearingDate || ""));
+      break;
+    case "section":
+      sorted.sort((a, b) => (a.section || "").localeCompare(b.section || ""));
+      break;
+    case "status":
+      sorted.sort((a, b) => (a.status || "").localeCompare(b.status || ""));
+      break;
+    case "newest":
+      sorted.sort((a, b) => {
+        const am = createdAtMillis(a);
+        const bm = createdAtMillis(b);
+        if (am === null && bm === null) return 0;
+        if (am === null) return 1;
+        if (bm === null) return -1;
+        return bm - am;
+      });
+      break;
+    case "date-asc":
+    default:
+      sorted.sort((a, b) => (a.hearingDate || "").localeCompare(b.hearingDate || ""));
+      break;
+  }
+  return sorted;
+}
+
+// The single combined "what should the list show" function — search,
+// filters, and sort all apply together (an active search plus an active
+// filter plus a sort produce the expected intersection, not one control
+// silently replacing another).
+function visibleHearings() {
+  const filtered = hearings
+    .filter((h) => sectionFilter === "All" || h.section === sectionFilter)
+    .filter((h) => statusFilter === "All" || h.status === statusFilter)
+    .filter((h) => hearingMatchesWhen(h))
+    .filter((h) => hearingMatchesSearch(h, searchQuery));
+  return sortHearings(filtered);
+}
+
+function hasActiveSearchOrFilter() {
+  return Boolean(searchQuery) || sectionFilter !== "All" || statusFilter !== "All" || whenFilter !== "All";
+}
+
+function resetSearchAndFilters() {
+  searchQuery = "";
+  sectionFilter = "All";
+  statusFilter = "All";
+  whenFilter = "All";
+  document.getElementById("hearingsSearchInput").value = "";
+  document.getElementById("hearingsSectionFilter").value = "All";
+  document.getElementById("hearingsStatusFilter").value = "All";
+  document.getElementById("hearingsWhenFilter").value = "All";
+  renderList();
+}
+
 // --- List rendering ---------------------------------------------------
 
 function renderList() {
   const tbody = document.getElementById("hearingsTableBody");
-  const visibleHearings = hearings.filter((h) => hearingMatchesSearch(h, searchQuery));
+  const visible = visibleHearings();
 
-  if (!visibleHearings.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-row">${
-      hearings.length ? "No hearings match your search." : 'No hearings yet. Click "+ Add Hearing" to create one.'
-    }</td></tr>`;
+  if (!visible.length) {
+    const message = hearings.length
+      ? "No hearings match your current search/filters."
+      : "No hearings have been recorded yet.";
+    const resetLink =
+      hearings.length && hasActiveSearchOrFilter()
+        ? ` <button type="button" class="btn-small" id="resetHearingsFiltersBtn">Reset search &amp; filters</button>`
+        : hearings.length
+        ? ""
+        : can(currentRole, PERMISSIONS.HEARINGS_CREATE)
+        ? ' Click "+ Add Hearing" to create one.'
+        : "";
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-row">${message}${resetLink}</td></tr>`;
+    const resetBtn = document.getElementById("resetHearingsFiltersBtn");
+    if (resetBtn) resetBtn.addEventListener("click", resetSearchAndFilters);
     return;
   }
 
-  tbody.innerHTML = visibleHearings
+  tbody.innerHTML = visible
     .map((h) => {
       const accusedLine = (h.accused || []).join(", ");
       // caseCount is written on every save; fall back to counting live
@@ -883,6 +982,101 @@ function maybeAutoOpenFromUrl() {
   window.history.replaceState({}, "", url);
 }
 
+// Populates the Section/Status filter <select>s from the same shared
+// option lists the form itself uses (SECTIONS locally, STATUSES from
+// constants.js) — never a second, independently-typed list. Same "All"-
+// prefixed shape as cases.js's populateTypeFilter()/populateStatusFilter().
+function populateSectionFilter() {
+  const select = document.getElementById("hearingsSectionFilter");
+  select.innerHTML = `<option value="All">All</option>` + SECTIONS.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+}
+
+function populateStatusFilter() {
+  const select = document.getElementById("hearingsStatusFilter");
+  select.innerHTML = `<option value="All">All statuses</option>` + STATUSES.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+}
+
+function wireListControls() {
+  document.getElementById("hearingsSearchInput").addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
+    renderList();
+  });
+  document.getElementById("hearingsSectionFilter").addEventListener("change", (e) => {
+    sectionFilter = e.target.value;
+    renderList();
+  });
+  document.getElementById("hearingsStatusFilter").addEventListener("change", (e) => {
+    statusFilter = e.target.value;
+    renderList();
+  });
+  document.getElementById("hearingsWhenFilter").addEventListener("change", (e) => {
+    whenFilter = e.target.value;
+    renderList();
+  });
+  document.getElementById("hearingsSortSelect").addEventListener("change", (e) => {
+    sortMode = e.target.value;
+    renderList();
+  });
+}
+
+// --- Listener error handling ----------------------------------------------
+// subscribeToHearings()/subscribeToCases() (hearings-data.js) both accept
+// an optional onError callback — see home.js's identical use of the same
+// additive-only contract. Wired here so a Firestore listener failure
+// (offline, permission-denied, etc.) is shown to the user via the existing
+// #pageNotice + notify.js infrastructure, with a Retry action, instead of
+// leaving the table stuck on "Loading…" forever.
+let unsubscribeHearings = null;
+let unsubscribeCases = null;
+
+function renderListenerError(what, retry) {
+  return (err) => {
+    console.error(`Hearings: ${what} listener failed`, err);
+    const noticeHost = document.getElementById("pageNotice");
+    showNotice(noticeHost, `Could not load ${what}. Check your connection and try again.`, "error");
+    const closeBtn = noticeHost.querySelector(".inline-notice-close");
+    if (closeBtn) {
+      const retryBtn = document.createElement("button");
+      retryBtn.type = "button";
+      retryBtn.className = "inline-notice-retry";
+      retryBtn.textContent = "Retry";
+      retryBtn.addEventListener("click", retry);
+      noticeHost.querySelector(".inline-notice")?.insertBefore(retryBtn, closeBtn);
+    }
+    const tbody = document.getElementById("hearingsTableBody");
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="empty-row">Unable to load hearings.</td></tr>`;
+  };
+}
+
+function startHearingsSubscription() {
+  clearNotice(document.getElementById("pageNotice"));
+  if (typeof unsubscribeHearings === "function") unsubscribeHearings();
+  unsubscribeHearings = subscribeToHearings(
+    (data) => {
+      hearings = data;
+      hearingsLoaded = true;
+      renderList();
+      maybeAutoOpenFromUrl();
+    },
+    {},
+    renderListenerError("hearings", startHearingsSubscription)
+  );
+}
+
+function startCasesSubscription() {
+  clearNotice(document.getElementById("pageNotice"));
+  if (typeof unsubscribeCases === "function") unsubscribeCases();
+  unsubscribeCases = subscribeToCases(
+    (data) => {
+      cases = data;
+      casesLoaded = true;
+      renderList();
+      maybeAutoOpenFromUrl();
+    },
+    renderListenerError("case numbers", startCasesSubscription)
+  );
+}
+
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return;
@@ -905,10 +1099,9 @@ async function init() {
     window.history.replaceState({}, "", url);
   }
 
-  document.getElementById("hearingsSearchInput").addEventListener("input", (e) => {
-    searchQuery = e.target.value.trim();
-    renderList();
-  });
+  populateSectionFilter();
+  populateStatusFilter();
+  wireListControls();
 
   // Export Calendar dropdown: Encoder and Read Only don't have export
   // permission (see permissions.js) — hidden entirely rather than left
@@ -922,19 +1115,8 @@ async function init() {
     document.getElementById("exportDropdown").hidden = true;
   }
 
-  subscribeToHearings((data) => {
-    hearings = data;
-    hearingsLoaded = true;
-    renderList();
-    maybeAutoOpenFromUrl();
-  });
-
-  subscribeToCases((data) => {
-    cases = data;
-    casesLoaded = true;
-    renderList();
-    maybeAutoOpenFromUrl();
-  });
+  startHearingsSubscription();
+  startCasesSubscription();
 
   // IM-8: powers the Case picker in the add/edit form (caseRowHtml()).
   // Not gated into hearingsLoaded/casesLoaded/maybeAutoOpenFromUrl — the

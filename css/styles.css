@@ -911,6 +911,10 @@ button, input, select, textarea { font-family: inherit; }
 .cal-month-headcell { background: var(--paper); padding: var(--space-2); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); text-align: center; font-weight: 600; } /* JS-DEPENDENT */
 .cal-month-cell { background: var(--card); min-height: 108px; padding: var(--space-2); cursor: pointer; } /* JS-DEPENDENT */
 .cal-month-cell:hover { background: var(--paper); }
+.cal-month-cell[tabindex]:focus-visible {                          /* JS-DEPENDENT: cells made keyboard-focusable in calendar.js */
+  outline: 2px solid var(--accent-dark);
+  outline-offset: -2px;
+}
 .cal-month-cell-muted { opacity: 0.4; }                           /* JS-DEPENDENT */
 .cal-month-cell-today .cal-month-daynum { background: var(--accent); color: #fff; border-radius: 50%; } /* JS-DEPENDENT */
 .cal-month-daynum { font-size: var(--text-sm); font-weight: 600; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-1); } /* JS-DEPENDENT */
@@ -929,6 +933,7 @@ button, input, select, textarea { font-family: inherit; }
 .cal-week-entry:hover { border-color: var(--ink-3); background: var(--paper); }
 .cal-week-entry-time { font-weight: 600; }                        /* JS-DEPENDENT */
 .cal-week-entry-section { color: var(--ink-2); }                  /* JS-DEPENDENT */
+.cal-week-entry-status { color: var(--ink-2); font-style: italic; } /* JS-DEPENDENT */
 .cal-week-entry-count { color: var(--ink-3); margin-top: 2px; display: inline-block; } /* JS-DEPENDENT */
 .cal-week-empty { font-size: var(--text-xs); color: var(--ink-3); text-align: center; padding: var(--space-3) var(--space-1); } /* JS-DEPENDENT */
 
@@ -1999,6 +2004,17 @@ body.page-home .dashboard-stat-value {
   /* Hearing Quick View: single column on narrow screens. */
   .preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Calendar: a fixed 7-column grid becomes unusably cramped at phone
+     widths. .cal-content-card already scrolls horizontally (see its
+     base rule); it just never engaged because the grid's `fr` columns
+     always shrank to fit instead of overflowing. Giving the grid a
+     legible minimum width here makes that existing scroll actually
+     kick in, instead of squeezing every cell/entry unreadably thin. */
+  .cal-month-grid,
+  .cal-week-grid {
+    min-width: 620px;
   }
 
   .summary-columns {

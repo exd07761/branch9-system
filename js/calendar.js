@@ -21,6 +21,7 @@ import { requireAuth } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToHearingsInRange, fetchCasesForHearing } from "./calendar-data.js?v=1.0.0";
 import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { showNotice, clearNotice } from "./notify.js?v=1.0.0";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -96,7 +97,11 @@ function getDayRange(anchor) {
 
 // --- Shared formatting (used by more than one view) -----------------------
 
-/** Compact one-line label for Month/Week cells. */
+/** Compact one-line label for Month cells. Kept plain text (no status
+    appended) — the cell already truncates with an ellipsis at this font
+    size, so status is instead exposed via the entry's title attribute
+    (see renderMonthView()) rather than crammed into an already-tight
+    one-liner where it would just be invisible. */
 function hearingCompactLabel(h) {
   const time = h.hearingTime || "No time";
   const accused = (h.accused || []).join(", ") || "(no accused listed)";
@@ -142,13 +147,13 @@ function renderMonthView() {
     const extra = dayHearings.length - shown.length;
 
     cells.push(`
-      <div class="cal-month-cell ${inCurrentMonth ? "" : "cal-month-cell-muted"} ${isToday ? "cal-month-cell-today" : ""}" data-date="${dateStr}">
+      <div class="cal-month-cell ${inCurrentMonth ? "" : "cal-month-cell-muted"} ${isToday ? "cal-month-cell-today" : ""}" data-date="${dateStr}" tabindex="0" role="button" aria-label="View hearings on ${esc(dateStr)}">
         <div class="cal-month-daynum">${d.getDate()}</div>
         <div class="cal-month-entries">
           ${shown
             .map(
               (h) =>
-                `<div class="cal-month-entry" data-open-hearing="${h.id}">${hearingCompactLabel(h)}</div>`
+                `<div class="cal-month-entry" data-open-hearing="${h.id}" title="${esc(h.status)}${h.section ? ` &middot; ${esc(h.section)}` : ""}">${hearingCompactLabel(h)}</div>`
             )
             .join("")}
           ${extra > 0 ? `<div class="cal-month-more">+${extra} more</div>` : ""}
@@ -198,6 +203,7 @@ function renderWeekView() {
                           <div class="cal-week-entry" data-open-hearing="${h.id}">
                             <div class="cal-week-entry-time">${esc(h.hearingTime || "No time")}</div>
                             <div class="cal-week-entry-section">${esc(h.section)}</div>
+                            <div class="cal-week-entry-status">${esc(h.status)}</div>
                             <div class="cal-week-entry-accused">${esc((h.accused || []).join(", "))}</div>
                             <div class="cal-week-entry-count">${h.caseCount ?? 0} case(s)</div>
                           </div>
@@ -281,7 +287,9 @@ function renderCurrentView() {
   wireContentEvents();
   document.getElementById("rangeLabel").textContent = rangeLabelText();
   document.querySelectorAll(".cal-view-btn").forEach((btn) => {
-    btn.classList.toggle("cal-view-btn-active", btn.dataset.view === viewMode);
+    const active = btn.dataset.view === viewMode;
+    btn.classList.toggle("cal-view-btn-active", active);
+    btn.setAttribute("aria-pressed", String(active));
   });
 }
 
@@ -296,12 +304,21 @@ function wireContentEvents() {
   });
 
   // Clicking a Month cell's date area (not a specific entry) drills into
-  // Day View for that date.
+  // Day View for that date. Enter/Space does the same when the cell is
+  // reached by keyboard (tabindex/role="button" added in renderMonthView()).
   document.querySelectorAll(".cal-month-cell").forEach((cell) => {
-    cell.addEventListener("click", () => {
+    const drillIn = () => {
       anchorDate = atMidnight(new Date(cell.dataset.date + "T00:00:00"));
       viewMode = "day";
       refresh();
+    };
+    cell.addEventListener("click", drillIn);
+    cell.addEventListener("keydown", (e) => {
+      if (e.target.closest("[data-open-hearing]")) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        drillIn();
+      }
     });
   });
 
@@ -346,11 +363,32 @@ function refresh() {
     unsubscribeCurrent();
     unsubscribeCurrent = null;
   }
+  clearNotice(document.getElementById("pageNotice"));
   const { start, end } = currentRange();
-  unsubscribeCurrent = subscribeToHearingsInRange(start, end, (data) => {
-    hearingsInRange = data;
-    renderCurrentView();
-  });
+  unsubscribeCurrent = subscribeToHearingsInRange(
+    start,
+    end,
+    (data) => {
+      hearingsInRange = data;
+      renderCurrentView();
+    },
+    (err) => {
+      console.error("Calendar: hearings-in-range listener failed", err);
+      const noticeHost = document.getElementById("pageNotice");
+      showNotice(noticeHost, "Could not load hearings for this range. Check your connection and try again.", "error");
+      const closeBtn = noticeHost.querySelector(".inline-notice-close");
+      if (closeBtn) {
+        const retryBtn = document.createElement("button");
+        retryBtn.type = "button";
+        retryBtn.className = "inline-notice-retry";
+        retryBtn.textContent = "Retry";
+        retryBtn.addEventListener("click", refresh);
+        noticeHost.querySelector(".inline-notice")?.insertBefore(retryBtn, closeBtn);
+      }
+      const content = document.getElementById("calendarContent");
+      if (content) content.innerHTML = `<p class="empty-row">Unable to load the calendar.</p>`;
+    }
+  );
 }
 
 // --- Toolbar wiring -----------------------------------------------------------

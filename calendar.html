@@ -58,11 +58,13 @@
       <p class="sub">Browse scheduled hearings by month, week, or day.</p>
     </header>
 
+    <div id="pageNotice" class="page-notice"></div>
+
     <div class="cal-toolbar">
       <div class="cal-view-toggle" id="viewToggle">
-        <button type="button" class="cal-view-btn" data-view="month">Month</button>
-        <button type="button" class="cal-view-btn" data-view="week">Week</button>
-        <button type="button" class="cal-view-btn" data-view="day">Day</button>
+        <button type="button" class="cal-view-btn" data-view="month" aria-pressed="false">Month</button>
+        <button type="button" class="cal-view-btn" data-view="week" aria-pressed="false">Week</button>
+        <button type="button" class="cal-view-btn" data-view="day" aria-pressed="false">Day</button>
       </div>
       <div class="cal-nav">
         <button type="button" class="btn-small" id="prevBtn">

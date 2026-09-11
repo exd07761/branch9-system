@@ -88,12 +88,47 @@
           </button>
         </div>
       </div>
+
+      <div class="activity-search">
+        <input type="search" id="hearingsSearchInput" placeholder="Search by case number, plaintiff, accused, charge, section, date, or status&hellip;" aria-label="Search hearings">
+      </div>
+
+      <div class="activity-filter">
+        <label for="hearingsSectionFilter" class="activity-filter-label">Section</label>
+        <select id="hearingsSectionFilter" aria-label="Filter hearings by section">
+          <option value="All">All</option>
+        </select>
+      </div>
+
+      <div class="activity-filter">
+        <label for="hearingsStatusFilter" class="activity-filter-label">Status</label>
+        <select id="hearingsStatusFilter" aria-label="Filter hearings by status">
+          <option value="All">All statuses</option>
+        </select>
+      </div>
+
+      <div class="activity-filter">
+        <label for="hearingsWhenFilter" class="activity-filter-label">When</label>
+        <select id="hearingsWhenFilter" aria-label="Filter hearings by date">
+          <option value="All">All dates</option>
+          <option value="today">Today</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="past">Past</option>
+        </select>
+      </div>
+
+      <div class="activity-filter">
+        <label for="hearingsSortSelect" class="activity-filter-label">Sort</label>
+        <select id="hearingsSortSelect" aria-label="Sort hearings">
+          <option value="date-asc">Hearing date (earliest first)</option>
+          <option value="date-desc">Hearing date (latest first)</option>
+          <option value="section">Section (A&ndash;Z)</option>
+          <option value="status">Status (A&ndash;Z)</option>
+          <option value="newest">Recently created</option>
+        </select>
+      </div>
     </div>
     <p class="form-error" id="toolbarExportStatus" role="alert"></p>
-
-    <div class="hearings-search">
-      <input type="search" id="hearingsSearchInput" placeholder="Search by case number, plaintiff, accused, charge, date, or status&hellip;" aria-label="Search hearings">
-    </div>
 
     <div id="formPanel"></div>
 
