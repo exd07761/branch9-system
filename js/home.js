@@ -105,16 +105,6 @@ function renderUserChip(user) {
   document.getElementById("dashboardUserRole").textContent = ROLE_LABELS[user.role] || ROLE_LABELS.branch_clerk;
 }
 
-function wireSidebarToggle() {
-  const btn = document.getElementById("sidebarToggleBtn");
-  if (!btn) return;
-  btn.addEventListener("click", () => {
-    const collapsed = document.body.classList.toggle("sidebar-collapsed");
-    btn.setAttribute("aria-pressed", String(collapsed));
-    btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
-  });
-}
-
 function wireUserMenu() {
   const btn = document.getElementById("dashboardUserMenuBtn");
   const menu = document.getElementById("dashboardUserMenu");
@@ -415,7 +405,6 @@ async function init() {
   renderDateBadge();
   renderUserChip(user);
   wireUserMenu();
-  wireSidebarToggle();
 
   // Single live hearings listener shared by the stat cards, the Session/
   // Summary cards, and the Timeline — updates automatically whenever

@@ -260,6 +260,13 @@ button, input, select, textarea { font-family: inherit; }
   text-overflow: ellipsis;
 }
 
+/* Sidebar collapse toggle — lives in the nav itself (not a page-specific
+   header) so it's available on every authenticated page, not just one.
+   Hidden by default: the collapse behavior only exists for the desktop
+   fixed-column sidebar (see "Left sidebar" below), so on the tablet/phone
+   top-bar tier this control has nothing to do and stays out of the way. */
+.app-nav-toggle { display: none; }
+
 .app-nav-links {
   display: flex;
   gap: var(--space-2);
@@ -370,6 +377,29 @@ button, input, select, textarea { font-family: inherit; }
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
+  .app-nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    height: 36px;
+    padding: 0 var(--space-4);
+    margin-bottom: var(--space-3);
+    border: none;
+    border-radius: var(--radius-sm);
+    background: none;
+    color: #C4CAD6;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .app-nav-toggle svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .app-nav-toggle:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+  .app-nav-toggle:focus-visible { outline: 2px solid var(--nav-accent); outline-offset: 2px; }
+
   .app-nav-links {
     flex: 0 1 auto;
     flex-direction: column;
@@ -411,17 +441,15 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 /* ---------------------------------------------------------------------- */
-/* Sidebar collapse (dashboard only) — toggled by #sidebarToggleBtn in    */
-/* home.js via body.sidebar-collapsed. Uses font-size:0 to hide the raw   */
-/* text nodes in nav links/brand/logout without wrapping every page's     */
-/* shared nav markup in <span> elements — every icon's size is set via    */
-/* explicit width/height (see .app-nav-link svg etc. above), not          */
-/* font-size, so icons stay visible while labels collapse to nothing.     */
-/* This means the same CSS would work unchanged on any other page, but    */
-/* the toggle button itself only exists on this page this round, so the  */
-/* collapsed state doesn't persist across navigation — out of scope for   */
-/* a dashboard-only pass, noted for whenever the sidebar toggle is rolled */
-/* out app-wide.                                                          */
+/* Sidebar collapse — toggled app-wide by #sidebarToggleBtn (now part of  */
+/* the shared nav markup, wired once in nav-auth.js) via                  */
+/* body.sidebar-collapsed. Uses font-size:0 to hide the raw text nodes in */
+/* nav links/toggle/logout without wrapping every page's shared nav       */
+/* markup in <span> elements — every icon's size is set via explicit      */
+/* width/height (see .app-nav-link svg etc. above), not font-size, so     */
+/* icons stay visible while labels collapse to nothing. State is          */
+/* persisted to localStorage (see nav-auth.js) so it stays consistent as  */
+/* the user moves between pages instead of resetting on every navigation. */
 /* ---------------------------------------------------------------------- */
 @media (min-width: 1025px) {
   body.sidebar-collapsed .app-nav {
@@ -431,7 +459,8 @@ button, input, select, textarea { font-family: inherit; }
   }
 
   body.sidebar-collapsed .app-nav-link,
-  body.sidebar-collapsed .app-nav-logout {
+  body.sidebar-collapsed .app-nav-logout,
+  body.sidebar-collapsed .app-nav-toggle {
     font-size: 0;
     justify-content: center;
     gap: 0;
@@ -448,7 +477,10 @@ button, input, select, textarea { font-family: inherit; }
 
   body.sidebar-collapsed .app-nav-email { display: none; }
 
-  body.sidebar-collapsed.page-home .wrap {
+  /* Was scoped to .page-home only, from when the toggle existed on the
+     dashboard alone. Now that every authenticated page can collapse the
+     sidebar, every page's content needs to reclaim that space. */
+  body.sidebar-collapsed .wrap {
     margin-left: 72px;
   }
 }
@@ -1137,25 +1169,6 @@ button, input, select, textarea { font-family: inherit; }
   align-items: flex-start;
   gap: var(--space-3);
 }
-
-.dashboard-sidebar-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  margin-top: 2px;
-  background: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.dashboard-sidebar-toggle:hover { background: var(--paper); color: var(--ink); }
-.dashboard-sidebar-toggle:focus-visible { outline: 2px solid var(--accent-dark); outline-offset: 2px; }
-.dashboard-sidebar-toggle svg { width: 17px; height: 17px; }
 
 .dashboard-greeting h1 {
   font-size: var(--text-display);

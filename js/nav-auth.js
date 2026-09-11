@@ -8,14 +8,22 @@
 // render at all.
 //
 // What this file adds is much narrower: once a page already has the user
-// object requireAuth() resolved, wireNavAuth(user) does the two small,
+// object requireAuth() resolved, wireNavAuth(user) does the small,
 // identical things every authenticated page's nav bar needs — show the
-// signed-in email, and make the Logout button actually sign out — in one
-// place instead of copy-pasted into home.js/hearings.js/calendar.js.
+// signed-in email, make the Logout button actually sign out, mark which
+// link is "current," and wire the sidebar collapse toggle — in one place
+// instead of copy-pasted into home.js/hearings.js/calendar.js/etc.
 //
-// Both target elements are optional: wireNavAuth() checks for them before
-// touching anything, so it's safe to call from any page regardless of
-// whether that page's nav happens to include a #userEmail/#logoutBtn.
+// Phase 4 (app shell): markActiveNavLink() and wireSidebarToggle() were
+// added here specifically so the active-page highlight and the sidebar
+// collapse control are consistent across every authenticated page, since
+// every one of those pages already calls wireNavAuth(user) as its single
+// nav-wiring call site — no page's own JS needed to change.
+//
+// All target elements are optional: each helper below checks for its
+// element(s) before touching anything, so it's safe to call from any page
+// regardless of exactly which nav/shell elements that page happens to
+// include.
 // ---------------------------------------------------------------------------
 
 import { signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -36,7 +44,73 @@ function applyNavPermissions(role) {
   });
 }
 
+// Derives the active link from the URL rather than trusting each HTML
+// file's hand-set class="active", so a page whose markup drifts out of
+// sync still highlights correctly — but only when the current page IS one
+// of the primary nav destinations. Sub-pages like case-detail.html aren't
+// themselves a nav link; that page's markup deliberately marks "Cases" as
+// active instead (case-detail belongs to the Cases section), and there's
+// no reliable way to infer that from the URL alone, so when nothing
+// matches exactly this leaves whatever the page already set untouched.
+// aria-current="page" is applied to whichever link ends up active either
+// way, so the current page is exposed to assistive tech too.
+function markActiveNavLink() {
+  const links = document.querySelectorAll(".app-nav-links .app-nav-link");
+  if (!links.length) return;
+
+  const currentPage = location.pathname.split("/").pop() || "home.html";
+  const hasExactMatch = Array.from(links).some(
+    (link) => link.getAttribute("href") === currentPage
+  );
+
+  links.forEach((link) => {
+    if (hasExactMatch) {
+      link.classList.toggle("active", link.getAttribute("href") === currentPage);
+    }
+    if (link.classList.contains("active")) {
+      link.setAttribute("aria-current", "page");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
+// Sidebar collapse toggle (desktop sidebar tier only — see styles.css).
+// State is persisted so it stays collapsed/expanded as the user moves
+// between pages instead of resetting on every navigation. The class
+// itself is applied as early as possible via a small inline snippet at
+// the top of <body> (before the nav markup renders) so there's no visible
+// flash of an expanded sidebar before this module loads; this function
+// only needs to sync the button's own ARIA state and wire the click.
+const SIDEBAR_COLLAPSED_KEY = "branch9SidebarCollapsed";
+
+function wireSidebarToggle() {
+  const btn = document.getElementById("sidebarToggleBtn");
+  if (!btn) return;
+
+  const syncButton = (collapsed) => {
+    btn.setAttribute("aria-pressed", String(collapsed));
+    btn.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+  };
+
+  syncButton(document.body.classList.contains("sidebar-collapsed"));
+
+  btn.addEventListener("click", () => {
+    const collapsed = document.body.classList.toggle("sidebar-collapsed");
+    syncButton(collapsed);
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // Private-browsing / storage-disabled: collapse still works for the
+      // current page, it just won't persist across navigation.
+    }
+  });
+}
+
 export function wireNavAuth(user, { loginPage = "login.html" } = {}) {
+  markActiveNavLink();
+  wireSidebarToggle();
+
   const emailEl = document.getElementById("userEmail");
   if (emailEl && user) {
     emailEl.textContent = user.email;
