@@ -32,7 +32,7 @@ import { requireAuth } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToHearings, subscribeToCases } from "./hearings-data.js?v=1.0.0";
 import { subscribeToCaseRecords, isActiveCase } from "./cases-data.js?v=1.0.0";
-import { computeDashboardStats, getTodaysHearingsSorted } from "./dashboard-stats.js?v=1.0.0";
+import { computeDashboardStats, getTodaysHearingsSorted, getUpcomingHearingsSorted } from "./dashboard-stats.js?v=1.0.0";
 import {
   getCurrentHearing,
   getNextUpcomingHearing,
@@ -44,16 +44,27 @@ import { exportCourtCalendarForDate } from "./docx-export.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS, ROLE_LABELS } from "./permissions.js?v=1.0.0";
 import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { showNotice, clearNotice } from "./notify.js?v=1.0.0";
 
 const STATUS_LABEL = { now: "Now", next: "Next", completed: "Completed", upcoming: "Upcoming" };
 
 let hearings = [];
 let cases = [];
 let currentRole = null;
+let unsubscribeHearings = null;
+let unsubscribeCaseStats = null;
 
 function renderStats(hearingsArray) {
   const stats = computeDashboardStats(hearingsArray);
   document.getElementById("statHearingsToday").textContent = stats.hearingsToday;
+  // hearingsNext7 was already computed by computeDashboardStats() but
+  // nothing surfaced it — used here as supporting context on the same
+  // card, per the Phase 5 KPI guidance ("appropriate supporting context
+  // if available"), rather than adding a fourth stat card.
+  const subEl = document.getElementById("statHearingsTodaySub");
+  if (subEl) {
+    subEl.textContent = `Scheduled today \u00b7 ${stats.hearingsNext7} in the next 7 days`;
+  }
 }
 
 // v2 dashboard redesign: Total Cases / Active Cases now come from the real
@@ -277,6 +288,116 @@ function renderTimeline(todays) {
   });
 }
 
+// --- Upcoming Hearings (beyond today) ---------------------------------------
+//
+// Uses getUpcomingHearingsSorted() (dashboard-stats.js) against the same
+// already-loaded `hearings` array the rest of the dashboard uses — no
+// second hearings query. Compact by design (5 hearings max); "View all
+// hearings" in the markup points at the existing hearings.html page for
+// anything beyond that.
+
+function renderUpcoming(hearingsArray) {
+  const container = document.getElementById("upcomingHearingsList");
+  const subEl = document.getElementById("upcomingHearingsSub");
+  if (!container) return;
+
+  const stats = computeDashboardStats(hearingsArray);
+  if (subEl) {
+    subEl.textContent = stats.hearingsNext7 > 0
+      ? `${stats.hearingsNext7} scheduled in the next 7 days`
+      : "None scheduled in the next 7 days";
+  }
+
+  const upcoming = getUpcomingHearingsSorted(hearingsArray);
+
+  if (!upcoming.length) {
+    container.innerHTML = `<p class="empty-row">No upcoming hearings scheduled.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <ul class="upcoming-list">
+      ${upcoming
+        .map((h) => `
+          <li class="upcoming-item" data-preview-hearing="${h.id}" tabindex="0" role="button" aria-label="View hearing: ${esc(caseTitle(h))}, ${esc(formatHearingDate(h))}">
+            <span class="upcoming-date">${esc(formatHearingDate(h))}</span>
+            <span class="upcoming-case">${esc(caseTitle(h))}</span>
+            <span class="upcoming-stage">${esc(h.status || "")}</span>
+          </li>
+        `)
+        .join("")}
+    </ul>
+  `;
+
+  container.querySelectorAll("[data-preview-hearing]").forEach((el) => {
+    const openPreview = () => {
+      window.location.href = `hearings.html?previewHearing=${encodeURIComponent(el.dataset.previewHearing)}`;
+    };
+    el.addEventListener("click", openPreview);
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openPreview();
+      }
+    });
+  });
+}
+
+function formatHearingDate(hearing) {
+  if (hearing.hearingDateTime && typeof hearing.hearingDateTime.toDate === "function") {
+    const d = hearing.hearingDateTime.toDate();
+    return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+  }
+  return hearing.hearingDate || "Date not set";
+}
+
+// --- Error states ------------------------------------------------------
+//
+// subscribeToHearings()/subscribeToCaseRecords() (hearings-data.js/
+// cases-data.js) now accept an optional onError callback — additive to
+// those existing functions, not a new query. Wired here for the
+// dashboard's two live listeners so a Firestore failure (offline,
+// permission-denied, etc.) is shown to the user instead of leaving stat
+// cards and the Today's Hearings panel stuck on "Loading…" forever.
+
+function renderHearingsError(err) {
+  console.error("Dashboard: hearings listener failed", err);
+  const noticeHost = document.getElementById("dashboardHearingsError");
+  const list = document.getElementById("todaysHearingsList");
+  if (list) list.innerHTML = "";
+  if (noticeHost) {
+    showNotice(noticeHost, "Could not load today's hearings. Check your connection and try again.", "error");
+    const closeBtn = noticeHost.querySelector(".inline-notice-close");
+    if (closeBtn) {
+      const retryBtn = document.createElement("button");
+      retryBtn.type = "button";
+      retryBtn.className = "inline-notice-retry";
+      retryBtn.textContent = "Retry";
+      retryBtn.addEventListener("click", startHearingsSubscription);
+      noticeHost.querySelector(".inline-notice")?.insertBefore(retryBtn, closeBtn);
+    }
+  }
+  ["dashboardNowCard", "dashboardNextCard", "dashboardSummaryCard", "upcomingHearingsList"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<p class="muted">Unavailable.</p>`;
+  });
+  const statEl = document.getElementById("statHearingsToday");
+  if (statEl) statEl.textContent = "\u2014";
+  const subEl = document.getElementById("statHearingsTodaySub");
+  if (subEl) subEl.textContent = "Unavailable";
+}
+
+function renderCaseStatsError(err) {
+  console.error("Dashboard: case records listener failed", err);
+  document.getElementById("statTotalCases").textContent = "\u2014";
+  document.getElementById("statActiveCases").textContent = "\u2014";
+  const el = document.getElementById("dashboardStatsError");
+  if (el) {
+    el.hidden = false;
+    el.textContent = "Could not load case statistics. Check your connection and try again.";
+  }
+}
+
 // --- Live re-render (data change or plain time passing) --------------------
 
 function renderLive() {
@@ -285,6 +406,7 @@ function renderLive() {
   renderNextCard(todays);
   renderSummaryCard(todays);
   renderTimeline(todays);
+  renderUpcoming(hearings);
 }
 
 // --- Quick Actions -----------------------------------------------------
@@ -394,6 +516,44 @@ function updateQuickActionsLayout() {
   if (visible.length % 2 === 1) visible[visible.length - 1].classList.add("quick-action-last-visible");
 }
 
+// Single live hearings listener shared by the stat cards, the Session/
+// Summary cards, the Timeline, and Upcoming Hearings — updates
+// automatically whenever Firestore changes, same as every other
+// subscribeToHearings() consumer in this app. Wrapped in its own
+// function (rather than called once inline) so the error state's Retry
+// button can re-run it after a listener failure.
+function startHearingsSubscription() {
+  clearNotice(document.getElementById("dashboardHearingsError"));
+  if (typeof unsubscribeHearings === "function") unsubscribeHearings();
+  unsubscribeHearings = subscribeToHearings(
+    (data) => {
+      hearings = data;
+      renderStats(hearings);
+      renderLive();
+    },
+    {},
+    renderHearingsError
+  );
+}
+
+// Total Cases / Active Cases stat cards: reuses cases-data.js's existing
+// subscribeToCaseRecords() (already used by cases.js), called with
+// includeArchived so a single listener can answer both "all time"
+// (Total) and "currently ongoing" (Active, filtered client-side with
+// the same isActiveCase() cases.js already uses).
+function startCaseStatsSubscription() {
+  const errEl = document.getElementById("dashboardStatsError");
+  if (errEl) errEl.hidden = true;
+  if (typeof unsubscribeCaseStats === "function") unsubscribeCaseStats();
+  unsubscribeCaseStats = subscribeToCaseRecords(
+    (data) => {
+      renderCaseStats(data);
+    },
+    { includeArchived: true },
+    renderCaseStatsError
+  );
+}
+
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return; // requireAuth already redirected to login
@@ -406,31 +566,18 @@ async function init() {
   renderUserChip(user);
   wireUserMenu();
 
-  // Single live hearings listener shared by the stat cards, the Session/
-  // Summary cards, and the Timeline — updates automatically whenever
-  // Firestore changes, same as every other subscribeToHearings()
-  // consumer in this app.
-  subscribeToHearings((data) => {
-    hearings = data;
-    renderStats(hearings);
-    renderLive();
-  });
+  startHearingsSubscription();
+  startCaseStatsSubscription();
 
   // Reuses hearings-data.js's existing subscribeToCases() (already used
   // by hearings.js) so "Export Today's Calendar" has case data available
   // — no new Firestore access code, just the same helper called again.
+  // A failure here only affects the export quick action (handled there
+  // via its own error message), so it doesn't need a dedicated dashboard
+  // error state.
   subscribeToCases((data) => {
     cases = data;
   });
-
-  // Total Cases / Active Cases stat cards: reuses cases-data.js's
-  // existing subscribeToCaseRecords() (already used by cases.js),
-  // called with includeArchived so a single listener can answer both
-  // "all time" (Total) and "currently ongoing" (Active, filtered
-  // client-side with the same isActiveCase() cases.js already uses).
-  subscribeToCaseRecords((data) => {
-    renderCaseStats(data);
-  }, { includeArchived: true });
 
   // Keeps the Session card and Timeline ("Starts in N minutes", current/
   // next highlighting) accurate as real time passes, even between

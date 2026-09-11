@@ -130,16 +130,26 @@ export function isActiveCase(c) {
  * than a guess at what a future Cases list page will actually want to
  * sort by; revisit when that page (IM-2) has real requirements.
  *
+ * @param {function} onChange
+ * @param {{includeArchived?: boolean}} [options]
+ * @param {function} [onError] - optional; called with the Firestore error
+ *   if the listener fails. Additive only — see subscribeToHearings() in
+ *   hearings-data.js for the same contract; existing callers that don't
+ *   pass this are unaffected.
  * Returns an unsubscribe function.
  */
-export function subscribeToCaseRecords(onChange, { includeArchived = false } = {}) {
+export function subscribeToCaseRecords(onChange, { includeArchived = false } = {}, onError) {
   const q = query(casesCol, orderBy("createdAt", "asc"));
-  return onSnapshot(q, (snapshot) => {
-    const cases = snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((c) => (includeArchived ? c.isDeleted !== true : isActiveCase(c)));
-    onChange(cases);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const cases = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((c) => (includeArchived ? c.isDeleted !== true : isActiveCase(c)));
+      onChange(cases);
+    },
+    typeof onError === "function" ? onError : undefined
+  );
 }
 
 /**

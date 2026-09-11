@@ -84,3 +84,34 @@ export function getTodaysHearingsSorted(hearings, referenceDate = new Date()) {
       return aTime - bTime;
     });
 }
+
+/**
+ * Upcoming hearings — strictly AFTER today, chronologically soonest
+ * first, capped to `max` entries. Reuses the exact same already-loaded
+ * `hearings` array getTodaysHearingsSorted() and computeDashboardStats()
+ * already work from (the one subscribeToHearings() listener home.js
+ * keeps) — no second hearings query. Added for the Phase 5 dashboard's
+ * Upcoming Hearings panel, since computeDashboardStats() was already
+ * counting hearings in the next 7/30 days but nothing surfaced the
+ * actual hearings behind that count.
+ *
+ * @param {Array} hearings - already-loaded, already non-deleted-filtered
+ *   hearing documents (exactly what subscribeToHearings() provides)
+ * @param {Date} [referenceDate] - defaults to now
+ * @param {number} [max] - cap on how many hearings to return
+ */
+export function getUpcomingHearingsSorted(hearings, referenceDate = new Date(), max = 5) {
+  const today = atMidnight(referenceDate);
+
+  return (hearings || [])
+    .filter((h) => {
+      const d = toDateOnly(h.hearingDate);
+      return d && d.getTime() > today.getTime();
+    })
+    .sort((a, b) => {
+      const aTime = a.hearingDateTime && typeof a.hearingDateTime.toDate === "function" ? a.hearingDateTime.toDate().getTime() : 0;
+      const bTime = b.hearingDateTime && typeof b.hearingDateTime.toDate === "function" ? b.hearingDateTime.toDate().getTime() : 0;
+      return aTime - bTime;
+    })
+    .slice(0, max);
+}

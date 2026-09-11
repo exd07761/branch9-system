@@ -1545,6 +1545,108 @@ body.page-home .dashboard-stat-value {
 
 .quick-actions-row .btn-secondary { width: auto; }
 
+/* Dashboard stats-grid error (Phase 5): reuses .form-error's existing box
+   model, just given room above the main row instead of its usual
+   inside-a-form margin. Hidden by default via the [hidden] attribute set
+   in the markup; home.js only un-hides it on a case-stats listener
+   failure. */
+.dashboard-stats-error { margin: calc(var(--space-4) * -1) 0 var(--space-6); }
+
+/* Phase 5 — Upcoming Hearings panel + shared "panel header with a link"
+   pattern. Reuses .today-panel-title/.card/.empty-row rather than
+   introducing new typography. */
+.dashboard-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.dashboard-panel-header .today-panel-title { margin-bottom: 0; }
+
+.panel-link {
+  font-size: var(--text-xs);
+  color: var(--accent-dark);
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.panel-link:hover,
+.panel-link:focus-visible { text-decoration: underline; }
+
+.upcoming-card { margin-bottom: 0; }
+
+.upcoming-sub {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  margin: 0 0 var(--space-3);
+}
+
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.upcoming-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.upcoming-item:hover { background: var(--paper); }
+
+.upcoming-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.upcoming-item:not(:last-child) { border-bottom: 1px solid var(--line); }
+
+.upcoming-date {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--accent-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.upcoming-case {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.upcoming-stage {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* Error notice's Retry button (Phase 5): sits inside the same
+   .inline-notice box notify.js already renders, alongside its dismiss
+   button — reuses .inline-notice's color tokens rather than introducing
+   a new button style. */
+.inline-notice-retry {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.inline-notice-retry:hover { opacity: 0.85; }
+
 /* Today's Hearings timeline (1/6): more breathing room per row so it
    reads as the dashboard's centerpiece, not a compact list. */
 .timeline-header {

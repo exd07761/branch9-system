@@ -149,16 +149,28 @@ export function isActiveHearing(h) {
  * every page except Archived Hearings/Reports-with-checkbox wants) —
  * pass { includeArchived: true } to also receive archived (but still
  * non-deleted) hearings, e.g. for Reports' "Include Archived" option.
+ *
+ * @param {function} onChange
+ * @param {{includeArchived?: boolean}} [options]
+ * @param {function} [onError] - optional; called with the Firestore error
+ *   if the listener fails (e.g. permission-denied, offline). Existing
+ *   callers that don't pass this keep their previous behavior (an
+ *   unhandled listener failure), so this is additive only — see home.js
+ *   (Phase 5 dashboard) for the first caller that uses it.
  * Returns an unsubscribe function.
  */
-export function subscribeToHearings(onChange, { includeArchived = false } = {}) {
+export function subscribeToHearings(onChange, { includeArchived = false } = {}, onError) {
   const q = query(hearingsCol, orderBy("hearingDate", "asc"));
-  return onSnapshot(q, (snapshot) => {
-    const hearings = snapshot.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((h) => (includeArchived ? h.isDeleted !== true : isActiveHearing(h)));
-    onChange(hearings);
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const hearings = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((h) => (includeArchived ? h.isDeleted !== true : isActiveHearing(h)));
+      onChange(hearings);
+    },
+    typeof onError === "function" ? onError : undefined
+  );
 }
 
 /**
@@ -179,13 +191,21 @@ export function subscribeToArchivedHearings(onChange) {
 
 /**
  * Subscribe to live updates of all cases across all hearings.
+ *
+ * @param {function} onChange
+ * @param {function} [onError] - optional; see subscribeToHearings() above
+ *   for the same additive-only contract.
  * Returns an unsubscribe function.
  */
-export function subscribeToCases(onChange) {
-  return onSnapshot(hearingCasesCol, (snapshot) => {
-    const cases = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-    onChange(cases);
-  });
+export function subscribeToCases(onChange, onError) {
+  return onSnapshot(
+    hearingCasesCol,
+    (snapshot) => {
+      const cases = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      onChange(cases);
+    },
+    typeof onError === "function" ? onError : undefined
+  );
 }
 
 /**

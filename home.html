@@ -108,15 +108,17 @@
         <div>
           <p class="dashboard-stat-label">Today's Hearings</p>
           <p class="dashboard-stat-value" id="statHearingsToday">&hellip;</p>
-          <p class="dashboard-stat-sub">Scheduled today</p>
+          <p class="dashboard-stat-sub" id="statHearingsTodaySub">Scheduled today</p>
         </div>
       </div>
     </section>
+    <p class="form-error dashboard-stats-error" id="dashboardStatsError" role="alert" hidden></p>
 
     <section class="dashboard-main-row">
       <div class="dashboard-main-col">
         <section class="card dashboard-timeline-card" id="dashboardTimelineCard">
           <h2 class="today-panel-title"><i data-lucide="gavel" aria-hidden="true"></i>Today's Hearings</h2>
+          <div id="dashboardHearingsError"></div>
           <div id="todaysHearingsList">
             <p class="empty-row">Loading&hellip;</p>
           </div>
@@ -155,6 +157,17 @@
             </button>
           </div>
           <p class="form-error" id="quickActionsStatus" role="alert"></p>
+        </section>
+
+        <section class="card upcoming-card" id="dashboardUpcomingCard">
+          <div class="dashboard-panel-header">
+            <h2 class="today-panel-title"><i data-lucide="calendar-clock" aria-hidden="true"></i>Upcoming Hearings</h2>
+            <a class="panel-link" href="hearings.html">View all hearings</a>
+          </div>
+          <p class="upcoming-sub" id="upcomingHearingsSub"></p>
+          <div id="upcomingHearingsList">
+            <p class="empty-row">Loading&hellip;</p>
+          </div>
         </section>
       </div>
     </section>

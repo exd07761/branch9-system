@@ -4,6 +4,41 @@ All notable changes to this project are documented here, grouped by
 milestone. Versions follow `MAJOR.MINOR.PATCH` loosely tied to milestone
 completion during V1 development.
 
+## [Unreleased] — Phase 5: Dashboard Modernization
+
+Incremental improvement of the Home dashboard's error handling and
+information coverage. The dashboard already had a stats row, a Today's
+Hearings timeline, Now/Next hearing cards, a Today's Summary, and
+permission-gated Quick Actions from prior work — this milestone fills
+in the gaps found during audit rather than redesigning any of it.
+
+**Added**
+- Error states for the dashboard's two live Firestore listeners
+  (hearings, case records). A listener failure now shows an inline
+  notice (reusing `js/notify.js`) with a Retry action, instead of stat
+  cards and the Today's Hearings panel being stuck on "Loading…"
+  indefinitely.
+- `js/hearings-data.js`: `subscribeToHearings()`/`subscribeToCases()`
+  now accept an optional trailing `onError` callback, passed straight
+  through to `onSnapshot()`. Additive only — existing callers
+  (`hearings.js`, `reports.js`, `archived.js`, `calendar.js`) are
+  unaffected.
+- `js/cases-data.js`: `subscribeToCaseRecords()` gets the same optional
+  `onError` parameter, same contract.
+- `js/dashboard-stats.js`: `getUpcomingHearingsSorted()` — hearings
+  strictly after today, soonest first, capped at 5. Reuses the same
+  already-loaded `hearings` array the rest of the dashboard already
+  subscribes to; no second hearings query.
+- Home dashboard: an "Upcoming Hearings" panel (compact list + "View
+  all hearings" link to the existing `hearings.html`), and the Today's
+  Hearings stat card now shows a "next 7 days" sub-line — both powered
+  by numbers `computeDashboardStats()` was already calculating
+  (`hearingsNext7`) but that nothing previously displayed.
+
+**Changed**
+- None of the existing stat cards, Today's Hearings timeline, Now/Next
+  cards, Today's Summary, or Quick Actions behavior changed.
+
 ## [Unreleased] — IM-10: Case Activity & History
 
 New, read-only Case Detail page giving the Clerk a single chronological
