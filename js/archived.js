@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// Archived Hearings page controller (v0.9.3 — Archive & Case Lifecycle
-// Management).
+// Archived Records page controller (v0.9.3 — Archive & Case Lifecycle
+// Management; extended in Phase 6 to also cover archived Cases).
 //
 // Responsibilities: require login + the ARCHIVE_MANAGE permission (this
 // whole page is Administrator/Branch Clerk only), render the live list of
@@ -17,11 +17,20 @@
 // hearings.js's — hearings.js's in-memory `hearings[]` array never
 // contains archived records to begin with (subscribeToHearings()
 // excludes them by default), so there is nothing there to reuse.
+//
+// Phase 6: a second, independent "Archived Cases" section below the
+// Hearings one — its own table, its own search box, its own restore
+// action — reusing subscribeToArchivedCaseRecords()/restoreCase() from
+// cases-data.js, the same way the Hearings section above reuses their
+// hearings-data.js equivalents. No preview modal for Cases: unlike a
+// Hearing, a Case has only four editable fields, all already visible in
+// the table row itself, so a modal would just repeat what's on screen.
 // ---------------------------------------------------------------------------
 
 import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from "./hearings-data.js?v=1.0.0";
+import { subscribeToArchivedCaseRecords, restoreCase } from "./cases-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
 import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
@@ -32,6 +41,9 @@ let cases = [];
 let currentRole = null;
 let searchQuery = "";
 let previewHearingId = null;
+
+let archivedCaseRecords = [];
+let archivedCasesSearchQuery = "";
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -300,6 +312,88 @@ function wireSearch() {
   });
 }
 
+// --- Archived Cases ------------------------------------------------------
+// Independent of everything above — its own data, its own search, its
+// own restore action. Fetches nothing about Hearings.
+
+function caseLabel(c) {
+  return `${c.caseType || ""}. ${c.caseNo || ""}`;
+}
+
+function archivedCaseMatchesSearch(c, q) {
+  if (!q) return true;
+  const query = q.toLowerCase();
+  const haystack = [c.caseType, c.caseNo, c.charge, c.currentStatus].join(" ").toLowerCase();
+  return haystack.includes(query);
+}
+
+function renderArchivedCasesList() {
+  const tbody = document.getElementById("archivedCasesTableBody");
+  const visible = archivedCaseRecords.filter((c) => archivedCaseMatchesSearch(c, archivedCasesSearchQuery));
+
+  if (!visible.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-row">${
+      archivedCaseRecords.length ? "No archived cases match your search." : "No cases have been archived."
+    }</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = visible
+    .map((c) => {
+      const restoreBtn = can(currentRole, PERMISSIONS.ARCHIVE_MANAGE)
+        ? `<button type="button" class="btn-small" data-action="restore-case" data-id="${c.id}">Restore</button>`
+        : "";
+      return `
+        <tr>
+          <td>${esc(c.caseType)}</td>
+          <td>${esc(c.caseNo)}</td>
+          <td>${esc(c.charge) || '<span class="muted">&mdash;</span>'}</td>
+          <td>${c.dateFiled ? esc(fmtDate(c.dateFiled)) : '<span class="muted">Not set</span>'}</td>
+          <td>${esc(fmtTimestamp(c.archivedAt))}</td>
+          <td>${esc(c.archiveReason) || '<span class="muted">&mdash;</span>'}</td>
+          <td class="row-actions">
+            <a class="btn-small" href="case-detail.html?id=${encodeURIComponent(c.id)}">View</a>
+            ${restoreBtn}
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  tbody.querySelectorAll('[data-action="restore-case"]').forEach((btn) => {
+    btn.addEventListener("click", () => handleRestoreCase(btn.dataset.id));
+  });
+}
+
+async function handleRestoreCase(caseId) {
+  if (!can(currentRole, PERMISSIONS.ARCHIVE_MANAGE)) return;
+  if (!confirm("Restore this case? It will return to active operations.")) return;
+
+  const caseRecord = archivedCaseRecords.find((c) => c.id === caseId);
+
+  try {
+    await restoreCase(caseId);
+    // Not awaited: logging must never block the UI.
+    logActivity({
+      action: "Restored Case",
+      module: "Cases",
+      entityId: caseId,
+      entityType: "case",
+      description: caseRecord ? `Restored case ${caseLabel(caseRecord)}` : `Restored case ${caseId}`,
+    });
+  } catch (err) {
+    showNotice(document.getElementById("pageNotice"), `Could not restore: ${err.message}`);
+  }
+}
+
+function wireArchivedCasesSearch() {
+  const input = document.getElementById("archivedCasesSearchInput");
+  input.addEventListener("input", () => {
+    archivedCasesSearchQuery = input.value;
+    renderArchivedCasesList();
+  });
+}
+
 // --- Init ---------------------------------------------------------------
 
 async function init() {
@@ -310,6 +404,7 @@ async function init() {
   currentRole = user.role;
   wireNavAuth(user);
   wireSearch();
+  wireArchivedCasesSearch();
 
   subscribeToArchivedHearings((data) => {
     hearings = data;
@@ -320,6 +415,10 @@ async function init() {
     cases = data;
     renderList();
     renderPreview();
+  });
+  subscribeToArchivedCaseRecords((data) => {
+    archivedCaseRecords = data;
+    renderArchivedCasesList();
   });
 }
 

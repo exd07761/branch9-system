@@ -23,9 +23,27 @@ let activeFilter = "all";
 // dropdown offers. Purely a display concern — Firestore only ever stores
 // the raw `action` string, never a category.
 
+// Fixed at "Create Hearing"/"Edit Hearing"/etc. before this change — the
+// Cases equivalents ("Create Case"/"Edit Case"/"Archived Case", already
+// being written by cases.js, plus "Restored Case", added alongside
+// Archived Cases restore on archived.html) fell into "Other" instead of
+// "CRUD" as a result. Corrected here rather than left as-is, since it's
+// the same categorization bug either way.
 function categoryForAction(action) {
   if (action === "Login" || action === "Logout") return "Authentication";
-  if (action === "Create Hearing" || action === "Edit Hearing" || action === "Delete Hearing" || action === "Archived Hearing" || action === "Restored Hearing") return "CRUD";
+  if (
+    action === "Create Hearing" ||
+    action === "Edit Hearing" ||
+    action === "Delete Hearing" ||
+    action === "Archived Hearing" ||
+    action === "Restored Hearing" ||
+    action === "Create Case" ||
+    action === "Edit Case" ||
+    action === "Delete Case" ||
+    action === "Archived Case" ||
+    action === "Restored Case"
+  )
+    return "CRUD";
   if ((action || "").startsWith("Export")) return "Export";
   return "Other";
 }

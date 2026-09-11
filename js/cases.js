@@ -24,17 +24,34 @@
 //     writes "hearings" or "hearingCases"; the Case<->Hearing link itself
 //     is entirely hearings.js's/hearings-data.js's responsibility (IM-6/
 //     IM-8), read-only from here via the derived currentStatus display.
-//   - No search bar, no Quick View modal, no export — narrower than
-//     hearings.js on purpose; can be added later without breaking anything
-//     built here.
+//   - No Quick View modal, no export — narrower than hearings.js on
+//     purpose; can be added later without breaking anything built here.
 //   - The duplicate-case-number check below is implemented entirely in
 //     this file, scanning the already-loaded caseRecords[] array, rather
 //     than adding a new export to cases-data.js. Keeps that file's own
 //     diff minimal.
+//
+// Phase 6 addition: search, a Case Type filter, a Case Status filter, and
+// a sort control — all client-side over the already-loaded caseRecords[]
+// array, no new Firestore queries per keystroke or dropdown change, same
+// approach as hearings.js's own search.
+//
+// Phase 6 completion pass: the Status filter was initially left out
+// because its vocabulary (STATUSES) was a module-local const in
+// hearings.js, and duplicating it here risked drifting out of sync with
+// it. Resolved by moving STATUSES into constants.js (same fix already
+// used for SECTIONS, for a related reason — see that file's header
+// comment) — hearings.js now imports it from there too, so both files
+// read the exact same list rather than each keeping their own copy. This
+// is also, per case-status-derivation.js, the complete set of values a
+// Case's derived currentStatus can ever hold (always the latest linked
+// Hearing's own status), so it's the correct vocabulary for this filter,
+// not a second guess at one.
 // ---------------------------------------------------------------------------
 
 import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
+import { STATUSES } from "./constants.js?v=1.0.0";
 import { subscribeToCaseRecords, saveCase, archiveCase } from "./cases-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
@@ -56,6 +73,10 @@ let caseRecords = [];
 let editingCaseId = null;
 let formOpen = false;
 let currentRole = null;
+let searchQuery = "";
+let typeFilter = "All";
+let statusFilter = "All";
+let sortMode = "newest";
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -90,17 +111,82 @@ function isDuplicateCaseNo(caseType, caseNo, excludeCaseId) {
   );
 }
 
+// --- Search / filter / sort -------------------------------------------
+// All three operate on the already-loaded caseRecords[] array in memory
+// — no new Firestore query runs per keystroke or dropdown change, same
+// approach as hearings.js's own search.
+
+function caseMatchesSearch(c, q) {
+  if (!q) return true;
+  const query = q.toLowerCase();
+  const haystack = [c.caseType, c.caseNo, c.charge, c.currentStatus].join(" ").toLowerCase();
+  return haystack.includes(query);
+}
+
+// Sortable millisecond value for a Case's createdAt (a Firestore
+// Timestamp) — records with no usable createdAt (shouldn't normally
+// happen, but a migrated/incomplete record is possible) sort last
+// regardless of direction, rather than being treated as oldest or newest.
+function createdAtMillis(c) {
+  return c.createdAt && typeof c.createdAt.toMillis === "function" ? c.createdAt.toMillis() : null;
+}
+
+function sortCases(list) {
+  const sorted = [...list];
+  switch (sortMode) {
+    case "oldest":
+      sorted.sort((a, b) => {
+        const am = createdAtMillis(a);
+        const bm = createdAtMillis(b);
+        if (am === null && bm === null) return 0;
+        if (am === null) return 1;
+        if (bm === null) return -1;
+        return am - bm;
+      });
+      break;
+    case "caseNo":
+      sorted.sort((a, b) => (a.caseNo || "").localeCompare(b.caseNo || ""));
+      break;
+    case "status":
+      sorted.sort((a, b) => (a.currentStatus || "").localeCompare(b.currentStatus || ""));
+      break;
+    case "newest":
+    default:
+      sorted.sort((a, b) => {
+        const am = createdAtMillis(a);
+        const bm = createdAtMillis(b);
+        if (am === null && bm === null) return 0;
+        if (am === null) return 1;
+        if (bm === null) return -1;
+        return bm - am;
+      });
+      break;
+  }
+  return sorted;
+}
+
+function visibleCases() {
+  const filtered = caseRecords
+    .filter((c) => typeFilter === "All" || c.caseType === typeFilter)
+    .filter((c) => statusFilter === "All" || c.currentStatus === statusFilter)
+    .filter((c) => caseMatchesSearch(c, searchQuery));
+  return sortCases(filtered);
+}
+
 // --- List ------------------------------------------------------------------
 
 function renderList() {
   const tbody = document.getElementById("casesTableBody");
+  const visible = visibleCases();
 
-  if (!caseRecords.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-row">No cases yet. Click "+ Add Case" to create one.</td></tr>`;
+  if (!visible.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-row">${
+      caseRecords.length ? "No cases match your search or filter." : 'No cases yet. Click "+ Add Case" to create one.'
+    }</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = caseRecords
+  tbody.innerHTML = visible
     .map((c) => {
       // IM-10: links to the new read-only Case Detail page (Activity &
       // History). Always shown to anyone who can see this list at all —
@@ -300,13 +386,12 @@ async function handleSave() {
 
 async function handleArchive(caseId) {
   if (!can(currentRole, PERMISSIONS.ARCHIVE_MANAGE)) return;
-  // No "Archived Cases" page exists yet (out of IM-2 scope — mirrors
-  // archived.html for Hearings, not built here) — the message below says
-  // so plainly rather than promising a page that isn't there. The data is
-  // still safe: archiveCase() (cases-data.js) sets isArchived, and
-  // restoreCase() already exists in that file for whenever a future
-  // milestone adds the page.
-  const msg = "Archive this case? It will disappear from this list (no Archived Cases page exists yet). The case record itself is preserved, not deleted, and can be restored later once that page is built.";
+  // Phase 6: the Archived Cases page now exists (archived.html), so this
+  // message no longer needs to warn that the case would be stranded —
+  // it points at where to find/restore it instead. archiveCase()
+  // (cases-data.js) only ever sets isArchived; the record itself is
+  // preserved, not deleted.
+  const msg = "Archive this case? It will disappear from this list. The case record is preserved, not deleted, and can be restored from the Archived page.";
   if (!confirm(msg)) return;
 
   // Captured before the archive resolves — caseRecords[] won't have this
@@ -328,6 +413,46 @@ async function handleArchive(caseId) {
   }
 }
 
+// --- Search / filter / sort wiring --------------------------------------
+
+function populateTypeFilter() {
+  const select = document.getElementById("casesTypeFilter");
+  select.innerHTML =
+    `<option value="All">All</option>` + CASE_TYPES.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+}
+
+// STATUSES (constants.js) is the same authoritative vocabulary
+// hearings.js's own status <select> uses — see this file's header
+// comment. A Case with no derived currentStatus yet ("Not yet set" in
+// the table) is only reachable via "All statuses" here, same as it
+// would be with any other single-value filter — there's no separate
+// "unset" option, since that wasn't asked for and STATUSES itself has
+// no such value to misrepresent.
+function populateStatusFilter() {
+  const select = document.getElementById("casesStatusFilter");
+  select.innerHTML =
+    `<option value="All">All statuses</option>` + STATUSES.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+}
+
+function wireListControls() {
+  document.getElementById("casesSearchInput").addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
+    renderList();
+  });
+  document.getElementById("casesTypeFilter").addEventListener("change", (e) => {
+    typeFilter = e.target.value;
+    renderList();
+  });
+  document.getElementById("casesStatusFilter").addEventListener("change", (e) => {
+    statusFilter = e.target.value;
+    renderList();
+  });
+  document.getElementById("casesSortSelect").addEventListener("change", (e) => {
+    sortMode = e.target.value;
+    renderList();
+  });
+}
+
 // --- Init ---------------------------------------------------------------
 
 // ?action=add — opens the existing Add form (openAddForm()). Used by
@@ -342,6 +467,9 @@ async function init() {
 
   currentRole = user.role;
   wireNavAuth(user);
+  populateTypeFilter();
+  populateStatusFilter();
+  wireListControls();
 
   const addCaseBtn = document.getElementById("addCaseBtn");
   if (can(currentRole, PERMISSIONS.CASES_CREATE)) {
@@ -357,10 +485,16 @@ async function init() {
     window.history.replaceState({}, "", url);
   }
 
-  subscribeToCaseRecords((data) => {
-    caseRecords = data;
-    renderList();
-  });
+  subscribeToCaseRecords(
+    (data) => {
+      caseRecords = data;
+      renderList();
+    },
+    undefined,
+    (err) => {
+      showNotice(document.getElementById("pageNotice"), `Could not load cases: ${err.message}`);
+    }
+  );
 }
 
 init();

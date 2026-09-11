@@ -54,11 +54,13 @@
   <main class="wrap wrap-wide">
     <header class="header">
       <p class="eyebrow">Regional Trial Court &middot; Docket Management System</p>
-      <h1>Archived Hearings</h1>
-      <p class="sub">Hearings archived out of active operations. Nothing here is deleted — every record can be restored.</p>
+      <h1>Archived Records</h1>
+      <p class="sub">Hearings and cases archived out of active operations. Nothing here is deleted — every record can be restored.</p>
     </header>
 
     <div id="pageNotice" class="page-notice"></div>
+
+    <h2 class="section-heading">Archived Hearings</h2>
 
     <div class="hearings-search">
       <input type="search" id="archivedSearchInput" placeholder="Search by case number, plaintiff, accused, charge, date, or status&hellip;" aria-label="Search archived hearings">
@@ -86,6 +88,31 @@
     </section>
 
     <div id="archivedPreviewRoot"></div>
+
+    <h2 class="section-heading">Archived Cases</h2>
+
+    <div class="hearings-search">
+      <input type="search" id="archivedCasesSearchInput" placeholder="Search by case number, charge, or status&hellip;" aria-label="Search archived cases">
+    </div>
+
+    <section class="card card-flush" id="archivedCasesListCard">
+      <table class="data-table" id="archivedCasesTable">
+        <thead>
+          <tr>
+            <th>Case Type</th>
+            <th>Case No.</th>
+            <th>Charge</th>
+            <th>Date Filed</th>
+            <th>Archived On</th>
+            <th>Reason</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="archivedCasesTableBody">
+          <tr><td colspan="7" class="empty-row">Loading&hellip;</td></tr>
+        </tbody>
+      </table>
+    </section>
 
     <footer class="app-footer">Created by Jordan Panganiban &middot; v1.0.0</footer>
   </main>

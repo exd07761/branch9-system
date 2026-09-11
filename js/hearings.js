@@ -32,7 +32,7 @@
 
 import { requireAuth } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
-import { SECTIONS } from "./constants.js?v=1.0.0";
+import { SECTIONS, STATUSES } from "./constants.js?v=1.0.0";
 import { exportHearingOrderToWord, exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=1.0.0";
 import {
   subscribeToHearings,
@@ -51,14 +51,10 @@ import { showNotice } from "./notify.js?v=1.0.0";
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
 // collection, since these lists are stable and small.
-
-const STATUSES = [
-  "Arraignment and Pre-Trial Conference",
-  "Pre-Trial Conference",
-  "Initial Presentation of Prosecution's Evidence",
-  "Continuation of the Direct Examination of Prosecution's Witness",
-  "Cross Examination of Prosecution's Witness",
-];
+//
+// STATUSES moved to constants.js (Phase 6 completion pass) — see that
+// file's header comment. Imported above alongside SECTIONS instead of
+// defined here now; nothing else about how it's used below changed.
 
 // IM-8: CASE_TYPES removed — case rows now link to an existing Case
 // (which owns its own caseType) via the picker in caseRowHtml(), rather

@@ -547,6 +547,50 @@ export async function getCaseStatusHistory(caseId) {
   return history;
 }
 
+/**
+ * Full Hearing records (not just the {hearingId, hearingDateTime, status}
+ * summary getCaseStatusHistory() above builds) linked to a given Case —
+ * added for case-detail.js's Phase 6 "Related Hearings" list, so a Clerk
+ * can see and open the actual hearings behind a case's derived status,
+ * not just its status history. Reuses getHearingCaseRowsForCase() for the
+ * same caseId->hearingId lookup getCaseStatusHistory() already uses.
+ *
+ * Same isDeleted exclusion as getCaseStatusHistory() — a soft-deleted
+ * Hearing never should have existed, so it's left out here too. Archived
+ * Hearings ARE included (archiving is a view-layer state, not data
+ * removal); each returned record still carries its own `isArchived` so
+ * the caller can label it, rather than this function hiding it.
+ *
+ * @param {string} caseId
+ * @returns {Promise<Array<object>>} full Hearing docs (with `id`), sorted
+ *   ascending by hearingDateTime (entries with no usable date sort last) —
+ *   same convention as getCaseStatusHistory().
+ */
+export async function getHearingsForCase(caseId) {
+  const rows = await getHearingCaseRowsForCase(caseId);
+  const uniqueHearingIds = [...new Set(rows.map((r) => r.hearingId).filter(Boolean))];
+
+  const hearingDocs = await Promise.all(
+    uniqueHearingIds.map((hearingId) => getDoc(doc(db, "hearings", hearingId)))
+  );
+
+  const list = hearingDocs
+    .filter((snap) => snap.exists())
+    .map((snap) => ({ id: snap.id, ...snap.data() }))
+    .filter((h) => h.isDeleted !== true);
+
+  list.sort((a, b) => {
+    const am = a.hearingDateTime && typeof a.hearingDateTime.toMillis === "function" ? a.hearingDateTime.toMillis() : null;
+    const bm = b.hearingDateTime && typeof b.hearingDateTime.toMillis === "function" ? b.hearingDateTime.toMillis() : null;
+    if (am === null && bm === null) return 0;
+    if (am === null) return 1;
+    if (bm === null) return -1;
+    return am - bm;
+  });
+
+  return list;
+}
+
 // --- IM-7A: Pilot Migration support (read-only bulk fetches) --------------
 //
 // The two functions below exist solely so js/migration-execute.js can

@@ -154,10 +154,10 @@ export function subscribeToCaseRecords(onChange, { includeArchived = false } = {
 
 /**
  * Subscribe to live updates of archived (and non-deleted) Cases only —
- * same shape as subscribeToArchivedHearings() in hearings-data.js, for
- * whichever future page needs it (not built in this milestone). Named
+ * same shape as subscribeToArchivedHearings() in hearings-data.js. Named
  * subscribeToArchivedCaseRecords() to match subscribeToCaseRecords()
- * above, for the same disambiguation reason.
+ * above, for the same disambiguation reason. Consumed by archived.js's
+ * Archived Cases section (Phase 6).
  */
 export function subscribeToArchivedCaseRecords(onChange) {
   const q = query(casesCol, orderBy("createdAt", "asc"));

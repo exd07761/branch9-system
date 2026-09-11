@@ -65,6 +65,34 @@
         <i data-lucide="plus" aria-hidden="true"></i>
         <span>Add Case</span>
       </button>
+
+      <div class="activity-search">
+        <input type="search" id="casesSearchInput" placeholder="Search by case number, charge, or status&hellip;" aria-label="Search cases">
+      </div>
+
+      <div class="activity-filter">
+        <label for="casesTypeFilter" class="activity-filter-label">Type</label>
+        <select id="casesTypeFilter" aria-label="Filter cases by type">
+          <option value="All">All</option>
+        </select>
+      </div>
+
+      <div class="activity-filter">
+        <label for="casesStatusFilter" class="activity-filter-label">Status</label>
+        <select id="casesStatusFilter" aria-label="Filter cases by status">
+          <option value="All">All statuses</option>
+        </select>
+      </div>
+
+      <div class="activity-filter">
+        <label for="casesSortSelect" class="activity-filter-label">Sort</label>
+        <select id="casesSortSelect" aria-label="Sort cases">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="caseNo">Case No. (A&ndash;Z)</option>
+          <option value="status">Status (A&ndash;Z)</option>
+        </select>
+      </div>
     </div>
 
     <div id="formPanel"></div>

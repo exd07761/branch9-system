@@ -6,6 +6,14 @@
 // nothing here calls Firestore directly, matching every other page
 // controller in this project.
 //
+// Phase 6 addition: a "Related Hearings" list (renderHearingsList()/
+// getHearingsForCase()) showing the actual Hearings linked to this Case,
+// each with a link into hearings.html's existing Quick View
+// (?previewHearing=<id>, the same param home.js already uses). Domain
+// data only, gated by cases.view/hearings.view exactly like the derived
+// status history already was — every role with cases.view also has
+// hearings.view (see permissions.js), so no extra gate is needed here.
+//
 // The Activity/History timeline merges THREE existing, already-tested
 // sources — no new collection, no new schema, nothing written:
 //   1. Case-level activityLogs entries (Create Case/Edit Case/Archived
@@ -44,7 +52,7 @@
 import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { getCase } from "./cases-data.js?v=1.0.0";
-import { getCaseStatusHistory, getHearingCaseRowsForCase } from "./hearings-data.js?v=1.0.0";
+import { getCaseStatusHistory, getHearingCaseRowsForCase, getHearingsForCase } from "./hearings-data.js?v=1.0.0";
 import { getActivityForEntities } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
 import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
@@ -99,6 +107,52 @@ function renderCaseInfo(c) {
       <label>Current status</label>
       <p>${status}${since}</p>
     </div>
+  `;
+}
+
+// --- Related Hearings --------------------------------------------------
+
+function renderHearingsList(hearings) {
+  const body = document.getElementById("hearingsBody");
+
+  if (!hearings.length) {
+    body.innerHTML = `<p class="muted">No hearings are linked to this case yet.</p>`;
+    return;
+  }
+
+  // getHearingsForCase() returns ascending (oldest first, same convention
+  // as getCaseStatusHistory()) — reversed here so the most recent hearing
+  // is what a Clerk sees first, matching the timeline's own newest-first
+  // order.
+  const sorted = [...hearings].reverse();
+
+  body.innerHTML = `
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Section</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted
+          .map(
+            (h) => `
+          <tr>
+            <td>${h.hearingDate ? esc(fmtDate(h.hearingDate)) : '<span class="muted">Not set</span>'}</td>
+            <td>${esc(h.hearingTime) || '<span class="muted">&mdash;</span>'}</td>
+            <td>${esc(h.section) || '<span class="muted">&mdash;</span>'}</td>
+            <td>${esc(h.status) || '<span class="muted">&mdash;</span>'}${h.isArchived ? ' <span class="muted">(Archived)</span>' : ""}</td>
+            <td class="row-actions"><a class="btn-small" href="hearings.html?previewHearing=${encodeURIComponent(h.id)}">View</a></td>
+          </tr>
+        `
+          )
+          .join("")}
+      </tbody>
+    </table>
   `;
 }
 
@@ -237,7 +291,12 @@ async function init() {
 
   document.getElementById("caseContent").hidden = false;
   renderCaseInfo(currentCase);
-  await loadAndRenderTimeline(user.role);
+
+  // Independent reads — the hearings list and the timeline don't depend
+  // on each other's results, so they run in parallel rather than one
+  // waiting on the other.
+  const [hearingsForCase] = await Promise.all([getHearingsForCase(caseId), loadAndRenderTimeline(user.role)]);
+  renderHearingsList(hearingsForCase);
 }
 
 init();

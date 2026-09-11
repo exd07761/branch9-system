@@ -1826,6 +1826,15 @@ body.page-home .dashboard-stat-value {
   margin-bottom: var(--space-4);
 }
 
+/* Generic page-level divider between two full-width sections on the same
+   page (e.g. "Archived Hearings" / "Archived Cases" on archived.html) —
+   not scoped to any one page, unlike .report-section-heading above, which
+   sits inside a card. */
+.section-heading {
+  font-size: var(--text-lg);
+  margin: var(--space-6) 0 var(--space-3);
+}
+
 .hearings-search input,
 .activity-search input {
   width: 100%;
