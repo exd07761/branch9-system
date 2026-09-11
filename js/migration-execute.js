@@ -44,15 +44,12 @@ import { getAllHearings, getAllHearingCaseRows, setHearingCaseLink } from "./hea
 import { createCaseShell } from "./cases-data.js?v=1.0.0";
 import { refreshCaseStatusFromHearings } from "./case-status-derivation.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 let currentUser = null;
 let liveAnalysis = null; // last buildAnalysis() result, against live data
 let rawHearingCaseRows = []; // all hearingCases rows, for member-row lookup + idempotency
 let hearingsById = new Map(); // hearingId -> hearing doc, for the same linkable-row filter buildAnalysis/getCaseStatusHistory already use
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 // Same normalization as hearings-data.js's isDuplicateCaseNumber() and
 // migration-dryrun.js's own normalizeCaseNo() — kept consistent with

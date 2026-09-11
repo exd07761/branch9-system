@@ -43,16 +43,13 @@ import {
 import { exportCourtCalendarForDate } from "./docx-export.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS, ROLE_LABELS } from "./permissions.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 const STATUS_LABEL = { now: "Now", next: "Next", completed: "Completed", upcoming: "Upcoming" };
 
 let hearings = [];
 let cases = [];
 let currentRole = null;
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 function renderStats(hearingsArray) {
   const stats = computeDashboardStats(hearingsArray);

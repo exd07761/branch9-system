@@ -14,14 +14,11 @@ import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { PERMISSIONS } from "./permissions.js?v=1.0.0";
 import { exportBackup, validateBackupFile, restoreFromBackup } from "./backup-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 const SYSTEM_VERSION = "0.9.4";
 
 let pendingBackup = null; // the parsed, validated backup object staged for restore
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 // --- Backup (export) ------------------------------------------------------
 // Own local copy of the download-a-Blob helper, same convention as

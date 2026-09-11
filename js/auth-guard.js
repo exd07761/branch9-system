@@ -32,10 +32,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/fi
 import { auth, firebaseInitError } from "./firebase-init.js?v=1.0.0";
 import { getOrCreateUserRole } from "./users-data.js?v=1.0.0";
 import { can } from "./permissions.js?v=1.0.0";
-
-function escapeHtml(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
+import { escapeHtml } from "./dom-utils.js?v=1.0.0";
 
 /**
  * Shows a full-page overlay explaining Firebase couldn't be reached. Safe

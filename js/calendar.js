@@ -20,6 +20,7 @@
 import { requireAuth } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToHearingsInRange, fetchCasesForHearing } from "./calendar-data.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_NAMES_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -91,10 +92,6 @@ function getWeekRange(anchor) {
 function getDayRange(anchor) {
   const start = atMidnight(anchor);
   return { start, end: addDays(start, 1) };
-}
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
 }
 
 // --- Shared formatting (used by more than one view) -----------------------

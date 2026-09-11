@@ -38,6 +38,8 @@ import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToCaseRecords, saveCase, archiveCase } from "./cases-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { showNotice } from "./notify.js?v=1.0.0";
 
 // Same fixed case-type vocabulary as hearings.js's (removed, IM-8)
 // CASE_TYPES, duplicated locally rather than shared — matching that
@@ -54,10 +56,6 @@ let caseRecords = [];
 let editingCaseId = null;
 let formOpen = false;
 let currentRole = null;
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -326,7 +324,7 @@ async function handleArchive(caseId) {
       description: caseRecord ? `Archived case ${caseLabel(caseRecord)}` : `Archived case ${caseId}`,
     });
   } catch (err) {
-    alert(`Could not archive: ${err.message}`);
+    showNotice(document.getElementById("pageNotice"), `Could not archive: ${err.message}`);
   }
 }
 

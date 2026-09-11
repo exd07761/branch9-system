@@ -19,13 +19,10 @@ import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToAllUsers, updateUserRole } from "./users-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { ALL_ROLES, ROLE_LABELS, PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 let currentUser = null;
 let users = [];
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 function setStatus(text) {
   document.getElementById("usersStatus").textContent = text || "";

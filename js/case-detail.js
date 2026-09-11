@@ -47,10 +47,7 @@ import { getCase } from "./cases-data.js?v=1.0.0";
 import { getCaseStatusHistory, getHearingCaseRowsForCase } from "./hearings-data.js?v=1.0.0";
 import { getActivityForEntities } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 function fmtDate(iso) {
   if (!iso) return "";

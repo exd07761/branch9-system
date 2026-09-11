@@ -45,6 +45,8 @@ import { subscribeToCaseRecords } from "./cases-data.js?v=1.0.0";
 import { refreshCaseStatusFromHearings } from "./case-status-derivation.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { showNotice } from "./notify.js?v=1.0.0";
 
 // Fixed option lists, matching how this court branch already categorizes
 // hearings and cases. Kept as plain constants — no separate "settings"
@@ -77,10 +79,6 @@ let editingHearingId = null;
 let formCaseRows = [];
 let formOpen = false;
 let currentRole = null;
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -831,7 +829,7 @@ async function handleArchive(hearingId) {
       description: hearing ? `Archived hearing for ${hearingLabel(hearing)} on ${hearing.hearingDate}` : `Archived hearing ${hearingId}`,
     });
   } catch (err) {
-    alert(`Could not archive: ${err.message}`);
+    showNotice(document.getElementById("pageNotice"), `Could not archive: ${err.message}`);
   }
 }
 

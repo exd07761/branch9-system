@@ -30,9 +30,7 @@
 // different comparison.
 // ---------------------------------------------------------------------------
 
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 // Local, minimal counterpart to backup-data.js's deserializeValue() — that
 // function isn't exported (internal to backup-data.js), and this tool

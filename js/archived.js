@@ -24,16 +24,14 @@ import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from "./hearings-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { showNotice } from "./notify.js?v=1.0.0";
 
 let hearings = [];
 let cases = [];
 let currentRole = null;
 let searchQuery = "";
 let previewHearingId = null;
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -288,7 +286,7 @@ async function handleRestore(hearingId) {
       description: hearing ? `Restored hearing for ${hearingLabel(hearing)} on ${hearing.hearingDate}` : `Restored hearing ${hearingId}`,
     });
   } catch (err) {
-    alert(`Could not restore: ${err.message}`);
+    showNotice(document.getElementById("pageNotice"), `Could not restore: ${err.message}`);
   }
 }
 

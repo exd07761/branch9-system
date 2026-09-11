@@ -39,6 +39,7 @@ import {
   CSV_HEADERS,
 } from "./reports-data.js?v=1.0.0";
 import { SECTIONS } from "./constants.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 let hearings = [];
 let cases = [];
@@ -69,10 +70,6 @@ let includeArchived = false;
 // check.
 function reportHearings() {
   return includeArchived ? hearings : hearings.filter(isActiveHearing);
-}
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
 }
 
 function fmtDate(iso) {

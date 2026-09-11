@@ -12,14 +12,11 @@ import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToActivityLogs } from "./activity-data.js?v=1.0.0";
 import { PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
 
 let entries = [];
 let searchQuery = "";
 let activeFilter = "all";
-
-function esc(s) {
-  return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-}
 
 // --- Category filter ---------------------------------------------------
 // A simple, fixed grouping of actions into the four buckets the filter
