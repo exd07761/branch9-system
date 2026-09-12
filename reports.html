@@ -58,6 +58,8 @@
       <p class="sub">Read-only summaries and breakdowns of the hearings already on the docket.</p>
     </header>
 
+    <div id="reportsLoadError"></div>
+
     <section class="dashboard-stats-grid" aria-label="Docket statistics">
       <div class="card dashboard-stat-card">
         <p class="dashboard-stat-value" id="statTotalHearings">&hellip;</p>
@@ -120,6 +122,12 @@
             Include Archived
           </label>
         </div>
+        <div class="report-filter report-filter-reset">
+          <button type="button" class="btn-small" id="resetFiltersBtn">
+            <i data-lucide="rotate-ccw" aria-hidden="true"></i>
+            <span>Reset Filters</span>
+          </button>
+        </div>
       </div>
       <div class="report-export-actions">
         <button type="button" class="btn-small" id="exportCsvBtn">
@@ -129,6 +137,10 @@
         <button type="button" class="btn-small" id="exportWordBtn">
           <i data-lucide="file-down" aria-hidden="true"></i>
           <span>Export Word</span>
+        </button>
+        <button type="button" class="btn-small" id="exportPdfBtn">
+          <i data-lucide="file-down" aria-hidden="true"></i>
+          <span>Export PDF</span>
         </button>
       </div>
     </div>
@@ -182,6 +194,12 @@
 
   <script type="module" src="js/reports.js?v=1.0.0"></script>
   <script src="https://unpkg.com/docx@8.0.4/build/index.js" defer></script>
+  <!-- pdfmake: PDF sibling to the docx export above. Two script tags per
+       pdfmake's own client-side setup (pdfmake.min.js creates the global
+       `pdfMake`, vfs_fonts.js registers its bundled Roboto font onto it).
+       Pinned to 0.2.20 to match js/pdf-export.js's own version-history note. -->
+  <script src="https://unpkg.com/pdfmake@0.2.20/build/pdfmake.min.js" defer></script>
+  <script src="https://unpkg.com/pdfmake@0.2.20/build/vfs_fonts.js" defer></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>if (window.lucide) { lucide.createIcons(); }</script>
 

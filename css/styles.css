@@ -1986,6 +1986,28 @@ body.page-home .dashboard-stat-value {
     position: static;
   }
 
+  /* Phase 11: data tables (Hearings, Cases, Activity, Users, Archived)
+     had no horizontal-scroll handling at all below 768px — with 6-8
+     columns of real content (case numbers, accused names, emails) an
+     auto-layout table just squeezed every column illegibly thin instead
+     of overflowing, so the scroll below never had anything to engage.
+     Giving the table a legible minimum width (same fix already applied
+     to .cal-month-grid/.cal-week-grid above) makes the columns wrap at a
+     readable width and the .card-flush wrapper's new overflow-x scroll
+     the rest, instead of cramming 8 columns into 320-414px. Safe here
+     specifically because position:sticky on .data-table th is already
+     switched off in this same media query (see above) — an
+     overflow-x/overflow-y scroll container would otherwise change the
+     containing block a sticky header sticks to. */
+  .card-flush {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    min-width: 640px;
+  }
+
   /* Dashboard: 3 cards side-by-side is too cramped on a phone; stack them. */
   .dashboard-stats-grid {
     grid-template-columns: 1fr;
@@ -2130,6 +2152,31 @@ body.page-home .dashboard-stat-value {
   height: 16px;
   accent-color: var(--accent);
   cursor: pointer;
+}
+
+.report-filter-reset {
+  justify-content: flex-end;
+}
+
+/* Inline text-button used both by the toolbar's "Reset Filters" .btn-small
+   (via normal button styling) and by the "Reset filters" link injected
+   into an empty report table (reports.js's emptyStateMessage()) — kept
+   minimal since it sits inside a table cell, not the toolbar. */
+.btn-link-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: var(--space-2);
+  color: var(--accent);
+  text-decoration: underline;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn-link-reset:hover,
+.btn-link-reset:focus-visible {
+  opacity: 0.8;
 }
 
 .report-export-actions {

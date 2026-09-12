@@ -59,12 +59,24 @@ export async function getOrCreateUserRole(user) {
  * (Administrator only). Sourced from the "users" collection itself — this
  * app has no Admin SDK access, so it cannot enumerate Firebase
  * Authentication accounts directly; an account appears here once it has
- * signed in at least once (see getOrCreateUserRole above). */
-export function subscribeToAllUsers(onChange) {
+ * signed in at least once (see getOrCreateUserRole above).
+ *
+ * @param {function} onChange
+ * @param {function} [onError] - optional; called with the Firestore error
+ *   if the listener fails (e.g. permission-denied, offline). Additive only
+ *   — same contract as hearings-data.js's subscribeToHearings()/
+ *   subscribeToCases(); existing callers that don't pass this keep their
+ *   previous behavior (an unhandled listener failure).
+ */
+export function subscribeToAllUsers(onChange, onError) {
   const q = query(usersCol, orderBy("email"));
-  return onSnapshot(q, (snapshot) => {
-    onChange(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-  });
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      onChange(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    },
+    typeof onError === "function" ? onError : undefined
+  );
 }
 
 /** Changes one user's role. Activity logging happens at the call site in

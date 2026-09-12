@@ -33,7 +33,7 @@ import { subscribeToArchivedHearings, subscribeToCases, restoreHearing } from ".
 import { subscribeToArchivedCaseRecords, restoreCase } from "./cases-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
-import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { escapeHtml as esc, trapTabKey } from "./dom-utils.js?v=1.0.0";
 import { showNotice } from "./notify.js?v=1.0.0";
 
 let hearings = [];
@@ -41,6 +41,10 @@ let cases = [];
 let currentRole = null;
 let searchQuery = "";
 let previewHearingId = null;
+// Phase 11: element that had focus right before the dialog opened, so
+// closePreview() can return focus there instead of leaving it on
+// document.body — same fix as hearings.js's Quick View.
+let previewTriggerEl = null;
 
 let archivedCaseRecords = [];
 let archivedCasesSearchQuery = "";
@@ -183,6 +187,7 @@ function previewField(label, value) {
 }
 
 function openPreview(hearingId) {
+  previewTriggerEl = document.activeElement;
   previewHearingId = hearingId;
   renderPreview();
 }
@@ -190,6 +195,8 @@ function openPreview(hearingId) {
 function closePreview() {
   previewHearingId = null;
   renderPreview();
+  if (previewTriggerEl && document.body.contains(previewTriggerEl)) previewTriggerEl.focus();
+  previewTriggerEl = null;
 }
 
 function renderPreview() {
@@ -264,7 +271,8 @@ function renderPreview() {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closePreview();
   });
-  document.getElementById("archivedPreviewCloseBtn").addEventListener("click", closePreview);
+  const closeBtn = document.getElementById("archivedPreviewCloseBtn");
+  closeBtn.addEventListener("click", closePreview);
   document.getElementById("archivedPreviewCloseBtn2").addEventListener("click", closePreview);
   const restoreBtn = document.getElementById("archivedPreviewRestoreBtn");
   if (restoreBtn) {
@@ -273,6 +281,12 @@ function renderPreview() {
       handleRestore(previewHearingId || h.id);
     });
   }
+
+  // Phase 11: move focus into the dialog on open, and keep Tab from
+  // reaching the (visually obscured) page behind the overlay.
+  closeBtn.focus();
+  const card = document.querySelector("#archivedPreviewOverlay .preview-card");
+  card.addEventListener("keydown", (e) => trapTabKey(card, e));
 }
 
 document.addEventListener("keydown", (e) => {

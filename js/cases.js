@@ -266,19 +266,19 @@ function renderForm() {
 
       <div class="form-grid form-grid-2">
         <div class="field">
-          <label>Case type <span class="required">*</span></label>
+          <label for="f_caseType">Case type <span class="required">*</span></label>
           <select id="f_caseType">${optionsHtml(CASE_TYPES, c.caseType)}</select>
         </div>
         <div class="field">
-          <label>Case no. <span class="required">*</span></label>
+          <label for="f_caseNo">Case no. <span class="required">*</span></label>
           <input type="text" id="f_caseNo" value="${esc(c.caseNo)}" placeholder="e.g. 4123">
         </div>
         <div class="field field-full">
-          <label>Charge</label>
+          <label for="f_charge">Charge</label>
           <input type="text" id="f_charge" value="${esc(c.charge)}" placeholder="Specific charge for this case">
         </div>
         <div class="field">
-          <label>Date filed</label>
+          <label for="f_dateFiled">Date filed</label>
           <input type="date" id="f_dateFiled" value="${c.dateFiled || ""}">
         </div>
         ${editingCaseId ? statusDisplayHtml(c) : ""}

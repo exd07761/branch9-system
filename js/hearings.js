@@ -45,7 +45,7 @@ import { subscribeToCaseRecords } from "./cases-data.js?v=1.0.0";
 import { refreshCaseStatusFromHearings } from "./case-status-derivation.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
-import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { escapeHtml as esc, trapTabKey } from "./dom-utils.js?v=1.0.0";
 import { showNotice, clearNotice } from "./notify.js?v=1.0.0";
 
 // Fixed option lists, matching how this court branch already categorizes
@@ -320,6 +320,10 @@ function renderList() {
 // duplicates save/delete/validation logic.
 
 let previewHearingId = null;
+// Phase 11: element that had focus right before the dialog opened (the
+// clicked/keyboard-activated table row), so closePreview() can return
+// focus there instead of leaving it on document.body.
+let previewTriggerEl = null;
 
 function previewField(label, value) {
   const v = (value || "").toString().trim();
@@ -327,6 +331,7 @@ function previewField(label, value) {
 }
 
 function openPreview(hearingId) {
+  previewTriggerEl = document.activeElement;
   previewHearingId = hearingId;
   renderPreview();
 }
@@ -334,6 +339,8 @@ function openPreview(hearingId) {
 function closePreview() {
   previewHearingId = null;
   renderPreview();
+  if (previewTriggerEl && document.body.contains(previewTriggerEl)) previewTriggerEl.focus();
+  previewTriggerEl = null;
 }
 
 function renderPreview() {
@@ -406,7 +413,8 @@ function renderPreview() {
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) closePreview();
   });
-  document.getElementById("previewCloseBtn").addEventListener("click", closePreview);
+  const closeBtn = document.getElementById("previewCloseBtn");
+  closeBtn.addEventListener("click", closePreview);
   document.getElementById("previewCloseBtn2").addEventListener("click", closePreview);
   const previewEditBtn = document.getElementById("previewEditBtn");
   if (previewEditBtn) {
@@ -415,6 +423,12 @@ function renderPreview() {
       openEditForm(previewHearingId || h.id);
     });
   }
+
+  // Phase 11: move focus into the dialog on open, and keep Tab from
+  // reaching the (visually obscured) page behind the overlay.
+  closeBtn.focus();
+  const card = document.querySelector("#previewOverlay .preview-card");
+  card.addEventListener("keydown", (e) => trapTabKey(card, e));
 }
 
 document.addEventListener("keydown", (e) => {
@@ -442,8 +456,8 @@ function caseRowHtml(row, idx) {
         <button type="button" class="btn-small btn-danger" data-remove-case="${idx}">Remove</button>
       </div>
       <div class="field">
-        <label>Select case <span class="required">*</span></label>
-        <select class="case-picker">
+        <label for="f_casePicker_${idx}">Select case <span class="required">*</span></label>
+        <select class="case-picker" id="f_casePicker_${idx}">
           <option value="">-- Select a case --</option>
           ${caseRecords
             .map(
@@ -513,50 +527,50 @@ function renderForm() {
 
       <div class="form-grid form-grid-2">
         <div class="field">
-          <label>Section <span class="required">*</span></label>
+          <label for="f_section">Section <span class="required">*</span></label>
           <select id="f_section">${optionsHtml(SECTIONS, h.section)}</select>
         </div>
         <div class="field">
-          <label>Status <span class="required">*</span></label>
+          <label for="f_status">Status <span class="required">*</span></label>
           <select id="f_status">${optionsHtml(STATUSES, h.status)}</select>
         </div>
         <div class="field">
-          <label>Plaintiff</label>
+          <label for="f_plaintiff">Plaintiff</label>
           <input type="text" id="f_plaintiff" value="${esc(h.plaintiff || "People of the Philippines")}">
         </div>
         <div class="field">
-          <label>Accused <span class="required">*</span></label>
+          <label for="f_accused">Accused <span class="required">*</span></label>
           <input type="text" id="f_accused" value="${esc((h.accused || []).join(", "))}" placeholder="Comma-separated if more than one">
         </div>
         <div class="field">
-          <label>Victim(s)</label>
+          <label for="f_victims">Victim(s)</label>
           <input type="text" id="f_victims" value="${esc((h.victims || []).join(", "))}" placeholder="e.g. AAA, BBB">
         </div>
         <div class="field">
-          <label>Detention / bond status</label>
+          <label for="f_detentionStatus">Detention / bond status</label>
           <input type="text" id="f_detentionStatus" value="${esc(h.detentionStatus)}">
         </div>
         <div class="field">
-          <label>Counsel for the People</label>
+          <label for="f_counselForPeople">Counsel for the People</label>
           <input type="text" id="f_counselForPeople" value="${esc(h.counselForPeople)}">
         </div>
         <div class="field">
-          <label>Counsel for the Accused</label>
+          <label for="f_counselForAccused">Counsel for the Accused</label>
           <input type="text" id="f_counselForAccused" value="${esc(h.counselForAccused)}">
         </div>
         <div class="field">
-          <label>Hearing date <span class="required">*</span></label>
+          <label for="f_hearingDate">Hearing date <span class="required">*</span></label>
           <input type="date" id="f_hearingDate" value="${h.hearingDate || ""}">
         </div>
         <div class="field">
-          <label>Hearing time</label>
+          <label for="f_hearingTime">Hearing time</label>
           <select id="f_hearingTime">
             <option value="">Not set</option>
             ${optionsHtml(HEARING_TIMES, h.hearingTime)}
           </select>
         </div>
         <div class="field field-full">
-          <label>Notes / Remarks</label>
+          <label for="f_notes">Notes / Remarks</label>
           <textarea id="f_notes" placeholder="Optional — for human reference only; not used in status, reports, or search">${esc(h.notes)}</textarea>
         </div>
       </div>

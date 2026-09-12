@@ -20,6 +20,7 @@ import { subscribeToAllUsers, updateUserRole } from "./users-data.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { ALL_ROLES, ROLE_LABELS, PERMISSIONS } from "./permissions.js?v=1.0.0";
 import { escapeHtml as esc } from "./dom-utils.js?v=1.0.0";
+import { showNotice, clearNotice } from "./notify.js?v=1.0.0";
 
 let currentUser = null;
 let users = [];
@@ -87,6 +88,41 @@ async function handleRoleChange(uid, newRole) {
   }
 }
 
+// --- Error state -----------------------------------------------------------
+// subscribeToAllUsers() now accepts an optional onError callback (additive
+// — see users-data.js), so a Firestore failure here shows a message with a
+// Retry action instead of leaving the table stuck on "Loading…" forever.
+// Same notify.js + Retry-button convention home.js already established for
+// its own live listeners.
+
+let unsubscribeUsers = null;
+
+function renderUsersError(err) {
+  console.error("Users: listener failed", err);
+  const noticeHost = document.getElementById("usersLoadError");
+  showNotice(noticeHost, "Could not load user accounts. Check your connection and try again.", "error");
+  const closeBtn = noticeHost.querySelector(".inline-notice-close");
+  if (closeBtn) {
+    const retryBtn = document.createElement("button");
+    retryBtn.type = "button";
+    retryBtn.className = "inline-notice-retry";
+    retryBtn.textContent = "Retry";
+    retryBtn.addEventListener("click", startUsersSubscription);
+    noticeHost.querySelector(".inline-notice")?.insertBefore(retryBtn, closeBtn);
+  }
+  document.getElementById("usersTableBody").innerHTML = `<tr><td colspan="3" class="empty-row">Unavailable.</td></tr>`;
+}
+
+function startUsersSubscription() {
+  if (typeof unsubscribeUsers === "function") unsubscribeUsers();
+  clearNotice(document.getElementById("usersLoadError"));
+  unsubscribeUsers = subscribeToAllUsers((data) => {
+    users = data;
+    clearNotice(document.getElementById("usersLoadError"));
+    render();
+  }, renderUsersError);
+}
+
 async function init() {
   const user = await requireAuth({ loginPage: "login.html" });
   if (!user) return;
@@ -95,10 +131,7 @@ async function init() {
   currentUser = user;
   wireNavAuth(user);
 
-  subscribeToAllUsers((data) => {
-    users = data;
-    render();
-  });
+  startUsersSubscription();
 }
 
 init();

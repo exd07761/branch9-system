@@ -27,3 +27,39 @@
 export function escapeHtml(s) {
   return (s || "").toString().replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
 }
+
+// ---------------------------------------------------------------------------
+// Phase 11 (Performance, Accessibility & Mobile QA): trapTabKey().
+//
+// hearings.js's and archived.js's hand-built Quick View dialogs
+// (`role="dialog" aria-modal="true"`) render fine visually but had no
+// actual focus management — Tab could reach the page content sitting
+// behind the overlay while it was open. This is the single shared fix
+// for both call sites rather than two copies of the same Tab-wrapping
+// logic; it does not move initial focus or restore it afterwards (each
+// caller does that itself, since each already tracks its own trigger
+// element and close button).
+// ---------------------------------------------------------------------------
+
+/**
+ * Keydown handler to attach to a dialog's outermost element. Wraps Tab/
+ * Shift+Tab between the dialog's first and last focusable children so
+ * keyboard focus can't leave the dialog while it's open. Intentionally
+ * narrow — not a general focus-trap library, just first/last wrapping.
+ */
+export function trapTabKey(containerEl, event) {
+  if (event.key !== "Tab") return;
+  const focusable = containerEl.querySelectorAll(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}

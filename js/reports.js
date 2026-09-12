@@ -20,8 +20,10 @@ import { requireAuth, requirePermission } from "./auth-guard.js?v=1.0.0";
 import { wireNavAuth } from "./nav-auth.js?v=1.0.0";
 import { subscribeToHearings, subscribeToCases, isActiveHearing } from "./hearings-data.js?v=1.0.0";
 import { exportCourtCalendarForDate, exportCourtCalendarForWeek, exportCourtCalendarForMonth } from "./docx-export.js?v=1.0.0";
+import { exportCourtCalendarForDatePdf, exportCourtCalendarForWeekPdf, exportCourtCalendarForMonthPdf } from "./pdf-export.js?v=1.0.0";
 import { logActivity } from "./activity-data.js?v=1.0.0";
 import { can, PERMISSIONS } from "./permissions.js?v=1.0.0";
+import { showNotice, clearNotice } from "./notify.js?v=1.0.0";
 import {
   getHearingsForDate,
   getHearingsForWeek,
@@ -159,7 +161,18 @@ function hearingRow(h, includeDate) {
   `;
 }
 
-function renderHearingList(scopedHearings) {
+// Differentiates "there is nothing on the docket at all" from "the
+// current filters happen to exclude everything" — see Phase 9 report
+// empty-state requirements. `hasAnyData` is reportHearings().length > 0,
+// i.e. whether ANY hearing exists in scope before the date/status/section
+// filters below are applied.
+function emptyStateMessage(hasAnyData) {
+  return hasAnyData
+    ? 'No hearings match the selected filters. <button type="button" class="btn-link-reset" data-reset-filters>Reset filters</button>'
+    : "No hearing data exists yet.";
+}
+
+function renderHearingList(scopedHearings, hasAnyData) {
   const thead = document.getElementById("reportListHead");
   const tbody = document.getElementById("reportListBody");
   const singleDay = scope !== "week" && scope !== "month" && !(scope === "custom" && customStart !== customEnd);
@@ -169,7 +182,8 @@ function renderHearingList(scopedHearings) {
   thead.innerHTML = `<tr>${cols.map((c) => `<th>${c}</th>`).join("")}</tr>`;
 
   if (!scopedHearings.length) {
-    tbody.innerHTML = `<tr><td colspan="${cols.length}" class="empty-row">No hearings in this range.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" class="empty-row">${emptyStateMessage(hasAnyData)}</td></tr>`;
+    wireResetFiltersLinks(tbody);
     return;
   }
 
@@ -195,22 +209,33 @@ function renderHearingList(scopedHearings) {
 // vice versa) instead of the trivial single-row result filtering by the
 // same facet you're viewing would otherwise produce.
 
-function renderStatusReport(rows) {
+function renderStatusReport(rows, hasAnyData) {
   const tbody = document.getElementById("statusReportBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="2" class="empty-row">No hearings in this range.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="2" class="empty-row">${emptyStateMessage(hasAnyData)}</td></tr>`;
+    wireResetFiltersLinks(tbody);
     return;
   }
   tbody.innerHTML = rows.map((r) => `<tr><td>${esc(r.status)}</td><td>${r.count}</td></tr>`).join("");
 }
 
-function renderTypeReport(rows) {
+function renderTypeReport(rows, hasAnyData) {
   const tbody = document.getElementById("typeReportBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="2" class="empty-row">No hearings in this range.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="2" class="empty-row">${emptyStateMessage(hasAnyData)}</td></tr>`;
+    wireResetFiltersLinks(tbody);
     return;
   }
   tbody.innerHTML = rows.map((r) => `<tr><td>${esc(r.section)}</td><td>${r.count}</td></tr>`).join("");
+}
+
+// Wires the "Reset filters" link injected into an empty-state row by
+// emptyStateMessage() above — same resetFilters() the toolbar's own
+// "Reset Filters" button (wireFilters()) calls.
+function wireResetFiltersLinks(root) {
+  root.querySelectorAll("[data-reset-filters]").forEach((btn) => {
+    btn.addEventListener("click", resetFilters);
+  });
 }
 
 // --- Export ------------------------------------------------------------
@@ -238,7 +263,13 @@ function downloadBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-function wordExportAvailable() {
+// Shared by both the Word and PDF export buttons — both reuse the same
+// exportCourtCalendarFor*() family of functions (one per renderer), which
+// re-derive their own date scope internally from the full hearings/cases
+// arrays; see the comment above handleExportWord() for why Custom Range
+// and an active Status/Hearing Type filter disable both buttons rather
+// than silently exporting something wider than the filtered view.
+function calendarExportAvailable() {
   return (
     can(currentRole, PERMISSIONS.EXPORT) &&
     (scope === "today" || scope === "week" || scope === "month") &&
@@ -251,7 +282,10 @@ async function handleExportCsv() {
   if (!can(currentRole, PERMISSIONS.EXPORT)) return;
   const scoped = filterBySection(filterByStatus(dateScopedHearings(), statusFilter), sectionFilter);
   const csv = buildCsv(CSV_HEADERS, hearingsToCsvRows(scoped, cases));
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  // Leading UTF-8 BOM: without it, Excel (the primary CSV consumer here)
+  // mis-detects the encoding and garbles non-ASCII characters (accented
+  // names, etc.) even though the file itself is correctly encoded UTF-8.
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   downloadBlob(blob, `hearing-report-${todayDateStr()}.csv`);
   logActivity({
     action: "Export Report (CSV)",
@@ -263,7 +297,7 @@ async function handleExportCsv() {
 }
 
 async function handleExportWord() {
-  if (!wordExportAvailable()) return;
+  if (!calendarExportAvailable()) return;
   const btn = document.getElementById("exportWordBtn");
   const originalHtml = btn.innerHTML;
   btn.disabled = true;
@@ -292,26 +326,81 @@ async function handleExportWord() {
   }
 }
 
+// PDF sibling to handleExportWord() above — same availability rule, same
+// "always active hearings only" scoping, same shared exportCourtCalendarFor*
+// family (this time the *Pdf variants from pdf-export.js), same
+// try/catch/logActivity shape. Kept as a close mirror rather than a
+// shared helper so each renderer's wrapper stays simple to read on its
+// own, matching how docx-export.js and pdf-export.js themselves are kept
+// as parallel siblings rather than merged.
+async function handleExportPdf() {
+  if (!calendarExportAvailable()) return;
+  const btn = document.getElementById("exportPdfBtn");
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = "Exporting\u2026";
+  const activeHearings = hearings.filter(isActiveHearing);
+  try {
+    if (scope === "today") await exportCourtCalendarForDatePdf(activeHearings, cases, todayDateStr());
+    else if (scope === "week") await exportCourtCalendarForWeekPdf(activeHearings, cases, new Date());
+    else if (scope === "month") await exportCourtCalendarForMonthPdf(activeHearings, cases, new Date());
+    logActivity({
+      action: "Export Report (PDF)",
+      module: "Reports",
+      entityId: null,
+      entityType: "report",
+      description: `Exported PDF calendar report for ${scopeLabel()}`,
+    });
+  } catch (err) {
+    document.getElementById("reportExportStatus").textContent = `Could not export: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
 // --- Full render ---------------------------------------------------------
 
 function render() {
   const inScope = reportHearings();
+  const hasAnyData = inScope.length > 0;
   renderSummary(inScope);
 
   const scoped = dateScopedHearings(inScope);
   const mainList = filterBySection(filterByStatus(scoped, statusFilter), sectionFilter);
-  renderHearingList(mainList);
-  renderStatusReport(computeStatusReport(filterBySection(scoped, sectionFilter)));
-  renderTypeReport(computeHearingTypeReport(filterByStatus(scoped, statusFilter)));
+  renderHearingList(mainList, hasAnyData);
+  renderStatusReport(computeStatusReport(filterBySection(scoped, sectionFilter)), hasAnyData);
+  renderTypeReport(computeHearingTypeReport(filterByStatus(scoped, statusFilter)), hasAnyData);
 
   document.getElementById("reportScopeSummary").textContent = scopeLabel();
-  document.getElementById("exportWordBtn").disabled = !wordExportAvailable();
+  document.getElementById("exportWordBtn").disabled = !calendarExportAvailable();
+  document.getElementById("exportPdfBtn").disabled = !calendarExportAvailable();
   // Read Only has reports.view but not export — the buttons don't just
   // disable for them, they're not shown at all ("do not show actions the
   // user cannot perform").
   const canExport = can(currentRole, PERMISSIONS.EXPORT);
   document.getElementById("exportCsvBtn").hidden = !canExport;
   document.getElementById("exportWordBtn").hidden = !canExport;
+  document.getElementById("exportPdfBtn").hidden = !canExport;
+}
+
+// Resets every report filter back to its default and re-renders — the
+// toolbar's "Reset Filters" button, and the same handler the empty
+// state's inline "Reset filters" link (wireResetFiltersLinks() above)
+// calls, so both entry points behave identically.
+function resetFilters() {
+  scope = "today";
+  statusFilter = "All";
+  sectionFilter = "All";
+  includeArchived = false;
+
+  document.getElementById("reportScopeSelect").value = "today";
+  document.getElementById("reportCustomRangeRow").hidden = true;
+  document.getElementById("reportSectionSelect").value = "All";
+  document.getElementById("reportIncludeArchived").checked = false;
+  refreshStatusOptions();
+  render();
 }
 
 // --- Filter wiring ---------------------------------------------------------
@@ -361,6 +450,8 @@ function wireFilters() {
 
   document.getElementById("exportCsvBtn").addEventListener("click", handleExportCsv);
   document.getElementById("exportWordBtn").addEventListener("click", handleExportWord);
+  document.getElementById("exportPdfBtn").addEventListener("click", handleExportPdf);
+  document.getElementById("resetFiltersBtn").addEventListener("click", resetFilters);
 }
 
 function populateSectionOptions() {
@@ -381,6 +472,61 @@ function refreshStatusOptions() {
   statusFilter = select.value;
 }
 
+// --- Error states ----------------------------------------------------------
+//
+// subscribeToHearings()/subscribeToCases() (hearings-data.js) accept an
+// optional onError callback — the same additive contract home.js's
+// dashboard already wires for its own two live listeners. Wired here so a
+// Firestore failure (offline, permission-denied, etc.) is shown to the
+// user instead of leaving every stat card and table stuck on "Loading…"
+// forever.
+
+function renderHearingsError(err) {
+  console.error("Reports: hearings listener failed", err);
+  const noticeHost = document.getElementById("reportsLoadError");
+  showNotice(noticeHost, "Could not load hearing data. Check your connection and try again.", "error");
+  const closeBtn = noticeHost.querySelector(".inline-notice-close");
+  if (closeBtn) {
+    const retryBtn = document.createElement("button");
+    retryBtn.type = "button";
+    retryBtn.className = "inline-notice-retry";
+    retryBtn.textContent = "Retry";
+    retryBtn.addEventListener("click", startHearingsSubscription);
+    noticeHost.querySelector(".inline-notice")?.insertBefore(retryBtn, closeBtn);
+  }
+  ["statTotalHearings", "statActiveCases", "statHearingsThisMonth", "statHearingsThisYear", "statPendingHearings", "statCompletedHearings"].forEach((id) => {
+    document.getElementById(id).textContent = "\u2014";
+  });
+  document.getElementById("reportListBody").innerHTML = `<tr><td colspan="7" class="empty-row">Unavailable.</td></tr>`;
+  document.getElementById("statusReportBody").innerHTML = `<tr><td colspan="2" class="empty-row">Unavailable.</td></tr>`;
+  document.getElementById("typeReportBody").innerHTML = `<tr><td colspan="2" class="empty-row">Unavailable.</td></tr>`;
+}
+
+function renderCasesError(err) {
+  // Cases only affect the "Active Cases" stat and the Case No(s). column —
+  // a less severe failure than the hearings listener above, so this
+  // doesn't blank the whole page, just notes it inline the same way.
+  console.error("Reports: cases listener failed", err);
+  showNotice(document.getElementById("reportsLoadError"), "Could not load case data — case numbers may be incomplete.", "warning");
+}
+
+let unsubscribeHearings = null;
+
+function startHearingsSubscription() {
+  if (typeof unsubscribeHearings === "function") unsubscribeHearings();
+  clearNotice(document.getElementById("reportsLoadError"));
+  unsubscribeHearings = subscribeToHearings(
+    (data) => {
+      hearings = data;
+      clearNotice(document.getElementById("reportsLoadError"));
+      refreshStatusOptions();
+      render();
+    },
+    { includeArchived: true },
+    renderHearingsError
+  );
+}
+
 // --- Init ---------------------------------------------------------------
 
 async function init() {
@@ -399,15 +545,11 @@ async function init() {
   customStart = today;
   customEnd = today;
 
-  subscribeToHearings((data) => {
-    hearings = data;
-    refreshStatusOptions();
-    render();
-  }, { includeArchived: true });
+  startHearingsSubscription();
   subscribeToCases((data) => {
     cases = data;
     render();
-  });
+  }, renderCasesError);
 }
 
 init();

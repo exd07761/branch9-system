@@ -184,7 +184,20 @@ function renderRestoreSummary(results) {
       return `<li>${esc(name)}: ${r.written} written, ${r.skippedExisting} already present (kept as-is), ${r.skippedMalformed} malformed (skipped), ${r.failed} failed</li>`;
     })
     .join("");
-  root.innerHTML = `
+  // Never claim unqualified success when any collection reports a failed
+  // record — the same anyFailed condition handleRestore() already computes
+  // for its activity-log entry, applied here too so the UI can't say
+  // "Restore complete." while logActivity simultaneously records
+  // "Restore Failed" for the same run.
+  const anyFailed = Object.values(results).some((r) => r.failed > 0);
+  root.innerHTML = anyFailed
+    ? `
+    <div class="backup-validation backup-validation-error">
+      <p><strong>Restore completed with errors.</strong> Some records failed to write — see the counts below. Nothing already in the system was deleted; you can safely try the restore again.</p>
+      <ul>${rows}</ul>
+    </div>
+  `
+    : `
     <div class="backup-validation backup-validation-ok">
       <p><strong>Restore complete.</strong></p>
       <ul>${rows}</ul>
