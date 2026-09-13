@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    function myRole() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+        : 'branch_clerk';
+    }
+
+    function isAdmin()            { return signedIn() && myRole() == 'administrator'; }
+    function canEditHearings()    { return signedIn() && myRole() in ['administrator', 'branch_clerk', 'encoder']; }
+    function canDeleteHearings()  { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+    function canArchiveHearings() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+    function canViewActivityLog() { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+    // IM-1 (Case Collection Foundation): same role sets as the Hearings
+    // functions above, kept as separate functions (not reused directly)
+    // so a future change to who can edit/delete a Case doesn't have to
+    // stay coupled to who can edit/delete a Hearing.
+    function canEditCases()       { return signedIn() && myRole() in ['administrator', 'branch_clerk', 'encoder']; }
+    function canDeleteCases()     { return signedIn() && myRole() in ['administrator', 'branch_clerk']; }
+
+    // Distinguishes deleteHearing()'s soft-delete update (isDeleted
+    // false -> true) from a routine field edit — see the note above.
+    function isSoftDelete() {
+      return request.resource.data.isDeleted == true && resource.data.isDeleted != true;
+    }
+
+    // Same idea as isSoftDelete() above, for the v0.9.3 Archive/Restore
+    // toggle: true if this update changes isArchived in either
+    // direction (archiveHearing() flips it to true, restoreHearing()
+    // flips it back to false). A routine field edit that leaves
+    // isArchived alone is not affected by this rule.
+    function isArchiveChange() {
+      return request.resource.data.isArchived != resource.data.isArchived;
+    }
+
+    match /systemStatus/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /hearings/{hearingId} {
+      allow read: if signedIn();
+      allow create: if canEditHearings();
+      allow update: if canEditHearings()
+                    && (!isSoftDelete() || canDeleteHearings())
+                    && (!isArchiveChange() || canArchiveHearings());
+      allow delete: if false; // the app never issues a hard delete here
+    }
+
+    match /hearingCases/{caseId} {
+      allow read: if signedIn();
+      // Encoder can remove a case row as a routine part of editing a
+      // hearing — a real Firestore delete on this collection even
+      // though Encoder can't soft-delete the hearing above. Follows
+      // canEditHearings(), not canDeleteHearings() — see the note above.
+      allow create, update, delete: if canEditHearings();
+    }
+
+    // IM-1 (Case Collection Foundation, v1.1): the NEW Case aggregate
+    // root (DECISIONS_v1.1.md Decision 001) — a separate collection from
+    // hearingCases above, not yet linked to it (Decision 002/015 is still
+    // Deferred). Reuses isSoftDelete()/isArchiveChange() as-is, since
+    // both are generic field-transition checks, not hearing-specific.
+    // canArchiveHearings() is reused directly (not a new
+    // canArchiveCases()) — archive permission is intentionally
+    // entity-agnostic, matching the ARCHIVE_MANAGE reuse in
+    // permissions.js.
+    match /cases/{caseId} {
+      allow read: if signedIn();
+      allow create: if canEditCases();
+      allow update: if canEditCases()
+                    && (!isSoftDelete() || canDeleteCases())
+                    && (!isArchiveChange() || canArchiveHearings());
+      allow delete: if false; // the app never issues a hard delete here
+    }
+
+    match /activityLogs/{logId} {
+      // Narrower than v0.9.0's rule (which allowed any signed-in user
+      // to read) now that Activity Log has its own view permission.
+      allow read: if canViewActivityLog();
+      // Phase 12 hardening: every legitimate write goes through
+      // logActivity() (js/activity-data.js), which always stamps
+      // userEmail from auth.currentUser.email — the same value
+      // Firestore exposes server-side as request.auth.token.email.
+      // Requiring the two to match blocks a signed-in user from
+      // spoofing another user's identity in the audit trail via a
+      // direct Firestore write, while every real call site continues
+      // to work unchanged (still "every role's actions get logged").
+      allow create: if signedIn()
+                    && request.resource.data.userEmail == request.auth.token.email;
+      allow update, delete: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
+      // A user may create only their OWN document, and only with the
+      // default role — this is what stops someone from granting
+      // themselves administrator by writing their own users/{uid} doc.
+      // v0.9.4: Administrator may ALSO create any user's doc from
+      // scratch — needed for Backup & Restore's disaster-recovery/
+      // cross-project-migration scenario, where the destination project
+      // has no matching users/{uid} docs yet. This does not weaken the
+      // self-service path above; it only adds a second, admin-only way
+      // to create a user document.
+      allow create: if (signedIn() && request.auth.uid == userId
+                     && request.resource.data.role == 'branch_clerk')
+                     || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}
