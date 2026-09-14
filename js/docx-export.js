@@ -204,13 +204,25 @@ function tableBodyCell(paragraphs, widthDxa) {
 // column was removed entirely (status already appears inside the Case
 // No(s). / Details column via hearing.status; hearing time is now shown
 // as its own centered row beneath each section's table — see
-// buildHearingTimeRow() / distinctHearingTimeLabels() below). Its width
-// was redistributed proportionally across the four remaining data
-// columns (details/title/charge/counsel) so the table still fills the
-// same overall 10080-DXA width on Legal paper. The "#" column is
-// unchanged.
-const COLUMN_WIDTHS = { num: 504, details: 3070, title: 2550, charge: 2040, counsel: 1916 };
-const TABLE_WIDTH_DXA = 10080; // = num + details + title + charge + counsel
+// buildHearingTimeRow() / distinctHearingTimeLabels() below).
+//
+// Column widths below are NOT an arbitrary redistribution toward any one
+// column. The "#" column is kept minimal (just enough for a row number).
+// The other four content columns (details/title/charge/counsel) are the
+// ORIGINAL per-column widths this file used before the Status/Hearing
+// column existed here — i.e. the proportions already tuned against the
+// real reference document — uniformly scaled up by the same factor
+// (~1.3157x) so together they consume the full Legal-portrait printable
+// width (page width 12240 minus the 1080/709 right/left margins from
+// buildDocumentShell() = 10451 DXA), instead of leaving the ~371 DXA of
+// margin slack the old fixed 10080-DXA table width wasted. Every content
+// column grows by the same relative amount; none is favored over the
+// others. If the page margins in buildDocumentShell() ever change,
+// TABLE_WIDTH_DXA (and ideally these column widths) should be
+// recalculated the same way — printable width = page width minus left +
+// right margins.
+const COLUMN_WIDTHS = { num: 504, details: 3183, title: 2653, charge: 2122, counsel: 1989 };
+const TABLE_WIDTH_DXA = 10451; // = num + details + title + charge + counsel = full printable width
 
 function buildTableHeaderRow() {
   return new docx.TableRow({
@@ -235,7 +247,20 @@ function buildDataRow(rowNumber, hearing, cases) {
   // --- Column 2: Case No(s). / Details ---
   const detailsParas = [];
   (cases || []).forEach((c) => {
-    const caseLabel = [c.caseType, c.caseNo].filter(Boolean).join(" No. ");
+    // NOTE: fixed a pre-existing join bug here, found while testing this
+    // revision. c.caseType is stored WITH its trailing "No" already
+    // included (see cases.js's CASE_TYPES, e.g. "FC Criminal Cases No" —
+    // confirmed via optionsHtml(), whose <option value> is the raw
+    // CASE_TYPES string), matching every other place in this app that
+    // renders a case label (cases.js's caseLabel(), hearings.js's
+    // caseRowSummary()/addCaseLabel(), case-detail.js) — all of which
+    // join caseType and caseNo with just ". " to get e.g. "FC Criminal
+    // Cases No. 6184". This file was instead joining with " No. ",
+    // which double-prints the "No" already in caseType (e.g. "FC
+    // Criminal Cases No No. 6184"). Switched to the same ". " join the
+    // rest of the app already uses, so the identifier this revision
+    // keeps on one line is the correct one.
+    const caseLabel = [c.caseType, c.caseNo].filter(Boolean).join(". ");
     // Keep the case number/identifier itself together on one line: swap
     // its regular spaces for non-breaking spaces so Word can't wrap it
     // mid-identifier (e.g. "FC Criminal Case" / "No. 6184"). This only
