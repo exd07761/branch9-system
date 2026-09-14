@@ -15,10 +15,12 @@
 // generation logic is duplicated between modes.
 //
 // Replicates the Branch's actual Word Court Calendar format (letterhead,
-// court personnel list, and the shaded 6-column, per-section table
-// layout). Source of truth for the exact wording/formatting: the
-// uploaded reference documents (byte-identical copies of the Branch's
-// real exported Court Calendar).
+// court personnel list, and the shaded 5-column, per-section table
+// layout — # / Case No(s). Details / Title-Victim(s) / For-Charge /
+// Counsel, with hearing time shown as its own centered row beneath each
+// section's table rather than a Status/Hearing column). Source of truth
+// for the exact wording/formatting: the uploaded reference documents
+// (byte-identical copies of the Branch's real exported Court Calendar).
 //
 // Known deliberate deviations from a literal Times-New-Roman/Letter-size
 // brief, both because "replicate this document exactly" was the later,
@@ -42,8 +44,10 @@
 // any of this file:
 //   - buildLetterhead()        — court name/branch/judge block
 //   - buildCourtPersonnel()    — the dot-leader personnel list
-//   - buildSectionTable()      — the shaded 6-column table for one
-//                                section's hearings (1..N rows)
+//   - buildSectionTable()      — the shaded 5-column table for one
+//                                section's hearings (1..N rows), plus a
+//                                centered hearing-time row per distinct
+//                                time in that section
 //   - buildCourtCalendarChildren() — composes letterhead + personnel +
 //                                title/subtitle + one section-header +
 //                                table pair per section — THE single
@@ -98,6 +102,55 @@ function centeredPara(children, opts = {}) {
   return new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children, ...opts });
 }
 
+// Formats hearing.hearingTime (one of the fixed HEARING_TIMES option
+// strings from hearings.js, e.g. "1:30 in the Afternoon") into the
+// reference document's "At 1:30PM" wording. No new data field — this is
+// purely a display transform of the existing hearingTime string. If a
+// hearingTime value doesn't match the expected "<time> in the
+// <Morning/Afternoon/Evening>" shape (schema drift, blank, etc.), the raw
+// value is still shown rather than silently dropped.
+function formatHearingTimeLabel(hearingTime) {
+  if (!hearingTime) return "";
+  const m = /^(\d{1,2}:\d{2})\s+in\s+the\s+(Morning|Afternoon|Evening)$/i.exec(hearingTime.trim());
+  if (!m) return `At ${hearingTime}`;
+  const suffix = /morning/i.test(m[2]) ? "AM" : "PM";
+  return `At ${m[1]}${suffix}`;
+}
+
+// The distinct, formatted hearing-time labels present among a section's
+// hearings (in first-seen order), for the centered time row(s) rendered
+// beneath that section's table.
+function distinctHearingTimeLabels(items) {
+  const seen = new Set();
+  const labels = [];
+  (items || []).forEach(({ hearing }) => {
+    const label = formatHearingTimeLabel(hearing && hearing.hearingTime);
+    if (label && !seen.has(label)) {
+      seen.add(label);
+      labels.push(label);
+    }
+  });
+  return labels;
+}
+
+// A full-width row (spanning all 5 data columns) carrying just the
+// centered, bold hearing-time label — matches the reference template's
+// "At 1:30PM" row beneath a section's table. Built as an extra row of
+// the same table (rather than a separate paragraph) so its borders line
+// up with the table above it, as in the reference.
+function buildHearingTimeRow(label) {
+  return new docx.TableRow({
+    children: [
+      new docx.TableCell({
+        columnSpan: 5,
+        width: { size: TABLE_WIDTH_DXA, type: docx.WidthType.DXA },
+        margins: { top: 100, bottom: 100, left: 120, right: 120 },
+        children: [centeredPara([run(label, { bold: true, size: 20 })])],
+      }),
+    ],
+  });
+}
+
 /**
  * The court name / branch / judge block at the top of the document.
  * Matches the reference document's exact wording and sizing.
@@ -147,7 +200,17 @@ function tableBodyCell(paragraphs, widthDxa) {
   });
 }
 
-const COLUMN_WIDTHS = { num: 504, details: 2419, title: 2016, charge: 1613, counsel: 1512, status: 2016 };
+// Milestone (Court Calendar template revision): the STATUS / HEARING
+// column was removed entirely (status already appears inside the Case
+// No(s). / Details column via hearing.status; hearing time is now shown
+// as its own centered row beneath each section's table — see
+// buildHearingTimeRow() / distinctHearingTimeLabels() below). Its width
+// was redistributed proportionally across the four remaining data
+// columns (details/title/charge/counsel) so the table still fills the
+// same overall 10080-DXA width on Legal paper. The "#" column is
+// unchanged.
+const COLUMN_WIDTHS = { num: 504, details: 3070, title: 2550, charge: 2040, counsel: 1916 };
+const TABLE_WIDTH_DXA = 10080; // = num + details + title + charge + counsel
 
 function buildTableHeaderRow() {
   return new docx.TableRow({
@@ -158,7 +221,6 @@ function buildTableHeaderRow() {
       tableHeaderCell("TITLE / VICTIM(S)", COLUMN_WIDTHS.title),
       tableHeaderCell("FOR / CHARGE", COLUMN_WIDTHS.charge),
       tableHeaderCell("COUNSEL", COLUMN_WIDTHS.counsel),
-      tableHeaderCell("STATUS / HEARING", COLUMN_WIDTHS.status),
     ],
   });
 }
@@ -174,7 +236,16 @@ function buildDataRow(rowNumber, hearing, cases) {
   const detailsParas = [];
   (cases || []).forEach((c) => {
     const caseLabel = [c.caseType, c.caseNo].filter(Boolean).join(" No. ");
-    detailsParas.push(new docx.Paragraph({ children: [run(caseLabel, { bold: true, size: 20 })], spacing: { after: 60 } }));
+    // Keep the case number/identifier itself together on one line: swap
+    // its regular spaces for non-breaking spaces so Word can't wrap it
+    // mid-identifier (e.g. "FC Criminal Case" / "No. 6184"). This only
+    // affects this one label run — the case-details/title paragraphs
+    // below it still wrap normally. If the identifier is ever wider than
+    // the column, widen COLUMN_WIDTHS.details rather than removing this.
+    const nonBreakingCaseLabel = caseLabel.replace(/ /g, "\u00A0");
+    detailsParas.push(
+      new docx.Paragraph({ children: [run(nonBreakingCaseLabel, { bold: true, size: 20 })], spacing: { after: 60 } })
+    );
   });
   detailsParas.push(
     new docx.Paragraph({ children: [run(hearing.status || "Hearing", { italics: true, size: 20 })], spacing: { after: 60 } })
@@ -223,14 +294,11 @@ function buildDataRow(rowNumber, hearing, cases) {
     new docx.Paragraph({ children: [run("for the Accused", { italics: true, size: 18 })] }),
   ];
 
-  // --- Column 6: Status / Hearing ---
-  const hearingLine = hearing.hearingTime ? `${fmtLongDate(hearing.hearingDate)} \u2013 ${hearing.hearingTime}` : fmtLongDate(hearing.hearingDate);
-  const statusParas = [
-    new docx.Paragraph({ children: [run("Status:", { bold: true, size: 18 })] }),
-    new docx.Paragraph({ children: [run(hearing.status, { size: 20 })], spacing: { after: 100 } }),
-    new docx.Paragraph({ children: [run("Hearing:", { bold: true, size: 18 })] }),
-    new docx.Paragraph({ children: [run(hearingLine || "Not set", { size: 20 })] }),
-  ];
+  // Column 6 (Status / Hearing) removed — hearing.status already appears
+  // in the Case No(s). / Details column above (see detailsParas), and
+  // hearing.hearingTime is now surfaced once per section as a centered
+  // row beneath the section table (see buildHearingTimeRow() /
+  // distinctHearingTimeLabels()) rather than duplicated per row here.
 
   return new docx.TableRow({
     children: [
@@ -239,22 +307,29 @@ function buildDataRow(rowNumber, hearing, cases) {
       tableBodyCell(titleParas, COLUMN_WIDTHS.title),
       tableBodyCell(chargeParas, COLUMN_WIDTHS.charge),
       tableBodyCell(counselParas, COLUMN_WIDTHS.counsel),
-      tableBodyCell(statusParas, COLUMN_WIDTHS.status),
     ],
   });
 }
 
 /**
- * Builds the shaded, bordered 6-column table for one section's hearings —
- * one header row plus one data row per {hearing, cases} pair, numbered
- * 1..N. Used for every section in every export mode; a single-hearing
- * export is simply a table with exactly one data row.
+ * Builds the shaded, bordered 5-column table for one section's hearings —
+ * one header row, one data row per {hearing, cases} pair (numbered 1..N),
+ * then one centered full-width row per distinct hearing time present in
+ * the section (e.g. "At 1:30PM"), matching the reference template's
+ * placement of hearing time beneath the relevant section/table now that
+ * the per-row Status/Hearing column is gone. Used for every section in
+ * every export mode; a single-hearing export is simply a table with
+ * exactly one data row.
  */
 function buildSectionTable(items) {
-  const rows = [buildTableHeaderRow(), ...items.map((item, i) => buildDataRow(i + 1, item.hearing, item.cases))];
+  const rows = [
+    buildTableHeaderRow(),
+    ...items.map((item, i) => buildDataRow(i + 1, item.hearing, item.cases)),
+    ...distinctHearingTimeLabels(items).map((label) => buildHearingTimeRow(label)),
+  ];
 
   return new docx.Table({
-    width: { size: 10080, type: docx.WidthType.DXA },
+    width: { size: TABLE_WIDTH_DXA, type: docx.WidthType.DXA },
     alignment: docx.AlignmentType.CENTER,
     borders: {
       top: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
