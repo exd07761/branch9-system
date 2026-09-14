@@ -45,7 +45,8 @@
 //   - buildLetterhead()        — court name/branch/judge block
 //   - buildCourtPersonnel()    — the dot-leader personnel list
 //   - buildSectionTable()      — the shaded 5-column table for one
-//                                section's hearings (1..N rows), plus a
+//                                section's hearings, one row per linked
+//                                Case (see buildHearingRows()), plus a
 //                                centered hearing-time row per distinct
 //                                time in that section
 //   - buildCourtCalendarChildren() — composes letterhead + personnel +
@@ -238,53 +239,18 @@ function buildTableHeaderRow() {
 }
 
 /**
- * Builds one data row for one hearing (numbered per its position within
- * its section's table). This is the exact same per-hearing rendering
- * used whether the export contains one hearing or a hundred — nothing
- * about a single row depends on how many other rows are in the table.
+ * Column 3 (Title / Victim(s)) content — hearing-level fields only
+ * (plaintiff/accused/detentionStatus/victims all live on the Hearing
+ * document; there is no per-Case equivalent in this schema — see
+ * hearings-data.js's saveHearing(), where a hearingCases row only ever
+ * carries { hearingId, caseType, caseNo, charge, dateFiled }). Built
+ * once per hearing and reused for every Case row under that hearing,
+ * since it's genuinely the same, correct value for all of them — not a
+ * duplication of invented data, just the shared field shown on each row
+ * (matching the reference document, which repeats this same text on
+ * both rows when one hearing has two Cases).
  */
-function buildDataRow(rowNumber, hearing, cases) {
-  // --- Column 2: Case No(s). / Details ---
-  const detailsParas = [];
-  (cases || []).forEach((c) => {
-    // NOTE: fixed a pre-existing join bug here, found while testing this
-    // revision. c.caseType is stored WITH its trailing "No" already
-    // included (see cases.js's CASE_TYPES, e.g. "FC Criminal Cases No" —
-    // confirmed via optionsHtml(), whose <option value> is the raw
-    // CASE_TYPES string), matching every other place in this app that
-    // renders a case label (cases.js's caseLabel(), hearings.js's
-    // caseRowSummary()/addCaseLabel(), case-detail.js) — all of which
-    // join caseType and caseNo with just ". " to get e.g. "FC Criminal
-    // Cases No. 6184". This file was instead joining with " No. ",
-    // which double-prints the "No" already in caseType (e.g. "FC
-    // Criminal Cases No No. 6184"). Switched to the same ". " join the
-    // rest of the app already uses, so the identifier this revision
-    // keeps on one line is the correct one.
-    const caseLabel = [c.caseType, c.caseNo].filter(Boolean).join(". ");
-    // Keep the case number/identifier itself together on one line: swap
-    // its regular spaces for non-breaking spaces so Word can't wrap it
-    // mid-identifier (e.g. "FC Criminal Case" / "No. 6184"). This only
-    // affects this one label run — the case-details/title paragraphs
-    // below it still wrap normally. If the identifier is ever wider than
-    // the column, widen COLUMN_WIDTHS.details rather than removing this.
-    const nonBreakingCaseLabel = caseLabel.replace(/ /g, "\u00A0");
-    detailsParas.push(
-      new docx.Paragraph({ children: [run(nonBreakingCaseLabel, { bold: true, size: 20 })], spacing: { after: 60 } })
-    );
-  });
-  detailsParas.push(
-    new docx.Paragraph({ children: [run(hearing.status || "Hearing", { italics: true, size: 20 })], spacing: { after: 60 } })
-  );
-  const datesFiled = [...new Set((cases || []).map((c) => c.dateFiled).filter(Boolean))];
-  if (datesFiled.length) {
-    detailsParas.push(
-      new docx.Paragraph({
-        children: [run(`Date filed: ${datesFiled.map(fmtLongDate).join(", ")}`, { size: 20 })],
-      })
-    );
-  }
-
-  // --- Column 3: Title / Victim(s) ---
+function buildHearingTitleParas(hearing) {
   const titleParas = [
     new docx.Paragraph({ children: [run(hearing.plaintiff, { size: 20 })], spacing: { after: 40 } }),
     new docx.Paragraph({ children: [run("versus", { italics: true, size: 20 })], spacing: { after: 40 } }),
@@ -299,57 +265,157 @@ function buildDataRow(rowNumber, hearing, cases) {
   if ((hearing.victims || []).length) {
     titleParas.push(new docx.Paragraph({ children: [run(`Victim(s): ${(hearing.victims || []).join(", ")}`, { size: 20 })] }));
   }
+  return titleParas;
+}
 
-  // --- Column 4: For / Charge ---
-  const chargeParas = (cases || []).length
-    ? cases.map(
-        (c) =>
-          new docx.Paragraph({
-            children: [run(`${c.caseNo ? c.caseNo + ": " : ""}${c.charge || ""}`, { size: 20 })],
-            spacing: { after: 60 },
-          })
-      )
-    : [new docx.Paragraph({ children: [run("Not set", { italics: true, size: 20 })] })];
-
-  // --- Column 5: Counsel ---
-  const counselParas = [
+/**
+ * Column 5 (Counsel) content — same rationale as buildHearingTitleParas()
+ * above: counselForPeople/counselForAccused are Hearing-level fields with
+ * no per-Case equivalent, so this is built once per hearing and reused
+ * on every Case row under it.
+ */
+function buildHearingCounselParas(hearing) {
+  return [
     new docx.Paragraph({ children: [run(hearing.counselForPeople, { size: 20 })], spacing: { after: 20 } }),
     new docx.Paragraph({ children: [run("for the People", { italics: true, size: 18 })], spacing: { after: 100 } }),
     new docx.Paragraph({ children: [run(hearing.counselForAccused, { size: 20 })], spacing: { after: 20 } }),
     new docx.Paragraph({ children: [run("for the Accused", { italics: true, size: 18 })] }),
   ];
+}
 
-  // Column 6 (Status / Hearing) removed — hearing.status already appears
-  // in the Case No(s). / Details column above (see detailsParas), and
-  // hearing.hearingTime is now surfaced once per section as a centered
-  // row beneath the section table (see buildHearingTimeRow() /
-  // distinctHearingTimeLabels()) rather than duplicated per row here.
+/**
+ * Column 2 (Case No(s). / Details) content for ONE Case row: that
+ * Case's own caseType/caseNo/dateFiled (genuinely Case-specific fields —
+ * see hearingCases' schema in hearings-data.js's saveHearing()), plus
+ * the Hearing's status line (Hearing-level, repeated per row — same
+ * rationale as the title/counsel columns, and matches the reference
+ * document, which repeats the status line on every Case row too).
+ * `caseOrNull` is null for a hearing with no linked Cases at all (the
+ * pre-existing "Not set" fallback case), never for a real Case row.
+ */
+function buildCaseDetailsParas(hearing, caseOrNull) {
+  const detailsParas = [];
+  if (caseOrNull) {
+    // NOTE: fixed a pre-existing join bug here, found while testing this
+    // revision. c.caseType is stored WITH its trailing "No" already
+    // included (see cases.js's CASE_TYPES, e.g. "FC Criminal Cases No" —
+    // confirmed via optionsHtml(), whose <option value> is the raw
+    // CASE_TYPES string), matching every other place in this app that
+    // renders a case label (cases.js's caseLabel(), hearings.js's
+    // caseRowSummary()/addCaseLabel(), case-detail.js) — all of which
+    // join caseType and caseNo with just ". " to get e.g. "FC Criminal
+    // Cases No. 6184". This file was instead joining with " No. ",
+    // which double-prints the "No" already in caseType (e.g. "FC
+    // Criminal Cases No No. 6184"). Switched to the same ". " join the
+    // rest of the app already uses, so the identifier this revision
+    // keeps on one line is the correct one.
+    const caseLabel = [caseOrNull.caseType, caseOrNull.caseNo].filter(Boolean).join(". ");
+    // Keep the case number/identifier itself together on one line: swap
+    // its regular spaces for non-breaking spaces so Word can't wrap it
+    // mid-identifier (e.g. "FC Criminal Case" / "No. 6184"). This only
+    // affects this one label run — the case-details/title paragraphs
+    // below it still wrap normally. If the identifier is ever wider than
+    // the column, widen COLUMN_WIDTHS.details rather than removing this.
+    const nonBreakingCaseLabel = caseLabel.replace(/ /g, "\u00A0");
+    detailsParas.push(
+      new docx.Paragraph({ children: [run(nonBreakingCaseLabel, { bold: true, size: 20 })], spacing: { after: 60 } })
+    );
+  }
+  detailsParas.push(
+    new docx.Paragraph({ children: [run(hearing.status || "Hearing", { italics: true, size: 20 })], spacing: { after: 60 } })
+  );
+  if (caseOrNull && caseOrNull.dateFiled) {
+    detailsParas.push(
+      new docx.Paragraph({ children: [run(`Date filed: ${fmtLongDate(caseOrNull.dateFiled)}`, { size: 20 })] })
+    );
+  }
+  return detailsParas;
+}
 
+/**
+ * Column 4 (For / Charge) content for ONE Case row: that Case's own
+ * charge field (Case-specific — see hearingCases' schema above), or the
+ * pre-existing "Not set" fallback when the hearing has no linked Cases
+ * at all.
+ */
+function buildCaseChargeParas(caseOrNull) {
+  return caseOrNull
+    ? [
+        new docx.Paragraph({
+          children: [run(`${caseOrNull.caseNo ? caseOrNull.caseNo + ": " : ""}${caseOrNull.charge || ""}`, { size: 20 }),
+          ],
+        }),
+      ]
+    : [new docx.Paragraph({ children: [run("Not set", { italics: true, size: 20 })] })];
+}
+
+/**
+ * Builds one table row for exactly one Case (or, when a hearing has no
+ * linked Cases at all, the single pre-existing "Not set" placeholder
+ * row) — titleParas/counselParas are precomputed once per hearing by
+ * the caller and passed in, since they're identical across every row
+ * for the same hearing.
+ */
+function buildCaseRow(rowNumber, hearing, caseOrNull, titleParas, counselParas) {
   return new docx.TableRow({
     children: [
       tableBodyCell([new docx.Paragraph({ children: [run(String(rowNumber), { size: 20 })] })], COLUMN_WIDTHS.num),
-      tableBodyCell(detailsParas, COLUMN_WIDTHS.details),
+      tableBodyCell(buildCaseDetailsParas(hearing, caseOrNull), COLUMN_WIDTHS.details),
       tableBodyCell(titleParas, COLUMN_WIDTHS.title),
-      tableBodyCell(chargeParas, COLUMN_WIDTHS.charge),
+      tableBodyCell(buildCaseChargeParas(caseOrNull), COLUMN_WIDTHS.charge),
       tableBodyCell(counselParas, COLUMN_WIDTHS.counsel),
     ],
   });
 }
 
 /**
+ * Builds ALL table rows for one hearing: one row per linked Case (so a
+ * hearing with 4 linked Cases produces 4 separate rows, each with its
+ * own Case Number/Details and Charge — not one giant row with every
+ * Case Number stacked into a single cell), or exactly one placeholder
+ * row if the hearing has no linked Cases at all (the pre-existing
+ * behavior, unchanged). Title/Victim(s) and Counsel are Hearing-level
+ * fields with no per-Case equivalent in this schema, so they're built
+ * once here and repeated identically on every row for this hearing —
+ * see buildHearingTitleParas()/buildHearingCounselParas() above.
+ *
+ * @param {number} startRowNumber - the # this hearing's first row gets;
+ *   the # column increments per rendered Case row across the whole
+ *   section table, not per hearing (see buildSectionTable()).
+ * @returns {Array<docx.TableRow>}
+ */
+function buildHearingRows(startRowNumber, hearing, cases) {
+  const titleParas = buildHearingTitleParas(hearing);
+  const counselParas = buildHearingCounselParas(hearing);
+  const caseList = cases && cases.length ? cases : [null]; // null = no linked Cases; one placeholder row
+  return caseList.map((c, i) => buildCaseRow(startRowNumber + i, hearing, c, titleParas, counselParas));
+}
+
+/**
  * Builds the shaded, bordered 5-column table for one section's hearings —
- * one header row, one data row per {hearing, cases} pair (numbered 1..N),
- * then one centered full-width row per distinct hearing time present in
- * the section (e.g. "At 1:30PM"), matching the reference template's
- * placement of hearing time beneath the relevant section/table now that
- * the per-row Status/Hearing column is gone. Used for every section in
- * every export mode; a single-hearing export is simply a table with
- * exactly one data row.
+ * one header row, then one data row per linked Case across all of the
+ * section's hearings (a hearing with 4 linked Cases contributes 4 rows,
+ * not 1 — see buildHearingRows()), with the # column running
+ * consecutively across the whole section regardless of which hearing
+ * each row belongs to, then one centered full-width row per distinct
+ * hearing time present in the section (e.g. "At 1:30PM"), matching the
+ * reference template's placement of hearing time beneath the relevant
+ * section/table now that the per-row Status/Hearing column is gone.
+ * Used for every section in every export mode; a single-hearing,
+ * single-Case export is simply a table with exactly one data row.
  */
 function buildSectionTable(items) {
+  const dataRows = [];
+  let nextRowNumber = 1;
+  items.forEach((item) => {
+    const hearingRows = buildHearingRows(nextRowNumber, item.hearing, item.cases);
+    dataRows.push(...hearingRows);
+    nextRowNumber += hearingRows.length;
+  });
+
   const rows = [
     buildTableHeaderRow(),
-    ...items.map((item, i) => buildDataRow(i + 1, item.hearing, item.cases)),
+    ...dataRows,
     ...distinctHearingTimeLabels(items).map((label) => buildHearingTimeRow(label)),
   ];
 
