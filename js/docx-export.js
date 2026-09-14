@@ -209,20 +209,50 @@ function tableBodyCell(paragraphs, widthDxa) {
 //
 // Column widths below are NOT an arbitrary redistribution toward any one
 // column. The "#" column is kept minimal (just enough for a row number).
-// The other four content columns (details/title/charge/counsel) are the
-// ORIGINAL per-column widths this file used before the Status/Hearing
-// column existed here — i.e. the proportions already tuned against the
-// real reference document — uniformly scaled up by the same factor
-// (~1.3157x) so together they consume the full Legal-portrait printable
-// width (page width 12240 minus the 1080/709 right/left margins from
-// buildDocumentShell() = 10451 DXA), instead of leaving the ~371 DXA of
-// margin slack the old fixed 10080-DXA table width wasted. Every content
-// column grows by the same relative amount; none is favored over the
-// others. If the page margins in buildDocumentShell() ever change,
-// TABLE_WIDTH_DXA (and ideally these column widths) should be
-// recalculated the same way — printable width = page width minus left +
-// right margins.
-const COLUMN_WIDTHS = { num: 504, details: 3183, title: 2653, charge: 2122, counsel: 1989 };
+// Starting point for the other four was the ORIGINAL per-column widths
+// this file used before the Status/Hearing column existed here (details
+// 2419 / title 2016 / charge 1613 / counsel 1512 — the proportions
+// already tuned against the real reference document), uniformly scaled
+// up so together with "#" they'd consume the full Legal-portrait
+// printable width (page width 12240 minus the 1080/709 right/left
+// margins from buildDocumentShell() = 10451 DXA) instead of leaving the
+// old fixed 10080-DXA table width's ~371 DXA of margin slack unused.
+//
+// details was then widened a further ~530 DXA beyond that uniform scale
+// (from 3183 to 3700), taken proportionally from title/charge/counsel,
+// after real-DOCX rendering (see below) showed the uniformly-scaled
+// width still let ordinary Case Numbers visually wrap mid-identifier.
+// This was NOT sized from a character-count guess — it was measured by
+// hand-building the exact OOXML this file produces (same font/size/cell
+// margins/fixed table layout) and rendering it with LibreOffice (which
+// resolves "Century Schoolbook" to "TeX Gyre Schola", a metrically-
+// compatible clone, so the measurements should track real Word/Century
+// Schoolbook closely). That test also revealed something the
+// non-breaking-space technique alone can't fix: once an identifier
+// doesn't fit the column at all, the renderer falls back to breaking it
+// at ANY character (including mid-word), not just at the space it was
+// protecting — so "wide enough to need no break at all" is the only
+// real guarantee, not the no-break characters by themselves.
+//
+// Measured fit at details=3700 (content width 3700-240=3460 DXA, after
+// the 120+120 DXA left/right cell margins from tableBodyCell()):
+//   - "FC Criminal Cases No. 6693"          fits on one line
+//   - "FC Criminal Case No. 6184"           fits on one line
+//   - "FC Civil Case No. 761"               fits on one line
+//   - "FC Criminal Cases No. 6107-6108"     fits on one line (needed
+//                                           >=3680; 3700 gives margin)
+//   - "FC Special Proceeding Case No. 123456" still wraps — this one
+//     needed >4200 DXA (tested up to 4200, still not enough) to fit
+//     unbroken, which would eat far more than "smallest practical" from
+//     title/charge/counsel. Accepted as a known limitation for this
+//     specific combination (the longest CASE_TYPES option + a 6-digit
+//     case number) rather than forced at the expense of the other three
+//     columns' usability — matches the "one logical visual line where
+//     reasonably possible" framing this width was requested under.
+// If a real Case Number this long+wide ever shows up in practice,
+// COLUMN_WIDTHS.details is the value to revisit (see js/hearings.js's
+// CASE_TYPES for the option list this measures against).
+const COLUMN_WIDTHS = { num: 504, details: 3700, title: 2450, charge: 1960, counsel: 1837 };
 const TABLE_WIDTH_DXA = 10451; // = num + details + title + charge + counsel = full printable width
 
 function buildTableHeaderRow() {
@@ -311,12 +341,23 @@ function buildCaseDetailsParas(hearing, caseOrNull) {
     // keeps on one line is the correct one.
     const caseLabel = [caseOrNull.caseType, caseOrNull.caseNo].filter(Boolean).join(". ");
     // Keep the case number/identifier itself together on one line: swap
-    // its regular spaces for non-breaking spaces so Word can't wrap it
-    // mid-identifier (e.g. "FC Criminal Case" / "No. 6184"). This only
-    // affects this one label run — the case-details/title paragraphs
-    // below it still wrap normally. If the identifier is ever wider than
-    // the column, widen COLUMN_WIDTHS.details rather than removing this.
-    const nonBreakingCaseLabel = caseLabel.replace(/ /g, "\u00A0");
+    // its regular spaces for non-breaking spaces (and any hyphens, e.g.
+    // a consolidated-case range like "6107-6108", for a non-breaking
+    // hyphen) so Word can't wrap it mid-identifier. This only affects
+    // this one label run — the case-details/title paragraphs below it
+    // still wrap normally.
+    //
+    // IMPORTANT — this substitution alone is NOT sufficient by itself;
+    // it's paired with COLUMN_WIDTHS.details above being wide enough
+    // that a realistic identifier never actually needs to break. Real
+    // rendering (see COLUMN_WIDTHS' comment) showed that once an
+    // identifier is too wide for the column regardless, the renderer
+    // ignores these no-break characters and force-splits at any
+    // character (not even at a word boundary) — so if a longer
+    // CASE_TYPES option or case number ever gets added, widen
+    // COLUMN_WIDTHS.details (verified by real rendering, not guessed)
+    // rather than assuming this substitution alone will protect it.
+    const nonBreakingCaseLabel = caseLabel.replace(/ /g, "\u00A0").replace(/-/g, "\u2011");
     detailsParas.push(
       new docx.Paragraph({ children: [run(nonBreakingCaseLabel, { bold: true, size: 20 })], spacing: { after: 60 } })
     );
