@@ -30,9 +30,10 @@
 // not only at migration time.
 //
 // Edit Selected Case from Hearing form: once a row has an existing Case
-// selected, its "+ Add Case" button is replaced with "Edit Case" (gated
-// on cases.edit, same as cases.js's own Edit button), which opens the
-// SAME dialog/state as "+ Add Case" (openEditCaseModal() sets
+// selected, an "Edit Case" button appears alongside "+ Add Case" (gated
+// on cases.edit, same as cases.js's own Edit button) — "+ Add Case"
+// always remains available regardless of selection. "Edit Case" opens
+// the SAME dialog/state as "+ Add Case" (openEditCaseModal() sets
 // addCaseModalMode = "edit" instead of a second modal) pre-filled from
 // that Case. Save calls saveCase(existingCaseId, caseData) — an update,
 // never a new Case — and never touches linkedCaseId on the row or the
@@ -806,15 +807,8 @@ function caseRowHtml(row, idx) {
               )
               .join("")}
           </select>
-          ${
-            linked
-              ? can(currentRole, PERMISSIONS.CASES_EDIT)
-                ? `<button type="button" class="btn-small" data-edit-case="${idx}">Edit Case</button>`
-                : ""
-              : can(currentRole, PERMISSIONS.CASES_CREATE)
-              ? `<button type="button" class="btn-small" data-add-case="${idx}">+ Add Case</button>`
-              : ""
-          }
+          ${linked && can(currentRole, PERMISSIONS.CASES_EDIT) ? `<button type="button" class="btn-small" data-edit-case="${idx}">Edit Case</button>` : ""}
+          ${can(currentRole, PERMISSIONS.CASES_CREATE) ? `<button type="button" class="btn-small" data-add-case="${idx}">+ Add Case</button>` : ""}
         </div>
       </div>
       ${
