@@ -28,6 +28,16 @@
 // anywhere in the live app (both shipped with zero callers) — so a Case's
 // currentStatus now stays accurate as new hearings are added day to day,
 // not only at migration time.
+//
+// Edit Selected Case from Hearing form: once a row has an existing Case
+// selected, its "+ Add Case" button is replaced with "Edit Case" (gated
+// on cases.edit, same as cases.js's own Edit button), which opens the
+// SAME dialog/state as "+ Add Case" (openEditCaseModal() sets
+// addCaseModalMode = "edit" instead of a second modal) pre-filled from
+// that Case. Save calls saveCase(existingCaseId, caseData) — an update,
+// never a new Case — and never touches linkedCaseId on the row or the
+// Hearing. See handleSaveCaseModal() below, which now handles both
+// modes of this one dialog.
 // ---------------------------------------------------------------------------
 
 import { requireAuth } from "./auth-guard.js?v=1.0.0";
@@ -102,6 +112,15 @@ let addCaseModalOpen = false;
 let addCaseModalRowIdx = null;
 let addCaseModalTriggerEl = null;
 let addCaseModalSaving = false;
+// Inline Case Edit (Edit Selected Case from Hearing form): the same
+// dialog now serves two modes. "add" is the original behavior above;
+// "edit" is set by openEditCaseModal() below and carries the existing
+// Case's id so handleSaveCaseModal() calls saveCase(existingCaseId, ...)
+// instead of saveCase(null, ...). Reset to "add"/null by
+// closeAddCaseModal() so a later "+ Add Case" open never inherits a
+// stale edit target.
+let addCaseModalMode = "add"; // "add" | "edit"
+let addCaseModalEditingCaseId = null;
 // Persists whatever the Clerk has typed across a re-render (e.g. the
 // disabled state while saving, or an error message after a failed save)
 // so a mid-save/failed-save re-render never silently blanks the fields —
@@ -483,23 +502,55 @@ document.addEventListener("keydown", (e) => {
 // already established by the Hearing Quick View modal above — no new
 // modal system, no new CSS framework.
 
-function isDuplicateCaseNo(caseType, caseNo) {
-  return caseRecords.some((c) => c.caseType === caseType && c.caseNo === caseNo);
+function isDuplicateCaseNo(caseType, caseNo, excludeCaseId) {
+  return caseRecords.some((c) => c.id !== excludeCaseId && c.caseType === caseType && c.caseNo === caseNo);
 }
 
 function openAddCaseModal(rowIdx) {
   if (!can(currentRole, PERMISSIONS.CASES_CREATE)) return;
   addCaseModalTriggerEl = document.activeElement;
   addCaseModalRowIdx = rowIdx;
+  addCaseModalMode = "add";
+  addCaseModalEditingCaseId = null;
   addCaseModalOpen = true;
   addCaseModalSaving = false;
   addCaseFormValues = { caseType: CASE_TYPES[0], caseNo: "", charge: "", dateFiled: "" };
   renderAddCaseModal();
 }
 
+// Edit Selected Case from Hearing form: opens the SAME dialog as
+// openAddCaseModal() above, pre-populated from the row's currently
+// linked Case. Requires cases.edit (the existing Case-edit permission —
+// see caseRowHtml()'s gating of the "Edit Case" button itself, which is
+// the first line of defense; this check is the second, same
+// belt-and-suspenders pattern openAddCaseModal() already uses for
+// cases.create).
+function openEditCaseModal(rowIdx) {
+  if (!can(currentRole, PERMISSIONS.CASES_EDIT)) return;
+  const row = formCaseRows[rowIdx];
+  const linked = row && row.linkedCaseId ? caseRecords.find((c) => c.id === row.linkedCaseId) : null;
+  if (!linked) return; // row's Case selection changed/vanished between click and here
+
+  addCaseModalTriggerEl = document.activeElement;
+  addCaseModalRowIdx = rowIdx;
+  addCaseModalMode = "edit";
+  addCaseModalEditingCaseId = linked.id;
+  addCaseModalOpen = true;
+  addCaseModalSaving = false;
+  addCaseFormValues = {
+    caseType: linked.caseType || CASE_TYPES[0],
+    caseNo: linked.caseNo || "",
+    charge: linked.charge || "",
+    dateFiled: linked.dateFiled || "",
+  };
+  renderAddCaseModal();
+}
+
 function closeAddCaseModal() {
   addCaseModalOpen = false;
   addCaseModalRowIdx = null;
+  addCaseModalMode = "add";
+  addCaseModalEditingCaseId = null;
   addCaseModalSaving = false;
   renderAddCaseModal();
   // Phase 11 convention (see closePreview() above): return focus to
@@ -507,7 +558,7 @@ function closeAddCaseModal() {
   // The row's "+ Add Case" button is re-created on every renderCaseRows()
   // call, so this only holds if the button element itself is still the
   // exact node — falls through to the case-picker focus set by
-  // handleSaveNewCase() on success, or is simply skipped on Cancel where
+  // handleSaveCaseModal() on success, or is simply skipped on Cancel where
   // the button node is untouched.
   if (addCaseModalTriggerEl && document.body.contains(addCaseModalTriggerEl)) {
     addCaseModalTriggerEl.focus();
@@ -522,11 +573,13 @@ function renderAddCaseModal(focusFirstField = true) {
     return;
   }
 
+  const isEdit = addCaseModalMode === "edit";
+
   root.innerHTML = `
     <div class="preview-overlay" id="addCaseOverlay">
       <div class="preview-card" role="dialog" aria-modal="true" aria-labelledby="addCaseModalTitle">
         <button type="button" class="preview-close" id="addCaseCloseBtn" aria-label="Close">&times;</button>
-        <h2 class="preview-title" id="addCaseModalTitle">Add Case</h2>
+        <h2 class="preview-title" id="addCaseModalTitle">${isEdit ? "Edit Case" : "Add Case"}</h2>
 
         <div class="form-grid form-grid-2">
           <div class="field">
@@ -551,7 +604,9 @@ function renderAddCaseModal(focusFirstField = true) {
 
         <div class="form-actions">
           <button type="button" class="btn-secondary" id="addCaseCancelBtn" ${addCaseModalSaving ? "disabled" : ""}>Cancel</button>
-          <button type="button" class="btn-primary" id="addCaseSaveBtn" ${addCaseModalSaving ? "disabled" : ""}>${addCaseModalSaving ? "Saving\u2026" : "Save Case"}</button>
+          <button type="button" class="btn-primary" id="addCaseSaveBtn" ${addCaseModalSaving ? "disabled" : ""}>${
+            addCaseModalSaving ? "Saving\u2026" : isEdit ? "Save Changes" : "Save Case"
+          }</button>
         </div>
       </div>
     </div>
@@ -567,7 +622,7 @@ function renderAddCaseModal(focusFirstField = true) {
   document.getElementById("addCaseCancelBtn").addEventListener("click", () => {
     if (!addCaseModalSaving) closeAddCaseModal();
   });
-  document.getElementById("addCaseSaveBtn").addEventListener("click", handleSaveNewCase);
+  document.getElementById("addCaseSaveBtn").addEventListener("click", handleSaveCaseModal);
 
   const card = document.querySelector("#addCaseOverlay .preview-card");
   card.addEventListener("keydown", (e) => trapTabKey(card, e));
@@ -589,8 +644,18 @@ function newCaseLabel(data) {
   return `${data.caseType || ""}. ${data.caseNo || ""}`;
 }
 
-async function handleSaveNewCase() {
-  if (!can(currentRole, PERMISSIONS.CASES_CREATE) || addCaseModalRowIdx === null) return;
+// Handles Save for BOTH modes of the shared Add/Edit Case dialog. Reuses
+// the exact same saveCase() call, required-field rule, duplicate check,
+// and error-recovery shape as the original add-only save handler this
+// function replaces — the only branching is: which permission is
+// required, whether saveCase() is passed an id, whether the Activity Log
+// entry says Create vs. Edit, and how the in-memory caseRecords/row
+// state gets updated afterward.
+async function handleSaveCaseModal() {
+  const isEdit = addCaseModalMode === "edit";
+  const requiredPermission = isEdit ? PERMISSIONS.CASES_EDIT : PERMISSIONS.CASES_CREATE;
+  if (!can(currentRole, requiredPermission) || addCaseModalRowIdx === null) return;
+  if (isEdit && !addCaseModalEditingCaseId) return;
 
   showAddCaseMessage("");
 
@@ -602,7 +667,7 @@ async function handleSaveNewCase() {
   };
 
   // --- Required field validation — identical rule to cases.js's own
-  // Add Case form (only Case no. is required there too).
+  // Add/Edit Case form (only Case no. is required there too).
   if (!caseData.caseNo) {
     showAddCaseMessage("Please fill in: Case no.");
     return;
@@ -610,8 +675,12 @@ async function handleSaveNewCase() {
 
   // --- Duplicate case number warning — same confirm()-based UX as
   // cases.js's handleSave(), reading the same already-loaded caseRecords
-  // this form's own picker already uses, so no extra Firestore read.
-  if (isDuplicateCaseNo(caseData.caseType, caseData.caseNo)) {
+  // this form's own picker already uses, so no extra Firestore read. In
+  // edit mode, the Case being edited is excluded from its own duplicate
+  // check (same as cases.js's isDuplicateCaseNo(..., editingCaseId)) so
+  // saving a Case's other fields unchanged never flags it against
+  // itself; every other Case's number is still checked.
+  if (isDuplicateCaseNo(caseData.caseType, caseData.caseNo, isEdit ? addCaseModalEditingCaseId : undefined)) {
     const confirmed = confirm(
       `"${caseData.caseType}. ${caseData.caseNo}" already exists on another case. Save anyway?`
     );
@@ -619,53 +688,75 @@ async function handleSaveNewCase() {
   }
 
   const rowIdx = addCaseModalRowIdx;
+  const editingCaseId = addCaseModalEditingCaseId;
   addCaseModalSaving = true;
   addCaseFormValues = caseData;
   renderAddCaseModal(false);
 
   try {
-    const newCaseId = await saveCase(null, caseData);
+    // Same saveCase() call the Cases page itself uses: passing an
+    // existing id updates that Case in place (merge: true in
+    // cases-data.js), never creates a second Case, and never touches
+    // this row's linkedCaseId/the Hearing's linkedCaseId — only the
+    // Case's own editable fields change.
+    const savedCaseId = await saveCase(isEdit ? editingCaseId : null, caseData);
 
     // Not awaited: logging must never delay closing the dialog or block
     // the UI — identical fire-and-forget convention to every other
     // logActivity() call in this file and in cases.js's own handleSave().
+    // Exactly one Activity Log entry per save, same convention as
+    // cases.js: Create Case for a new Case, Edit Case for an update.
     logActivity({
-      action: "Create Case",
+      action: isEdit ? "Edit Case" : "Create Case",
       module: "Cases",
-      entityId: newCaseId,
+      entityId: savedCaseId,
       entityType: "case",
-      description: `Created case ${newCaseLabel(caseData)}`,
+      description: `${isEdit ? "Updated" : "Created"} case ${newCaseLabel(caseData)}`,
     });
 
-    // Make the new Case available immediately without waiting on the
-    // live subscribeToCaseRecords() listener (init(), below) to catch up
-    // — it will, and will then overwrite this with the authoritative
-    // record, but the picker/selection must not flicker or sit empty in
-    // the meantime. Guarded so a listener update that already arrived
-    // first doesn't get duplicated.
-    if (!caseRecords.some((c) => c.id === newCaseId)) {
-      caseRecords = [...caseRecords, { id: newCaseId, ...caseData }];
-    }
+    if (isEdit) {
+      // Update the in-memory record so the Hearing form (this row's
+      // read-only charge/date-filed summary, and the picker's own
+      // label) reflects the edit immediately, without waiting on the
+      // live subscribeToCaseRecords() listener to catch up. The row's
+      // linkedCaseId is untouched — it already points at this same id.
+      caseRecords = caseRecords.map((c) => (c.id === savedCaseId ? { ...c, ...caseData, id: savedCaseId } : c));
+    } else {
+      // Make the new Case available immediately without waiting on the
+      // live subscribeToCaseRecords() listener (init(), below) to catch
+      // up — it will, and will then overwrite this with the
+      // authoritative record, but the picker/selection must not flicker
+      // or sit empty in the meantime. Guarded so a listener update that
+      // already arrived first doesn't get duplicated.
+      if (!caseRecords.some((c) => c.id === savedCaseId)) {
+        caseRecords = [...caseRecords, { id: savedCaseId, ...caseData }];
+      }
 
-    // Link the new Case into the row that opened this dialog — in-memory
-    // only. The Hearing itself may not exist in Firestore yet (Add
-    // Hearing), so nothing here writes a hearingCases relationship; the
-    // existing Hearing save path (handleSave() above) does that exactly
-    // as it already does for any other picker selection, once the
-    // Hearing itself is saved. Other rows' linkedCaseId are untouched.
-    if (formCaseRows[rowIdx]) {
-      formCaseRows[rowIdx].linkedCaseId = newCaseId;
+      // Link the new Case into the row that opened this dialog — in-memory
+      // only. The Hearing itself may not exist in Firestore yet (Add
+      // Hearing), so nothing here writes a hearingCases relationship; the
+      // existing Hearing save path (handleSave() above) does that exactly
+      // as it already does for any other picker selection, once the
+      // Hearing itself is saved. Other rows' linkedCaseId are untouched.
+      if (formCaseRows[rowIdx]) {
+        formCaseRows[rowIdx].linkedCaseId = savedCaseId;
+      }
     }
 
     addCaseModalOpen = false;
     addCaseModalRowIdx = null;
+    addCaseModalMode = "add";
+    addCaseModalEditingCaseId = null;
     addCaseModalSaving = false;
     renderAddCaseModal();
     renderCaseRows();
 
-    // Return focus to the now-selected row's picker rather than the (now
-    // gone) "+ Add Case" button, so the Clerk lands somewhere meaningful
-    // and keyboard users aren't dropped back at the top of the page.
+    // Return focus to the row's picker — same target whether this was
+    // an Add (landing on the now-selected picker) or an Edit (the
+    // picker's option label has just been re-rendered with the updated
+    // Case info; the row's own now-recreated "Edit Case" button is a
+    // reasonable place too, but the picker is the one element guaranteed
+    // present in both modes).
     const picker = document.getElementById(`f_casePicker_${rowIdx}`);
     if (picker) picker.focus();
     addCaseModalTriggerEl = null;
@@ -674,9 +765,9 @@ async function handleSaveNewCase() {
     // existing Branch9 error style — same recovery shape as cases.js's
     // own handleSave() catch block. The Hearing form behind this dialog
     // is completely untouched by any of this, so nothing there is lost
-    // either. No relationship was written (setHearingCaseLink() is never
-    // reached unless saveCase() above already succeeded), so there is no
-    // partial link to clean up.
+    // either. No relationship was written/changed (setHearingCaseLink()
+    // is never reached from this dialog at all), so there is no partial
+    // link to clean up.
     addCaseModalSaving = false;
     renderAddCaseModal(false);
     showAddCaseMessage(`Could not save: ${err.message}`);
@@ -716,7 +807,11 @@ function caseRowHtml(row, idx) {
               .join("")}
           </select>
           ${
-            can(currentRole, PERMISSIONS.CASES_CREATE)
+            linked
+              ? can(currentRole, PERMISSIONS.CASES_EDIT)
+                ? `<button type="button" class="btn-small" data-edit-case="${idx}">Edit Case</button>`
+                : ""
+              : can(currentRole, PERMISSIONS.CASES_CREATE)
               ? `<button type="button" class="btn-small" data-add-case="${idx}">+ Add Case</button>`
               : ""
           }
@@ -763,6 +858,12 @@ function renderCaseRows() {
     btn.addEventListener("click", () => {
       syncCaseRowsFromDom();
       openAddCaseModal(parseInt(btn.dataset.addCase, 10));
+    });
+  });
+  mount.querySelectorAll("[data-edit-case]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncCaseRowsFromDom();
+      openEditCaseModal(parseInt(btn.dataset.editCase, 10));
     });
   });
 }
