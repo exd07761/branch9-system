@@ -462,6 +462,30 @@ function buildSectionTable(items) {
 
   return new docx.Table({
     width: { size: TABLE_WIDTH_DXA, type: docx.WidthType.DXA },
+    // ROOT CAUSE of the "extremely tall TRIAL rows" bug: without an
+    // explicit columnWidths array here, docx.js defaults <w:tblGrid> to
+    // a placeholder 100 DXA per column (confirmed by inspecting the
+    // actual generated XML: docx's own Table constructor literally does
+    // `columnWidths = Array(...).fill(100)` when none is passed) — a
+    // grid totaling ~500 DXA, wildly inconsistent with the real ~10451
+    // DXA of per-cell tcW widths each TableCell already declares
+    // correctly. Every table built here had this mismatch, not just
+    // TRIAL's. LibreOffice tolerates it (it recovers the real widths
+    // from each cell's own tcW and silently ignores the wrong grid), so
+    // it didn't show up in this project's LibreOffice-based rendering
+    // checks — but Word, especially under the tblLayout="fixed" set
+    // below, is expected to treat <w:tblGrid> as the authoritative
+    // column-boundary map. A grid collapsed to ~100 DXA per column would
+    // make Word lay out cell content against an effectively tiny column
+    // width regardless of tcW, forcing even short text (like a Trial
+    // row's brief "Case No. 761 / Presentation of Prosecution's
+    // Evidence") to wrap character-by-character into a very tall row —
+    // matching the reported symptom exactly (short content, huge row),
+    // and matching why it reads as most dramatic on Trial specifically:
+    // Trial rows have the shortest natural content of any section here,
+    // so the collapse is the most visually obvious there, even though
+    // the same wrong grid was being generated for every section's table.
+    columnWidths: [COLUMN_WIDTHS.num, COLUMN_WIDTHS.details, COLUMN_WIDTHS.title, COLUMN_WIDTHS.charge, COLUMN_WIDTHS.counsel],
     alignment: docx.AlignmentType.CENTER,
     borders: {
       top: { style: docx.BorderStyle.SINGLE, size: 4, color: BLACK },
