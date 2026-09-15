@@ -346,14 +346,31 @@ function buildHearingTitleParas(hearing) {
  * above: counselForPeople/counselForAccused are Hearing-level fields with
  * no per-Case equivalent, so this is built once per hearing and reused
  * on every Case row under it.
+ *
+ * lawyerForPeople/lawyerForAccused (optional Hearing-level fields — see
+ * hearings.js's form/handleSave()) supplement, rather than replace, the
+ * existing counsel value: a counsel value is often a public office (e.g.
+ * "Public Prosecutor (OPP)", "PAO Lawyer") and the lawyer field records
+ * the specific named lawyer appearing for that office, if known. No new
+ * "Lawyer:" label is added — the existing italic "for the People"/"for
+ * the Accused" caption already tells the reader which side each name
+ * belongs to, and each optional line is simply omitted when blank (never
+ * an empty paragraph), matching every other optional field on this
+ * column/row (see buildHearingTitleParas()'s detentionStatus/victims and
+ * buildCaseDetailsParas()'s previousSetting/dateFiled below).
  */
 function buildHearingCounselParas(hearing) {
-  return [
-    new docx.Paragraph({ children: [run(hearing.counselForPeople, { size: 20 })], spacing: { after: 20 } }),
-    new docx.Paragraph({ children: [run("for the People", { italics: true, size: 18 })], spacing: { after: 100 } }),
-    new docx.Paragraph({ children: [run(hearing.counselForAccused, { size: 20 })], spacing: { after: 20 } }),
-    new docx.Paragraph({ children: [run("for the Accused", { italics: true, size: 18 })] }),
-  ];
+  const paras = [new docx.Paragraph({ children: [run(hearing.counselForPeople, { size: 20 })], spacing: { after: 20 } })];
+  if (hearing.lawyerForPeople) {
+    paras.push(new docx.Paragraph({ children: [run(hearing.lawyerForPeople, { size: 20 })], spacing: { after: 20 } }));
+  }
+  paras.push(new docx.Paragraph({ children: [run("for the People", { italics: true, size: 18 })], spacing: { after: 100 } }));
+  paras.push(new docx.Paragraph({ children: [run(hearing.counselForAccused, { size: 20 })], spacing: { after: 20 } }));
+  if (hearing.lawyerForAccused) {
+    paras.push(new docx.Paragraph({ children: [run(hearing.lawyerForAccused, { size: 20 })], spacing: { after: 20 } }));
+  }
+  paras.push(new docx.Paragraph({ children: [run("for the Accused", { italics: true, size: 18 })] }));
+  return paras;
 }
 
 /**

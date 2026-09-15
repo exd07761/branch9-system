@@ -396,6 +396,16 @@ function previewField(label, value) {
   return `<div class="preview-field"><span class="preview-field-label">${esc(label)}</span><span class="preview-field-value${v ? "" : " muted"}">${v ? esc(v) : "Not set"}</span></div>`;
 }
 
+// Optional companion field (e.g. lawyerForPeople/lawyerForAccused): unlike
+// previewField() above, renders nothing at all when empty rather than a
+// "Not set" row — these fields are genuinely optional (most hearings are
+// handled by a public office with no separate named lawyer to show).
+function previewFieldOptional(label, value) {
+  const v = (value || "").toString().trim();
+  if (!v) return "";
+  return `<div class="preview-field"><span class="preview-field-label">${esc(label)}</span><span class="preview-field-value">${esc(v)}</span></div>`;
+}
+
 function openPreview(hearingId) {
   previewTriggerEl = document.activeElement;
   previewHearingId = hearingId;
@@ -445,7 +455,9 @@ function renderPreview() {
           ${previewField("Victim(s)", (h.victims || []).join(", "))}
           ${previewField("Detention / Bond Status", h.detentionStatus)}
           ${previewField("Counsel for the People", h.counselForPeople)}
+          ${previewFieldOptional("Lawyer", h.lawyerForPeople)}
           ${previewField("Counsel for the Accused", h.counselForAccused)}
+          ${previewFieldOptional("Lawyer", h.lawyerForAccused)}
         </div>
         <div class="preview-notes">${previewField("Notes", h.notes)}</div>
 
@@ -925,8 +937,16 @@ function renderForm() {
           <input type="text" id="f_counselForPeople" value="${esc(h.counselForPeople)}">
         </div>
         <div class="field">
+          <label for="f_lawyerForPeople">Lawyer for the People</label>
+          <input type="text" id="f_lawyerForPeople" value="${esc(h.lawyerForPeople)}" placeholder="Optional — named lawyer, if any">
+        </div>
+        <div class="field">
           <label for="f_counselForAccused">Counsel for the Accused</label>
           <input type="text" id="f_counselForAccused" value="${esc(h.counselForAccused)}">
+        </div>
+        <div class="field">
+          <label for="f_lawyerForAccused">Lawyer for the Accused</label>
+          <input type="text" id="f_lawyerForAccused" value="${esc(h.lawyerForAccused)}" placeholder="Optional — named lawyer, if any">
         </div>
         <div class="field">
           <label for="f_hearingDate">Hearing date <span class="required">*</span></label>
@@ -1066,7 +1086,9 @@ async function handleSave() {
     victims: document.getElementById("f_victims").value.split(",").map((s) => s.trim()).filter(Boolean),
     detentionStatus: document.getElementById("f_detentionStatus").value.trim(),
     counselForPeople: document.getElementById("f_counselForPeople").value.trim(),
+    lawyerForPeople: document.getElementById("f_lawyerForPeople").value.trim(),
     counselForAccused: document.getElementById("f_counselForAccused").value.trim(),
+    lawyerForAccused: document.getElementById("f_lawyerForAccused").value.trim(),
     notes: document.getElementById("f_notes").value.trim(),
     hearingDate: document.getElementById("f_hearingDate").value,
     hearingTime: document.getElementById("f_hearingTime").value,
