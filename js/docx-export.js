@@ -99,23 +99,66 @@ function run(text, opts = {}) {
   return new docx.TextRun({ text: esc(text), font: FONT, color: BLACK, ...opts });
 }
 
-function centeredPara(children, opts = {}) {
-  return new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children, ...opts });
+// Shared parser for the fixed HEARING_TIMES option strings from
+// hearings.js (e.g. "1:30 in the Afternoon"). Returns { time: "1:30",
+// suffix: "AM"|"PM" } on a match, or null if the value doesn't match the
+// expected "<time> in the <Morning/Afternoon/Evening>" shape (schema
+// drift, blank, free text, etc.) — callers fall back to showing the raw
+// value rather than silently dropping it.
+function parseHearingTimeOfDay(hearingTime) {
+  if (!hearingTime) return null;
+  const m = /^(\d{1,2}:\d{2})\s+in\s+the\s+(Morning|Afternoon|Evening)$/i.exec(hearingTime.trim());
+  if (!m) return null;
+  return { time: m[1], suffix: /morning/i.test(m[2]) ? "AM" : "PM" };
 }
 
-// Formats hearing.hearingTime (one of the fixed HEARING_TIMES option
-// strings from hearings.js, e.g. "1:30 in the Afternoon") into the
-// reference document's "At 1:30PM" wording. No new data field — this is
-// purely a display transform of the existing hearingTime string. If a
-// hearingTime value doesn't match the expected "<time> in the
-// <Morning/Afternoon/Evening>" shape (schema drift, blank, etc.), the raw
-// value is still shown rather than silently dropped.
+// Formats hearing.hearingTime into the reference document's "At 1:30PM"
+// wording (no space before AM/PM) — used only for the standalone,
+// centered hearing-time row beneath a section's table. No new data
+// field — this is purely a display transform of the existing
+// hearingTime string.
 function formatHearingTimeLabel(hearingTime) {
   if (!hearingTime) return "";
-  const m = /^(\d{1,2}:\d{2})\s+in\s+the\s+(Morning|Afternoon|Evening)$/i.exec(hearingTime.trim());
-  if (!m) return `At ${hearingTime}`;
-  const suffix = /morning/i.test(m[2]) ? "AM" : "PM";
-  return `At ${m[1]}${suffix}`;
+  const parsed = parseHearingTimeOfDay(hearingTime);
+  if (!parsed) return `At ${hearingTime}`;
+  return `At ${parsed.time}${parsed.suffix}`;
+}
+
+// Formats a HEARING_TIMES-shaped string into plain "1:30 AM" wording
+// (WITH a space before AM/PM, no "At " prefix) — deliberately a
+// different format from formatHearingTimeLabel() above: that one
+// produces a standalone centered annotation ("At 1:30PM"), this one is
+// inline body text read as part of a sentence ("...on October 21, 2026
+// at 1:30 AM" — see formatPreviousSetting() below). Keeping these as two
+// small functions instead of one shared/parameterized one on purpose:
+// the "At 1:30PM" row format was pinned against the physical reference
+// document in an earlier revision, and this avoids any chance of a
+// future edit to one accidentally changing the other's output.
+function formatTimeOfDay12h(hearingTime) {
+  if (!hearingTime) return "";
+  const parsed = parseHearingTimeOfDay(hearingTime);
+  if (!parsed) return hearingTime;
+  return `${parsed.time} ${parsed.suffix}`;
+}
+
+// Formats hearing.previousSetting — { date: "YYYY-MM-DD", time: one of
+// HEARING_TIMES } as saved by hearings.js's form, either part optional —
+// into the physical template's "October 21, 2026 at 8:30 AM" wording.
+// Returns "" when there's nothing to show (previousSetting missing/null,
+// or both date and time blank) so callers can skip rendering entirely
+// rather than show an empty "Previous setting:" block. Never invents a
+// date or time that wasn't actually saved: date-only and time-only are
+// each rendered as just that piece, not padded with guessed data.
+function formatPreviousSetting(previousSetting) {
+  if (!previousSetting) return "";
+  const datePart = fmtLongDate(previousSetting.date);
+  const timePart = formatTimeOfDay12h(previousSetting.time);
+  if (datePart && timePart) return `${datePart} at ${timePart}`;
+  return datePart || timePart || "";
+}
+
+function centeredPara(children, opts = {}) {
+  return new docx.Paragraph({ alignment: docx.AlignmentType.CENTER, children, ...opts });
 }
 
 // The distinct, formatted hearing-time labels present among a section's
@@ -369,6 +412,27 @@ function buildCaseDetailsParas(hearing, caseOrNull) {
     detailsParas.push(
       new docx.Paragraph({ children: [run(`Date filed: ${fmtLongDate(caseOrNull.dateFiled)}`, { size: 20 })] })
     );
+  }
+  // Previous Setting — Hearing-level (see hearings.js's form and
+  // hearings-data.js's saveHearing(): previousSetting lives on the
+  // Hearing document, not on the Case/hearingCases row, since the same
+  // Case can have multiple Hearings and a previous setting belongs to
+  // one particular hearing being recorded). Rendered last in this cell,
+  // per the physical reference template. Repeated identically on every
+  // Case row under this hearing, same as the status line above and the
+  // Title/Counsel columns — this file has no cell-merging mechanism for
+  // shared hearing-level content (confirmed by inspection: the physical
+  // reference document itself repeats shared hearing info per Case row
+  // rather than merging cells), so repeating here is the existing,
+  // established, correct behavior, not new duplication. Renders nothing
+  // if the hearing has no previousSetting (or its date/time are both
+  // blank) — never invents a value.
+  const previousSettingText = formatPreviousSetting(hearing.previousSetting);
+  if (previousSettingText) {
+    detailsParas.push(
+      new docx.Paragraph({ children: [run("Previous setting:", { italics: true, size: 20 })], spacing: { before: 60 } })
+    );
+    detailsParas.push(new docx.Paragraph({ children: [run(previousSettingText, { size: 20 })] }));
   }
   return detailsParas;
 }

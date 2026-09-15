@@ -135,6 +135,19 @@ function fmtDate(iso) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Preview-panel display string for h.previousSetting, in the same style
+// as this file's existing separate "Hearing Date" (fmtDate) / "Hearing
+// Time" (shown raw, untransformed) preview lines, just combined into
+// one line since previousSetting is one field. "" when nothing is set,
+// so previewField() shows its normal "Not set" styling.
+function formatPreviousSettingPreview(previousSetting) {
+  if (!previousSetting) return "";
+  const datePart = previousSetting.date ? fmtDate(previousSetting.date) : "";
+  const timePart = previousSetting.time || "";
+  if (datePart && timePart) return `${datePart} at ${timePart}`;
+  return datePart || timePart;
+}
+
 // "YYYY-MM-DD" for a JS Date — only needed for Activity Log entityId/
 // description text on the week/month export logging below, not for any
 // rendered UI on this page. Same shape as home.js's todayDateStr().
@@ -426,6 +439,7 @@ function renderPreview() {
           ${previewField("Status", h.status)}
           ${previewField("Hearing Date", h.hearingDate ? fmtDate(h.hearingDate) : "")}
           ${previewField("Hearing Time", h.hearingTime)}
+          ${previewField("Previous Setting", formatPreviousSettingPreview(h.previousSetting))}
           ${previewField("Plaintiff", h.plaintiff)}
           ${previewField("Accused", (h.accused || []).join(", "))}
           ${previewField("Victim(s)", (h.victims || []).join(", "))}
@@ -925,6 +939,17 @@ function renderForm() {
             ${optionsHtml(HEARING_TIMES, h.hearingTime)}
           </select>
         </div>
+        <div class="field">
+          <label for="f_previousSettingDate">Previous setting date</label>
+          <input type="date" id="f_previousSettingDate" value="${(h.previousSetting && h.previousSetting.date) || ""}">
+        </div>
+        <div class="field">
+          <label for="f_previousSettingTime">Previous setting time</label>
+          <select id="f_previousSettingTime">
+            <option value="">Not set</option>
+            ${optionsHtml(HEARING_TIMES, h.previousSetting && h.previousSetting.time)}
+          </select>
+        </div>
         <div class="field field-full">
           <label for="f_notes">Notes / Remarks</label>
           <textarea id="f_notes" placeholder="Optional — for human reference only; not used in status, reports, or search">${esc(h.notes)}</textarea>
@@ -1014,6 +1039,25 @@ async function handleSave() {
   syncCaseRowsFromDom();
   showFormMessage("");
 
+  // Previous Setting: Hearing-level, not Case-level (a Case can have
+  // multiple Hearings; the previous setting belongs to this particular
+  // hearing/setting being recorded — see docx-export.js's
+  // buildCaseDetailsParas() for the same rationale on the export side).
+  // Stored as one field, an object mirroring the existing hearingDate/
+  // hearingTime split (same "YYYY-MM-DD" date-input value, same
+  // HEARING_TIMES option strings) so the DOCX export can reuse the exact
+  // same date/time formatting helpers already used for hearingTime.
+  // Optional: if the Clerk leaves (or clears) both inputs, this saves as
+  // null — the established "not set" representation other optional
+  // Hearing fields (e.g. detentionStatus's "") already use the empty
+  // form of their own type; null here plays that same role for an
+  // object-shaped field, and old hearings with no previousSetting field
+  // at all read back the same way (undefined and null both fail the
+  // truthiness check callers use).
+  const previousSettingDate = document.getElementById("f_previousSettingDate").value;
+  const previousSettingTime = document.getElementById("f_previousSettingTime").value;
+  const previousSetting = previousSettingDate || previousSettingTime ? { date: previousSettingDate, time: previousSettingTime } : null;
+
   const hearingData = {
     section: document.getElementById("f_section").value,
     status: document.getElementById("f_status").value,
@@ -1026,6 +1070,7 @@ async function handleSave() {
     notes: document.getElementById("f_notes").value.trim(),
     hearingDate: document.getElementById("f_hearingDate").value,
     hearingTime: document.getElementById("f_hearingTime").value,
+    previousSetting,
   };
 
   // --- Required field validation ---
